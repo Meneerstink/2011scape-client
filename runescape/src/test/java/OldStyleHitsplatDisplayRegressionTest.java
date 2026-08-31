@@ -15,6 +15,21 @@ public final class OldStyleHitsplatDisplayRegressionTest {
         OldStyleHitsplatDisplay.value(raw);
         check(raw == 200, "display conversion must not mutate raw damage");
 
+        check(OldStyleStatDisplay.value(OldStyleStatDisplay.HITPOINTS, 990) == 99,
+                "990 hitpoints must render as 99");
+        check(OldStyleStatDisplay.value(OldStyleStatDisplay.PRAYER, 990) == 99,
+                "990 prayer points must render as 99");
+        check(OldStyleStatDisplay.value(OldStyleStatDisplay.HITPOINTS, 500) == 50,
+                "500 hitpoints must render as 50");
+        check(OldStyleStatDisplay.value(OldStyleStatDisplay.PRAYER, 1) == 1,
+                "positive prayer must remain visible");
+        check(OldStyleStatDisplay.value(0, 99) == 99,
+                "attack and other skills must remain unchanged");
+
+        int rawPrayer = 990;
+        OldStyleStatDisplay.value(OldStyleStatDisplay.PRAYER, rawPrayer);
+        check(rawPrayer == 990, "display conversion must not mutate raw prayer");
+
         System.out.println("Old-style hitsplat display regression passed: " + checks + " checks");
     }
 

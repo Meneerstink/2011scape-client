@@ -45,7 +45,9 @@ Owner live acceptance:
 - Hitsplat damage and soak text now use the pre-Constitution visual scale (`200` renders as `20`).
 - Positive values below ten remain visible as `1`; zero and negative sentinels are preserved.
 - Scaling exists only at the final `OverlayManager` text-formatting boundary. Packet decode, stored hit amounts, HP, XP and combat calculations are unchanged.
-- Regression task: `:runescape:oldStyleHitsplatRegression` — 8 boundary and isolation checks.
+- HP and Prayer interface reads now use the same visible scale (`990` renders as `99`); all other skills remain unchanged.
+- The stat conversion is limited to the client-script display read. Stored levels, drain, restoration and server mechanics remain unchanged.
+- Regression task: `:runescape:oldStyleHitsplatRegression` — 14 boundary and isolation checks.
 
 Owner live acceptance:
 
@@ -53,6 +55,8 @@ Owner live acceptance:
 2. Confirm small positive hits never become a false zero/miss.
 3. Confirm damage, remaining HP, XP drops and kill timing are unchanged.
 4. Confirm soak/absorb text uses the same visual scale.
+5. Confirm HP and Prayer orbs show `99`, not `990`, at their 990 raw maximum.
+6. Confirm HP/Prayer drain and restoration still use the original server timing and values.
 
 ## Next batch
 

@@ -58,7 +58,7 @@ val cameraZoomRegression by tasks.registering(JavaExec::class) {
 
 val oldStyleHitsplatRegression by tasks.registering(JavaExec::class) {
     group = "verification"
-    description = "Checks old-style hitsplat display scaling without changing raw combat values"
+    description = "Checks old-style hitsplat, hitpoints and prayer display scaling"
     dependsOn(tasks.testClasses)
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass.set("OldStyleHitsplatDisplayRegressionTest")

@@ -2828,7 +2828,7 @@ public final class ScriptRunner {
 
             if (op == STAT) {
                 @Pc(15) int skill = intStack[--intStackPointer];
-                intStack[intStackPointer++] = Static581.statLevels[skill];
+            intStack[intStackPointer++] = OldStyleStatDisplay.value(skill, Static581.statLevels[skill]);
                 return;
             }
 
