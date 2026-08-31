@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Local preset version; deliberately independent of the server's preference packet version. */
 public final class RspsGraphicsProfile {
     public static final String NAME = "RSPS Performance";
-    public static final int VERSION = 2;
+    public static final int VERSION = 3;
     private static final AtomicBoolean restoreRequested = new AtomicBoolean();
 
     private RspsGraphicsProfile() { }
@@ -28,12 +28,12 @@ public final class RspsGraphicsProfile {
         // still needs to be off before first-start hardware selection happens.
         options.skydetail.setValue(0);
         options.idleAnimations.setSafeValue(0); // Few, verified against the in-game dropdown.
-        // Preserve home scenery and combat effects: this is not the engine's MIN preset.
-        options.groundDecor.setSafeValue(1);
-        options.groundBlending.setSafeValue(1);
-        options.textures.setSafeValue(1);
-        options.flickeringEffects.setSafeValue(1);
-        options.particles.setSafeValue(options.environment.getHeapSize() < 96 ? 0 : 1);
+        // Lowest fresh-client profile: disable optional scenery and combat effects for weak hardware.
+        options.groundDecor.setSafeValue(0);
+        options.groundBlending.setSafeValue(0);
+        options.textures.setSafeValue(0);
+        options.flickeringEffects.setSafeValue(0);
+        options.particles.setSafeValue(0);
         options.cpuUsage.setSafeValue(options.environment.cpuCount() > 1 ? 4 : 2);
         options.graphicsQuality.setSafeValue(0); // CUSTOM, not a falsely labelled built-in preset.
         options.validate();

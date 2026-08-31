@@ -24,7 +24,7 @@ public final class ScreenSizeOption extends Option {
     @OriginalMember(owner = "client!cc", name = "a", descriptor = "(I)I")
     @Override
     protected int getDefaultValue() {
-        return super.options.getEnvironment().isArmCpu() ? 3 : 2;
+        return 1; // Fixed mode is the low-overhead default for fresh/corrupt preferences.
     }
 
     @OriginalMember(owner = "client!cc", name = "a", descriptor = "(Z)I")

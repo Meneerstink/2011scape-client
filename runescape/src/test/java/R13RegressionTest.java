@@ -174,8 +174,8 @@ public final class R13RegressionTest {
         check(options.removeRoofs.getValue() == 1 && options.removeRoofsOverride.getValue() == 1, "Roofs always hidden");
         check(options.hardShadows.getValue() == 0 && options.spotShadows.getValue() == 0, "Expensive shadows off");
         check(options.skydetail.getValue() == 0 && options.bloom.getValue() == 0, "Sky and bloom off before hardware startup");
-        check(options.groundDecor.getValue() == 1 && options.textures.getValue() == 1, "Home scenery preserved");
-        check(options.flickeringEffects.getValue() == 1 && options.particles.getValue() == 1, "Combat effects retained");
+        check(options.groundDecor.getValue() == 0 && options.textures.getValue() == 0, "Optional scenery disabled");
+        check(options.flickeringEffects.getValue() == 0 && options.particles.getValue() == 0, "Optional effects disabled");
     }
     private static byte[] omit(byte[] bytes, int index) {
         byte[] result = new byte[bytes.length - 1];
