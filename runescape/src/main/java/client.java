@@ -1105,9 +1105,7 @@ public final class client extends GameShell {
             Client.cacheDat = null;
         }
 
-        if (ModeWhere.LIVE != Client.modeWhere) {
-            Client.displayFps = true;
-        }
+        DebugOverlayController.resetForStartup();
 
         GameShell.loadingTitle = LocalisedText.LOADING.localise(Client.language);
     }

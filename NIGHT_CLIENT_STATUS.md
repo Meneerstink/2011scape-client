@@ -69,4 +69,21 @@ Owner live acceptance:
 
 ## Next batch
 
-Graphics/performance and FPS/memory debug-overlay defaults, persistence and explicit toggle.
+### Graphics/performance and debug overlay
+
+- Removed the non-live startup path that unconditionally enabled the FPS/memory/network/cache overlay on every launch.
+- Every process now starts with both FPS and profiling overlays off. `displayfps`, `fpson` and `fpsoff` remain the explicit controls; disabling FPS also clears profiling so the complete overlay disappears.
+- Audited the current version-3 performance profile: fresh/corrupt preferences use fixed/lowest defaults with roofs, AA, bloom, shadows, lighting, advanced water, sky, fog, optional scenery, textures, flicker, particles and excessive idle animations disabled. Valid saved preferences remain user-controlled.
+- Regression task: `:runescape:debugOverlayRegression` — 8 startup/toggle checks. Existing `:runescape:r13Regression` continues to cover 120 preference, corruption, persistence, renderer and low-profile checks.
+
+Owner live acceptance:
+
+1. Start a fresh local client: FPS/memory/network/cache text must be absent.
+2. Run `displayfps` once: the overlay appears; run it again: the entire overlay disappears.
+3. Confirm `fpson`/`fpsoff` behave identically and a client restart always begins with it off.
+4. Switch fixed, resizable and fullscreen; overlay state and valid graphics preferences must not be silently rewritten.
+5. Corrupt/missing preferences must recover to fixed lowest settings; an existing valid profile must remain unchanged.
+
+## Next batch
+
+Isolated revision-667 home map/cache pipeline and `NIGHT_HOME_HANDOFF.md`.

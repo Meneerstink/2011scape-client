@@ -201,8 +201,7 @@ public final class debugconsole {
                 return;
             }
             if (command.equalsIgnoreCase("displayfps")) {
-                Client.displayFps = !Client.displayFps;
-                if (!Client.displayFps) {
+            if (!DebugOverlayController.toggleFps()) {
                     addline("FPS off");
                     return;
                 }
@@ -258,12 +257,12 @@ public final class debugconsole {
                     }
                 }
                 if (command.equalsIgnoreCase("fpson")) {
-                    Client.displayFps = true;
+            DebugOverlayController.setFps(true);
                     addline("fps debug enabled");
                     return;
                 }
                 if (command.equalsIgnoreCase("fpsoff")) {
-                    Client.displayFps = false;
+            DebugOverlayController.setFps(false);
                     addline("fps debug disabled");
                     return;
                 }

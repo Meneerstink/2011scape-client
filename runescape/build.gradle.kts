@@ -68,4 +68,18 @@ val oldStyleHitsplatRegression by tasks.registering(JavaExec::class) {
     })
 }
 
-tasks.check { dependsOn(r13Regression, audioSettingsRegression, cameraZoomRegression, oldStyleHitsplatRegression) }
+val debugOverlayRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks debug overlay startup defaults and explicit toggle behavior"
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("DebugOverlayRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    })
+}
+
+tasks.check {
+    dependsOn(r13Regression, audioSettingsRegression, cameraZoomRegression, oldStyleHitsplatRegression, debugOverlayRegression)
+}
