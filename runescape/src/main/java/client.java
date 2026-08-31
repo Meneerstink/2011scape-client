@@ -912,6 +912,7 @@ public final class client extends GameShell {
             return;
         }
 
+        RspsGraphicsProfile.processPendingRestore();
         TimeUtils.clock++;
 
         if ((TimeUtils.clock % 1000) == 1) {

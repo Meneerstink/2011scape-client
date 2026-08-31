@@ -25,3 +25,15 @@ application {
 tasks.run.configure {
     args = listOf("1", "1000", "local", "live", "english", "game0")
 }
+
+val r13Regression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks graphics preferences and renderer fallback without a game server or display."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("R13RegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
+tasks.check { dependsOn(r13Regression) }

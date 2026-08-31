@@ -24,7 +24,7 @@ public final class VolumeOption extends Option {
     @OriginalMember(owner = "client!rba", name = "a", descriptor = "(B)V")
     @Override
     public void validate() {
-        if (super.value < 0 && super.value > 127) {
+        if (super.value < 0 || super.value > 127) {
             super.value = this.getDefaultValue();
         }
     }

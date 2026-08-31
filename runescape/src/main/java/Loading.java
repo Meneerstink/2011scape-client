@@ -592,6 +592,14 @@ public final class Loading {
             ClientOptions.instance.update(1, ClientOptions.instance.safeMode);
             if (Static3.chooseSafeMode) {
                 ClientOptions.instance.update(0, ClientOptions.instance.toolkitDefault);
+            } else if (ClientOptions.instance.needsDefaultRenderer) {
+                int defaultRenderer = GraphicsRendererPolicy.defaultRenderer(
+                        ClientOptions.instance.environment.isSigned(),
+                        rs2.client.loading.library.LibraryManager.isLoaded("jaggl"),
+                        com.jagex.sign.SignLink.osNameLower.startsWith("win")
+                                && rs2.client.loading.library.LibraryManager.isLoaded("jagdx"));
+                ClientOptions.instance.update(defaultRenderer, ClientOptions.instance.toolkitDefault);
+                ClientOptions.instance.needsDefaultRenderer = false;
             } else if (ClientOptions.instance.toolkitDefault.dflt && SystemInfo.instance.totalMemory < 512 && SystemInfo.instance.totalMemory != 0) {
                 ClientOptions.instance.update(0, ClientOptions.instance.toolkitDefault);
             }

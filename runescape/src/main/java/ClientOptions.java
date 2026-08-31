@@ -15,9 +15,15 @@ import org.openrs2.deob.annotation.OriginalMember;
 import org.openrs2.deob.annotation.Pc;
 
 import java.lang.reflect.Field;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Arrays;
 
 @OriginalClass("client!kv")
 public final class ClientOptions extends Node {
+
+    boolean needsDefaultRenderer;
+    private static boolean saveWarningReported;
 
     // $FF: synthetic field
     @OriginalMember(owner = "client!kv", name = "y", descriptor = "Ljava/lang/Class;")
@@ -159,18 +165,25 @@ public final class ClientOptions extends Node {
 
     @OriginalMember(owner = "client!kv", name = "<init>", descriptor = "(Lclient!ul;I)V")
     public ClientOptions(@OriginalArg(0) ModeGame game, @OriginalArg(1) int toolkit) {
-        this.game = game;
-        this.environment = new EnvironmentContext(GameShell.signLink.signed, GameShell.maxmemory, GameShell.cpucount, SignLink.osArchRaw.toLowerCase().indexOf("arm") != -1);
-        this.toolkit = new ToolkitOption(toolkit, this);
-        this.loadDefaults(true);
+        this(null, game, toolkit, currentEnvironment());
     }
 
     @OriginalMember(owner = "client!kv", name = "<init>", descriptor = "(Lclient!ge;Lclient!ul;I)V")
     public ClientOptions(@OriginalArg(0) Packet packet, @OriginalArg(1) ModeGame game, @OriginalArg(2) int toolkit) {
+        this(packet, game, toolkit, currentEnvironment());
+    }
+
+    ClientOptions(Packet packet, ModeGame game, int toolkit, EnvironmentContext environment) {
         this.game = game;
-        this.environment = new EnvironmentContext(GameShell.signLink.signed, GameShell.maxmemory, GameShell.cpucount, SignLink.osArchRaw.indexOf("arm") != -1);
+        this.environment = environment;
         this.toolkit = new ToolkitOption(toolkit, this);
         this.decode(packet);
+    }
+
+    private static EnvironmentContext currentEnvironment() {
+        String arch = SignLink.osArchRaw.toLowerCase(java.util.Locale.ROOT);
+        return new EnvironmentContext(GameShell.signLink.signed, GameShell.maxmemory,
+                GameShell.cpucount, arch.contains("arm") || arch.contains("aarch"));
     }
 
     @OriginalMember(owner = "client!vba", name = "h", descriptor = "(I)V")
@@ -184,11 +197,22 @@ public final class ClientOptions extends Node {
 
             if (resource.status == SignedResourceStatus.SUCCESS) {
                 file = (FileOnDisk) resource.result;
+                if (file == null) throw new IOException("Preferences unavailable");
                 @Pc(41) Packet packet = instance.encode();
-                file.write(packet.data, 0, packet.pos);
+                Path target = file.source().toPath();
+                file.close(); // Windows cannot replace an open destination.
+                file = null;
+                ClientPreferencesIO.write(target, Arrays.copyOf(packet.data, packet.pos));
+                saveWarningReported = false;
+            } else {
+                throw new IOException("Preferences unavailable");
             }
-        } catch (@Pc(51) Exception ignored) {
-            /* empty */
+        } catch (@Pc(51) Exception failure) {
+            if (!saveWarningReported) {
+                System.err.println("Unable to save client preferences ("
+                        + failure.getClass().getSimpleName() + "); current settings remain active.");
+                saveWarningReported = true;
+            }
         }
 
         try {
@@ -215,10 +239,21 @@ public final class ClientOptions extends Node {
 
     @OriginalMember(owner = "client!kv", name = "a", descriptor = "(Lclient!ge;Z)V")
     public void decode(@OriginalArg(0) Packet packet) {
-        if (packet == null || packet.data == null) {
+        try {
+            decodeValues(packet);
+        } catch (RuntimeException invalidPreferences) {
+            // A partial modern packet must not leave a mix of saved and default fields.
+            this.loadDefaults(true);
+        }
+        this.validate();
+    }
+
+    private void decodeValues(Packet packet) {
+        if (packet == null || packet.data == null || packet.pos >= packet.data.length) {
             this.loadDefaults(true);
         } else {
             @Pc(24) int version = packet.g1();
+            this.needsDefaultRenderer = false;
 
             if (version < 23) {
                 try {
@@ -399,6 +434,10 @@ public final class ClientOptions extends Node {
         }
         if (all || this.stereoSound == null) {
             this.stereoSound = new StereoSoundOption(this);
+        }
+        if (all) {
+            this.needsDefaultRenderer = true;
+            RspsGraphicsProfile.apply(this);
         }
     }
 

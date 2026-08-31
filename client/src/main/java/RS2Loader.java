@@ -97,6 +97,14 @@ public final class RS2Loader implements AppletStub {
 
         var frame = new Frame("2011Scape");
         frame.setIconImages(images);
+        var menuBar = new java.awt.MenuBar();
+        var graphicsMenu = new java.awt.Menu("Graphics");
+        var restoreGraphics = new java.awt.MenuItem("Restore " + RspsGraphicsProfile.NAME
+                + " v" + RspsGraphicsProfile.VERSION + " defaults");
+        restoreGraphics.addActionListener(event -> RspsGraphicsProfile.requestRestore());
+        graphicsMenu.add(restoreGraphics);
+        menuBar.add(graphicsMenu);
+        frame.setMenuBar(menuBar);
 
         frame.add(applet);
         frame.addWindowListener(new CloseWindowListener());

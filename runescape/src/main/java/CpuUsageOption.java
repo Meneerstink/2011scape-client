@@ -24,7 +24,7 @@ public final class CpuUsageOption extends Option {
     @OriginalMember(owner = "client!oq", name = "a", descriptor = "(B)V")
     @Override
     public void validate() {
-        if (super.value < 0 && super.value > 4) {
+        if (super.value < 0 || super.value > 4) {
             super.value = this.getDefaultValue();
         }
     }

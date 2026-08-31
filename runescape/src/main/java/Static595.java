@@ -20,92 +20,27 @@ public final class Static595 {
     @OriginalMember(owner = "client!so", name = "a", descriptor = "(ILjava/lang/String;ZI)V")
     public static void setToolkit(@OriginalArg(1) String arg0, @OriginalArg(2) boolean inactive, @OriginalArg(3) int toolkit) {
         Static164.method2606();
-        if (toolkit == ToolkitType.JAVA) {
-            Toolkit.active = Static255.create(ToolkitType.JAVA, js5.SHADERS, GameShell.canvas, Js5TextureSource.instance, ClientOptions.instance.antialiasingQuality.getValue() * 2);
-            if (arg0 != null) {
-                Toolkit.active.GA(0);
-                @Pc(36) FontMetrics local36 = FontMetrics.loadGroup(js5.FONTMETRICS, Fonts.p12FullGroup);
-                @Pc(45) Font local45 = Toolkit.active.createFont(local36, IndexedImage.load(js5.SPRITES, Fonts.p12FullGroup, 0), true);
+        int requested = toolkit;
+        if (arg0 != null) {
+            Toolkit loading = Static255.create(ToolkitType.JAVA, js5.SHADERS,
+                    GameShell.canvas, Js5TextureSource.instance, 0);
+            try {
+                loading.GA(0);
+                FontMetrics metrics = FontMetrics.loadGroup(js5.FONTMETRICS, Fonts.p12FullGroup);
+                Font font = loading.createFont(metrics,
+                        IndexedImage.load(js5.SPRITES, Fonts.p12FullGroup, 0), true);
                 Static288.repaintMargins();
-                MessageBox.draw(Toolkit.active, arg0, true, local36, local45);
+                MessageBox.draw(loading, arg0, true, metrics, font);
+            } finally {
+                loading.free();
             }
-        } else {
-            @Pc(57) Toolkit local57 = null;
-            @Pc(85) Font local85;
-            if (arg0 != null) {
-                local57 = Static255.create(ToolkitType.JAVA, js5.SHADERS, GameShell.canvas, Js5TextureSource.instance, 0);
-                local57.GA(0);
-                @Pc(76) FontMetrics local76 = FontMetrics.loadGroup(js5.FONTMETRICS, Fonts.p12FullGroup);
-                local85 = local57.createFont(local76, IndexedImage.load(js5.SPRITES, Fonts.p12FullGroup, 0), true);
-                Static288.repaintMargins();
-                MessageBox.draw(local57, arg0, true, local76, local85);
-            }
-            boolean var14 = false;
-            label216:
-            {
-                try {
-                    var14 = true;
-                    Toolkit.active = Static255.create(toolkit, js5.SHADERS, GameShell.canvas, Js5TextureSource.instance, ClientOptions.instance.antialiasingQuality.getValue() * 2);
-                    if (arg0 != null) {
-                        local57.GA(0);
-                        @Pc(118) FontMetrics p12Metrics = FontMetrics.loadGroup(js5.FONTMETRICS, Fonts.p12FullGroup);
-                        @Pc(127) Font p12 = local57.createFont(p12Metrics, IndexedImage.load(js5.SPRITES, Fonts.p12FullGroup, 0), true);
-                        Static288.repaintMargins();
-                        MessageBox.draw(local57, arg0, true, p12Metrics, p12);
-                    }
-                    if (Toolkit.active.method7949()) {
-                        @Pc(141) boolean local141 = true;
-                        try {
-                            local141 = SystemInfo.instance.totalMemory > 256;
-                        } catch (@Pc(152) Throwable local152) {
-                        }
-                        @Pc(158) MemoryPool local158;
-                        if (local141) {
-                            local158 = Toolkit.active.createHeap(0x8C00000);
-                        } else {
-                            local158 = Toolkit.active.createHeap(0x6400000);
-                        }
-                        Toolkit.active.method7938(local158);
-                        var14 = false;
-                    } else {
-                        var14 = false;
-                    }
-                    break label216;
-                } catch (@Pc(168) Throwable local168) {
-                    @Pc(173) int local173 = ClientOptions.instance.toolkit.getValue();
-                    if (local173 == 2) {
-                        Static171.graphicsError = true;
-                    }
-                    ClientOptions.instance.update(0, ClientOptions.instance.toolkit);
-                    setToolkit(arg0, inactive, local173);
-                    @Pc(194) Object local194 = null;
-                    var14 = false;
-                } finally {
-                    if (var14) {
-                        local85 = null;
-                        if (local57 != null) {
-                            try {
-                                local57.free();
-                            } catch (@Pc(359) Throwable local359) {
-                            }
-                        }
-                    }
-                }
-                if (local57 != null) {
-                    try {
-                        local57.free();
-                    } catch (@Pc(339) Throwable local339) {
-                    }
-                }
-                return;
-            }
-            local85 = null;
-            if (local57 != null) {
-                try {
-                    local57.free();
-                } catch (@Pc(349) Throwable local349) {
-                }
-            }
+        }
+        GraphicsRendererPolicy.Result<Toolkit> created = GraphicsRendererPolicy.create(
+                toolkit, Static595::createWithHeap);
+        Toolkit.active = created.value;
+        toolkit = created.renderer;
+        if (toolkit != requested && requested == ToolkitType.SSE) {
+            Static171.graphicsError = true;
         }
         ClientOptions.instance.toolkit.setActive(!inactive);
         ClientOptions.instance.update(toolkit, ClientOptions.instance.toolkit);
@@ -125,6 +60,34 @@ public final class Static595 {
         Fullscreen.modes = null;
         Static503.sentPreferences = false;
         OrthoMode.enter();
+        if (requested != toolkit) {
+            // Validation normalizes only the failed preference, preserving other saved choices.
+            ClientOptions.instance.validate();
+            ClientOptions.save();
+        }
+    }
+
+    private static Toolkit createWithHeap(int type) {
+        Toolkit created = Static255.create(type, js5.SHADERS, GameShell.canvas,
+                Js5TextureSource.instance, ClientOptions.instance.antialiasingQuality.getValue() * 2);
+        boolean ready = false;
+        try {
+            if (type != ToolkitType.JAVA && created.method7949()) {
+                boolean largeHeap = SystemInfo.instance == null || SystemInfo.instance.totalMemory > 256;
+                MemoryPool heap = created.createHeap(largeHeap ? 0x8C00000 : 0x6400000);
+                created.method7938(heap);
+            }
+            ready = true;
+            return created;
+        } finally {
+            if (!ready) {
+                try {
+                    created.free();
+                } catch (RuntimeException | LinkageError ignored) {
+                    // Keep the original initialization failure for the fallback decision.
+                }
+            }
+        }
     }
 
     @OriginalMember(owner = "client!so", name = "a", descriptor = "(IBIII)V")

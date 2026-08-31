@@ -38,9 +38,7 @@ public final class ToolkitOption extends Option {
         if (!super.options.getEnvironment().isSigned()) {
             super.value = 0;
         }
-        if (super.value < 0 || super.value > 5) {
-            super.value = this.getDefaultValue();
-        }
+        super.value = GraphicsRendererPolicy.usablePreference(super.value);
     }
 
     @OriginalMember(owner = "client!tba", name = "a", descriptor = "(I)I")

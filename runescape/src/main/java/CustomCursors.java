@@ -12,7 +12,7 @@ public final class CustomCursors extends Option {
 
     @OriginalMember(owner = "client!lo", name = "<init>", descriptor = "(ILclient!kv;)V")
     public CustomCursors(@OriginalArg(0) int value, @OriginalArg(1) ClientOptions options) {
-        super(options);
+        super(value, options);
     }
 
     @OriginalMember(owner = "client!lo", name = "a", descriptor = "(I)I")
