@@ -87,3 +87,14 @@ Owner live acceptance:
 ## Next batch
 
 Isolated revision-667 home map/cache pipeline and `NIGHT_HOME_HANDOFF.md`.
+
+## Home map/cache pipeline result
+
+- Added `NIGHT_HOME_HANDOFF.md`.
+- The isolated cache copy contains only `dat2`, `idx255`, and `idx3`; `idx3` is the already-decoded interface archive.
+- No map/landscape index exists in that copy, so it cannot truthfully produce terrain, object, collision, region, route, or preview evidence for Tile(3140,3616,0).
+- No live cache was opened or modified. The handoff gives the exact safe next step: make a separate full revision-667 cache copy with matching XTEA keys, then dump and validate the two candidate regions before any cache edit.
+
+## Next batch
+
+Build an uninstalled launcher candidate that starts the file server, game server, and client in sequence with separate logs. It must not start live processes while being developed.
