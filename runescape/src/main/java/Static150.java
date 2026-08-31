@@ -1,5 +1,6 @@
 import com.jagex.game.runetek6.client.GameShell;
 import com.jagex.core.io.Packet;
+import com.jagex.sound.Node_Sub6_Sub5;
 import org.openrs2.deob.annotation.OriginalArg;
 import org.openrs2.deob.annotation.OriginalMember;
 
@@ -13,8 +14,13 @@ public final class Static150 {
 
     @OriginalMember(owner = "client!en", name = "a", descriptor = "(B)V")
     public static void method2455() {
+        boolean stereo = ClientOptions.instance.stereoSound.getValue() == 1;
+        if (Node_Sub6_Sub5.stereo == stereo && Static719.aPcmPlayer_5 != null && Static559.aPcmPlayer_3 != null) {
+            return;
+        }
         Static173.method2690();
-        Static517.method6822(ClientOptions.instance.stereoSound.getValue() == 1);
+        SoundManager.resetOutputStreams();
+        Static517.method6822(stereo);
         Static719.aPcmPlayer_5 = Static638.method8394(GameShell.signLink, 0, 22050, GameShell.canvas);
         Static697.method9120(Static48.method1100(null));
         Static559.aPcmPlayer_3 = Static638.method8394(GameShell.signLink, 1, 2048, GameShell.canvas);

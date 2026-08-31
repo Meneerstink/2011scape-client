@@ -21,6 +21,7 @@ import com.jagex.core.util.JagException;
 import com.jagex.core.util.JavaScript;
 import com.jagex.core.util.SystemTimer;
 import com.jagex.core.util.TimeUtils;
+import com.jagex.sound.SoundType;
 import com.jagex.game.DelayedStateChange;
 import com.jagex.game.LocalisedText;
 import com.jagex.game.PlayerModel;
@@ -6670,7 +6671,12 @@ public final class ScriptRunner {
             }
 
             if (opcode == DETAIL_SOUNDVOL) {
+                int previousVolume = ClientOptions.instance.soundVolume.getValue();
                 ClientOptions.instance.update(intStack[--intStackPointer], ClientOptions.instance.soundVolume);
+                if (previousVolume != ClientOptions.instance.soundVolume.getValue()) {
+                    SoundManager.stopOneShotSounds(SoundType.SYNTH);
+                    SoundManager.stopOneShotSounds(SoundType.VORBIS);
+                }
                 ClientOptions.save();
                 Static503.sentPreferences = false;
                 return;
@@ -6700,7 +6706,11 @@ public final class ScriptRunner {
             }
 
             if (opcode == DETAIL_BGSOUNDVOL) {
+                int previousVolume = ClientOptions.instance.backgroundSoundVolume.getValue();
                 ClientOptions.instance.update(intStack[--intStackPointer], ClientOptions.instance.backgroundSoundVolume);
+                if (previousVolume != ClientOptions.instance.backgroundSoundVolume.getValue()) {
+                    SoundManager.restartPositionedStreams();
+                }
                 ClientOptions.save();
                 Static503.sentPreferences = false;
                 return;
@@ -6814,7 +6824,11 @@ public final class ScriptRunner {
             }
 
             if (opcode == DETAIL_SPEECHVOL) {
+                int previousVolume = ClientOptions.instance.speechVolume.getValue();
                 ClientOptions.instance.update(intStack[--intStackPointer], ClientOptions.instance.speechVolume);
+                if (previousVolume != ClientOptions.instance.speechVolume.getValue()) {
+                    SoundManager.stopOneShotSounds(SoundType.VORBIS_VOICE_OVER);
+                }
                 ClientOptions.save();
                 Static503.sentPreferences = false;
                 return;

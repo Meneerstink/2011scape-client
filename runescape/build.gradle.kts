@@ -36,4 +36,14 @@ val r13Regression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
-tasks.check { dependsOn(r13Regression) }
+val audioSettingsRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks audio stream reset and one-shot queue handling without an audio device."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("AudioSettingsRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
+tasks.check { dependsOn(r13Regression, audioSettingsRegression) }

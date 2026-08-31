@@ -43,6 +43,72 @@ public final class SoundManager {
         sounds = new Sound[50];
     }
 
+    /**
+     * Drops every stream whose sample layout was created for the previous audio output mode.
+     * Positioned sounds remain registered and are recreated on the next renderer tick; queued
+     * one-shot effects are deliberately stopped instead of being replayed after the switch.
+     */
+    public static void resetOutputStreams() {
+        reset();
+        clearPositionedStreamReferences();
+        activeStreams = new Node_Sub6_Sub3();
+    }
+
+    /** Stops queued or playing one-shot effects of one sound type, compacting the fixed queue. */
+    public static void stopOneShotSounds(int type) {
+        int write = 0;
+        for (int read = 0; read < count; read++) {
+            Sound sound = sounds[read];
+            if (sound != null && sound.type == type) {
+                if (sound.stream != null && activeStreams != null) {
+                    activeStreams.remove(sound.stream);
+                }
+                sounds[read] = null;
+            } else {
+                sounds[write++] = sound;
+            }
+        }
+        for (int i = write; i < count; i++) {
+            sounds[i] = null;
+        }
+        count = write;
+    }
+
+    /**
+     * Stops current area/entity streams without unregistering their definitions. They restart
+     * with the newly selected background volume during the next normal positioned-sound tick.
+     */
+    public static void restartPositionedStreams() {
+        clearPositionedStreamReferences();
+    }
+
+    private static void clearPositionedStreamReferences() {
+        for (PositionedSound sound = (PositionedSound) locSounds.first(); sound != null; sound = (PositionedSound) locSounds.next()) {
+            removeActiveStream(sound.stream);
+            removeActiveStream(sound.randomStream);
+            sound.stream = null;
+            sound.randomStream = null;
+        }
+        for (PositionedSound sound = (PositionedSound) npcSounds.first(); sound != null; sound = (PositionedSound) npcSounds.next()) {
+            removeActiveStream(sound.stream);
+            removeActiveStream(sound.randomStream);
+            sound.stream = null;
+            sound.randomStream = null;
+        }
+        for (PositionedSound sound = (PositionedSound) playerSounds.first(); sound != null; sound = (PositionedSound) playerSounds.next()) {
+            removeActiveStream(sound.stream);
+            removeActiveStream(sound.randomStream);
+            sound.stream = null;
+            sound.randomStream = null;
+        }
+    }
+
+    private static void removeActiveStream(SoundStream stream) {
+        if (stream != null && activeStreams != null) {
+            activeStreams.remove(stream);
+        }
+    }
+
     @OriginalMember(owner = "client!dca", name = "a", descriptor = "(I)V")
     public static void method2000() {
         for (@Pc(8) PositionedSound sound = (PositionedSound) locSounds.first(); sound != null; sound = (PositionedSound) locSounds.next()) {
