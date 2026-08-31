@@ -98,3 +98,16 @@ Isolated revision-667 home map/cache pipeline and `NIGHT_HOME_HANDOFF.md`.
 ## Next batch
 
 Build an uninstalled launcher candidate that starts the file server, game server, and client in sequence with separate logs. It must not start live processes while being developed.
+
+## Launcher candidate
+
+- Added `Launch-RSPS.ps1` and `Start-RSPS.cmd`.
+- Default PowerShell execution is preview-only and validates all three Gradle wrappers without starting any process.
+- `-Launch` starts file server on 50016, waits for it, starts game server on 50015, waits for it, then starts the client. Existing listening server processes are retained rather than duplicated or stopped.
+- Standard output and errors go to timestamped files under `C:\RSPS\launcher-logs` only when `-Launch` is explicitly used.
+- Verified preview mode: no process was started and no launcher log was written.
+
+## Remaining client work
+
+- Wilderness numeric level/multi/danger display requires server-authoritative zone data; see `NIGHT_WILDERNESS_HANDOFF.md`.
+- Home cache design requires a full isolated revision-667 map archive plus matching XTEA keys; see `NIGHT_HOME_HANDOFF.md`.
