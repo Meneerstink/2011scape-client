@@ -60,4 +60,13 @@ Owner live acceptance:
 
 ## Next batch
 
-Wilderness numeric level and danger/multi icons across login, teleport and fixed/resizable/fullscreen transitions.
+### Wilderness UI cache contract
+
+- Decoded the complete interface archive from an isolated revision-667 cache copy using the client's own component decoder.
+- Proved interface `381` as the Wilderness/Bounty overlay, text children `2`/`5`, and interface `745:1` as the hidden `Multiway Combat` icon.
+- Proved `382` is only the entry warning and excluded map-content interfaces `758`/`780`.
+- A client-only coordinate fix is unsafe because the server owns custom bank/home/Deadman/multi boundaries. Exact server integration and live acceptance steps are in `NIGHT_WILDERNESS_HANDOFF.md`.
+
+## Next batch
+
+Graphics/performance and FPS/memory debug-overlay defaults, persistence and explicit toggle.
