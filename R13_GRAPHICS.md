@@ -1,6 +1,6 @@
 # R13 — clientgraphics, 31 augustus 2026
 
-Scope: uitsluitend de client. Home, game-server, cache, accounts en bestaande startbestanden zijn niet gewijzigd. De draaiende client/server zijn niet herstart.
+Scope: uitsluitend de client. Home, game-server, cache, accounts en bestaande startbestanden zijn niet gewijzigd. Voor de aansluitende visuele controle is alleen de client herstart; Claude en de servers zijn niet door Codex herstart.
 
 ## Gebruik
 
@@ -45,18 +45,16 @@ Uitgevoerd in een aparte kopie, JDK 11, Gradle offline, één worker:
 
 De regressies testen verse instellingen, alle afbreekpunten van het v25-pakket, onbekende/afgebroken oudere formaten, behoud van v23/v24-keuzes, exacte v25-roundtrip, herstel met behoud van overige instellingen, ongeldige waarden, lokale bestandsschrijf-/herlaadtests, mislukt schrijven en native-/driver-/heapfallback zonder herhaling.
 
-Nog NIET als bewezen beschouwen:
-- Visuele bediening van de nieuwe menuknop in een ingelogde game.
-- Werkelijke OpenGL/DirectX-drivers op de laptop, GPU-crashes buiten initialisatie.
-- FPS voor/na, netwerkvertraging, alle combat-effecten.
-- Fresh-client/saved-client/login/relogin met de echte spelclient.
+## Aanvullende visuele controle
 
-Niet opnieuw de live client starten zolang Claude/owner die gebruikt. Bij het volgende geschikte testmoment:
-1. Oude client afsluiten; nieuwe JAR starten met dezelfde bestaande verbindingsconfiguratie.
-2. In home de herstelknop proberen; vast/resizable en eigen graphics/audio-keuzes controleren.
-3. Afsluiten/starten en login/relogin: eigen keuzes moeten behouden blijven.
-4. Met een apart tijdelijk voorkeurenbestand verse/corrupte instellingen controleren; bestaande gebruikersvoorkeuren niet verwijderen.
-5. Dezelfde camerahoek/scène vergelijken voor FPS; effecten, bank en home-decor visueel controleren.
-6. Native fallback testen met een afzonderlijke testinstallatie, niet door live native-bestanden te wissen.
+V2: 120 automatische assertions geslaagd. Gebruiker logde zelf in. Login, home-weergave, instellingenvensters en fixed/resizable zijn visueel gecontroleerd. OpenGL werkte op deze laptop. De v2-herstelknop is ingelogd gebruikt: verbinding bleef intact en de scene bleef renderen; profiel op schijf gecontroleerd, inclusief idle 0/Few en behouden renderer/venstermodus.
 
-R13 is technisch geïmplementeerd en automatisch getest; visuele/live-client-acceptatie blijft open.
+Bij v1 bleven geldige voorkeuren behouden en was het opgeslagen profiel na clientherstart byte voor byte gelijk. V2 startte met de eerder gekozen Few-instelling. Na de laatste v2-menuactie geen extra herstart uitgevoerd.
+
+FPS in home bij losse opnamen meestal 45–50; resizable ook 43 en eenmaal 34. Tijdens een achtergrondbuild 17. Laatste twee opnamen na v2-herstel: 50. Geen gecontroleerde benchmark of bewezen FPS-winst.
+
+Een testuitvoeringsfout (opnieuw bouwen van een JAR die nog draaide) gaf classloadingfouten. De eigen testclient is vervangen door een vaste afzonderlijke client-v2.jar; fout tijdens vervolg niet opnieuw gezien. Die snapshot blijft ongewijzigd. Normale launcher is niet aangepast.
+
+Open: niet-fatale JPEG-startupwaarschuwing, visuele DirectX/native-failure-tests, alle combat-effecten en gecontroleerde prestatietest. Verse/corrupte voorkeuren zijn alleen automatisch getest. Deze controle verklaart home-ontwerp en serverinteracties niet voltooid.
+
+Volledig lokaal bewijs: C:\Users\Pa\.codex\.chatgpt-projects\g-p-6a92eefdff4081918c46ce4bfebed767\r13-live-check\RESULTAAT.md.
