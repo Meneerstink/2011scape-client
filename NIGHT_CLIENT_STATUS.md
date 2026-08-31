@@ -40,6 +40,20 @@ Owner live acceptance:
 4. Repeated scrolling must stop cleanly at both zoom limits.
 5. Owner Ctrl+Shift+wheel plane movement must remain available.
 
+### Old-style hitsplat display
+
+- Hitsplat damage and soak text now use the pre-Constitution visual scale (`200` renders as `20`).
+- Positive values below ten remain visible as `1`; zero and negative sentinels are preserved.
+- Scaling exists only at the final `OverlayManager` text-formatting boundary. Packet decode, stored hit amounts, HP, XP and combat calculations are unchanged.
+- Regression task: `:runescape:oldStyleHitsplatRegression` — 8 boundary and isolation checks.
+
+Owner live acceptance:
+
+1. Hit an NPC and receive damage: visible hitsplats must show one tenth of the server-side revision-667 value.
+2. Confirm small positive hits never become a false zero/miss.
+3. Confirm damage, remaining HP, XP drops and kill timing are unchanged.
+4. Confirm soak/absorb text uses the same visual scale.
+
 ## Next batch
 
-Old-style hitsplat display (`200` rendered as `20`) isolated from protocol damage, HP, XP and combat calculations.
+Wilderness numeric level and danger/multi icons across login, teleport and fixed/resizable/fullscreen transitions.
