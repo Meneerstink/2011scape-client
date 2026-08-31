@@ -19,7 +19,10 @@ $Targets = @(
 )
 
 function Test-ListeningPort([int]$Port) {
-    return [bool](Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)
+    # Get-NetTCPConnection may hide listeners owned by another process/user.
+    # A loopback connection answers the actual launcher question without
+    # requiring process-inspection rights.
+    return Test-NetConnection -ComputerName '127.0.0.1' -Port $Port -InformationLevel Quiet -WarningAction SilentlyContinue
 }
 
 function Wait-ListeningPort([string]$Name, [int]$Port) {
