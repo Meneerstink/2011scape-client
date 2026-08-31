@@ -22,6 +22,24 @@ Owner live acceptance:
 4. Change ambient volume beside a looping object/NPC sound; it must restart once at the new level without overlap.
 5. Confirm music continues across stereo changes and responds to music volume normally.
 
+### Mouse-wheel world zoom
+
+- Removed the AWT-listener reflection shortcut that required Ctrl and changed camera state before interface hit-testing.
+- Plain wheel input now reaches the normal client input pipeline and changes camera zoom only when the actual scene component is hovered.
+- Modal interfaces, hovered scroll/inventory/clientcode components, context menus, debug console and the staff plane shortcut retain or block their own wheel input.
+- Camera zoom is clamped to the existing 150–660 range and handles multi-notch/large rotations without overflow.
+- Regression task: `:runescape:cameraZoomRegression` — 16 checks passed, including the real `Camera.zoom` field.
+- Existing audio regression: 9 checks passed; graphics regression: 120 checks passed.
+- Full `gradlew build --no-daemon` passed on JDK 11.
+
+Owner live acceptance:
+
+1. In fixed, resizable and fullscreen, wheel over open 3D terrain must zoom without Ctrl.
+2. Wheel over bank, Equipment Bonuses, inventory tabs, chat history and World Map must never zoom the world; their existing scrolling must remain intact.
+3. Open context menu and debug console must block world zoom.
+4. Repeated scrolling must stop cleanly at both zoom limits.
+5. Owner Ctrl+Shift+wheel plane movement must remain available.
+
 ## Next batch
 
-Mouse-wheel zoom limited to the 3D world viewport, with interface/chat/bank scroll isolation and safe zoom bounds.
+Old-style hitsplat display (`200` rendered as `20`) isolated from protocol damage, HP, XP and combat calculations.

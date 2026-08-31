@@ -617,6 +617,22 @@ public final class MainLogicManager {
         }
 
         Static443.method5981();
+        if (Static611.mouseWheelRotation != 0) {
+            boolean staffPlaneShortcut = Client.staffModLevel > 0
+                && KeyboardMonitor.instance.isPressed(82)
+                && KeyboardMonitor.instance.isPressed(81);
+            if (CameraZoomController.applyWheelRotation(
+                Static611.mouseWheelRotation,
+                InterfaceManager.mouseWheelOverScene,
+                InterfaceManager.mouseWheelClaimedByInterface,
+                InterfaceManager.hasModalSubInterface(),
+                MiniMenu.open,
+                debugconsole.isOpen(),
+                staffPlaneShortcut
+            )) {
+                Static611.mouseWheelRotation = 0;
+            }
+        }
         World.tick++;
 
         if (WorldMap.clicked) {

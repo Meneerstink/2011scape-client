@@ -185,6 +185,26 @@ public final class InterfaceManager {
     @OriginalMember(owner = "client!tf", name = "b", descriptor = "Lclient!hda;")
     public static Component scene = null;
 
+    /** Per-interface-logic-frame mouse-wheel routing state used by world-view zoom. */
+    public static boolean mouseWheelOverScene = false;
+
+    public static boolean mouseWheelClaimedByInterface = false;
+
+    public static void beginMouseWheelFrame() {
+        mouseWheelOverScene = false;
+        mouseWheelClaimedByInterface = false;
+    }
+
+    public static boolean hasModalSubInterface() {
+        HashTableIterator iterator = new HashTableIterator(subInterfaces);
+        for (SubInterface sub = (SubInterface) iterator.first(); sub != null; sub = (SubInterface) iterator.next()) {
+            if (sub.type == SubInterfaceType.MODAL) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @OriginalMember(owner = "client!wn", name = "c", descriptor = "I")
     public static int targetMask;
 
@@ -1302,6 +1322,14 @@ public final class InterfaceManager {
                         }
                     }
 
+                    if (hovered && Static611.mouseWheelRotation != 0) {
+                        if (component.clientcode == ComponentClientCode.SCENE) {
+                            mouseWheelOverScene = true;
+                        } else if (component.onScrollWheel != null || component.noClickThrough || component.type == Component.TYPE_INVENTORY || component.clientcode != 0) {
+                            mouseWheelClaimedByInterface = true;
+                        }
+                    }
+
                     if (!targetMode && hovered) {
                         if (component.mouseOverCursor >= 0) {
                             targetEndCursor = component.mouseOverCursor;
@@ -1401,6 +1429,7 @@ public final class InterfaceManager {
 
                     if (component.hasHook || component.clientcode != 0) {
                         if (hovered && Static611.mouseWheelRotation != 0 && component.onScrollWheel != null) {
+                            mouseWheelClaimedByInterface = true;
                             @Pc(877) HookRequest hook = new HookRequest();
                             hook.mouseEvent = true;
                             hook.source = component;

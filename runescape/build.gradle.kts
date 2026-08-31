@@ -46,4 +46,14 @@ val audioSettingsRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
-tasks.check { dependsOn(r13Regression, audioSettingsRegression) }
+val cameraZoomRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks mouse-wheel viewport routing and safe camera zoom bounds."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("CameraZoomControllerRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
+tasks.check { dependsOn(r13Regression, audioSettingsRegression, cameraZoomRegression) }

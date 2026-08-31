@@ -155,38 +155,6 @@ public final class CompleteMouseMonitor extends MouseMonitor implements MouseLis
         @Pc(2) int x = event.getX();
         @Pc(5) int y = event.getY();
         @Pc(8) int rotation = event.getWheelRotation();
-        int maxZoom = 660;
-
-        try {
-            // Access the Camera class dynamically via reflection
-            Class<?> cameraClass = Class.forName("Camera");
-
-            // Access the 'zoom' field of the Camera class
-            java.lang.reflect.Field zoomField = cameraClass.getDeclaredField("zoom");
-
-            // Ensure the field is accessible
-            zoomField.setAccessible(true);
-
-            // Read the current value of Camera.zoom
-            short zoom = (short) zoomField.get(null); // Pass 'null' to get its static value
-
-            if (event.isControlDown() && !event.isShiftDown()) {
-                if ((zoom <= 150 && rotation == -1) || (zoom >= maxZoom && rotation == 1)) {
-                    return;
-                }
-                int diff = rotation == -1 ? -15 : 15;
-
-                // Update the static Camera.zoom field with the new value
-                zoomField.set(null, (short) (zoom + diff));
-                return;
-            }
-
-        } catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            return;
-        }
-
-        // Log mouse wheel movement
         this.log(y, x, MouseLog.TYPE_SCROLL, rotation);
         event.consume();
     }
