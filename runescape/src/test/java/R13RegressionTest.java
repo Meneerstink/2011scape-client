@@ -169,6 +169,7 @@ public final class R13RegressionTest {
         return Arrays.copyOf(packet.data, packet.pos);
     }
     private static void profile(ClientOptions options) {
+        check(options.idleAnimations.getValue() == 0, "Few idle animations (verified in-game label)");
         check(options.antialiasingMode.getValue() == 0 && options.antialiasingQuality.getValue() == 0, "AA off");
         check(options.removeRoofs.getValue() == 1 && options.removeRoofsOverride.getValue() == 1, "Roofs always hidden");
         check(options.hardShadows.getValue() == 0 && options.spotShadows.getValue() == 0, "Expensive shadows off");

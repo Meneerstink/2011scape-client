@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Local preset version; deliberately independent of the server's preference packet version. */
 public final class RspsGraphicsProfile {
     public static final String NAME = "RSPS Performance";
-    public static final int VERSION = 1;
+    public static final int VERSION = 2;
     private static final AtomicBoolean restoreRequested = new AtomicBoolean();
 
     private RspsGraphicsProfile() { }
@@ -27,7 +27,7 @@ public final class RspsGraphicsProfile {
         // The software renderer disables this UI setter, but the stored hardware setting
         // still needs to be off before first-start hardware selection happens.
         options.skydetail.setValue(0);
-        options.idleAnimations.setSafeValue(1);
+        options.idleAnimations.setSafeValue(0); // Few, verified against the in-game dropdown.
         // Preserve home scenery and combat effects: this is not the engine's MIN preset.
         options.groundDecor.setSafeValue(1);
         options.groundBlending.setSafeValue(1);

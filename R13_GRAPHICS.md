@@ -4,17 +4,18 @@ Scope: uitsluitend de client. Home, game-server, cache, accounts en bestaande st
 
 ## Gebruik
 
-In de nieuwe client: **Graphics → Restore RSPS Performance v1 defaults**.
+In de nieuwe client: **Graphics → Restore RSPS Performance v2 defaults**.
 De knop herstelt alleen het grafische profiel. Geluid, venstermodus, cursorvoorkeur en de gekozen werkende renderer blijven behouden.
 Wijzigingen worden op de game-thread verwerkt wanneer het login-, lobby- of gamescherm gereed is, niet rechtstreeks vanuit het venstermenu.
 
 Bestaande geldige instellingen worden bij het laden behouden. Alleen ontbrekende/onleesbare/afgebroken instellingen krijgen het standaardprofiel. Instellingen zijn lokaal per clientinstallatie/gebruiker, niet een verplichte reset per spelaccount of login.
 
-## Profiel v1
+## Profiel v2
 
 - Anti-aliasing, bloom, character/scenery shadows, extra lighting, advanced water, sky detail en fog uit.
 - Daken altijd verborgen; brightness 3; standaard build area.
-- Idle animations 1; particles 1 (0 als de bestaande geheugengrens dit vereist).
+- Idle animations 0/Few; particles 1/Medium (0 als de bestaande geheugengrens dit vereist).
+- Visuele controle wees uit dat de v1-waarde 1 bij idle animations Many betekent. V2 corrigeert dit naar de daadwerkelijk gecontroleerde Few-waarde 0; bestaande persoonlijke keuzes worden niet bij login overschreven.
 - Textures, ground blending, ground decor en flickering effects blijven aan. Ground decor is bewust behouden om home-aankleding niet weg te filteren.
 - Bestaande CPU-default: 4 op meerdere cores, anders 2.
 - De ingebouwde interface toont CUSTOM, omdat dit niet exact het oude LOW/MIN-profiel is.
