@@ -24,6 +24,12 @@ public final class ConnectionInfo {
     @OriginalMember(owner = "client!oia", name = "n", descriptor = "Lclient!lja;")
     public static ConnectionInfo previous;
 
+    // RSPS addition (not part of the original client): in ModeWhere.LOCAL the JS5
+    // update server and the game/login server are two independent fixed-port
+    // processes, so JS5 needs its own endpoint instead of sharing `login`/`game`.
+    // Outside LOCAL mode this is aliased to `login`, preserving original behaviour.
+    public static ConnectionInfo js5;
+
     @OriginalMember(owner = "client!lja", name = "e", descriptor = "I")
     public int world;
 

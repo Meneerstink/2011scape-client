@@ -394,7 +394,7 @@ public final class client extends GameShell {
     @OriginalMember(owner = "client!client", name = "q", descriptor = "(I)V")
     public void js5Tick() {
         if (Client.js5Errors < Client.js5WorkerThread.errors) {
-            ConnectionInfo.login.rotateMethods();
+            ConnectionInfo.js5.rotateMethods();
 
             Client.netWorkerDelay = ((Client.js5WorkerThread.errors * 50) - 50) * 5;
             if (Client.netWorkerDelay > 3000) {
@@ -437,7 +437,7 @@ public final class client extends GameShell {
 
         try {
             if (Client.js5State == Js5State.INIT) {
-                Client.js5Socket = ConnectionInfo.login.openSocket(GameShell.signLink);
+                Client.js5Socket = ConnectionInfo.js5.openSocket(GameShell.signLink);
                 Client.js5State++;
             }
 
@@ -751,9 +751,7 @@ public final class client extends GameShell {
             }
         }
 
-        if (GameShell.fsframe != null && !GameShell.focus && MainLogicStep.method6445(MainLogicManager.step)) {
-            InterfaceManager.changeWindowMode(ClientOptions.instance.screenSizeDefault.getValue(), -1, -1, false);
-        }
+        // Fullscreen stays stable across focus changes (Alt-Tab and Windows overlays).
 
         @Pc(209) boolean local209 = false;
         if (fullredraw) {
@@ -1060,15 +1058,28 @@ public final class client extends GameShell {
             ConnectionInfo.lobby.defaultPort = ConnectionInfo.lobby.world + 40000;
             ConnectionInfo.lobby.alternatePort = ConnectionInfo.lobby.world + 50000;
         } else if (ModeWhere.LOCAL == Client.modeWhere) {
+            // RSPS LOCAL dev topology: the game/login server and the JS5 update
+            // server are two independent processes on fixed ports (game.yml
+            // game-port=50015, file-server.properties port=50016), not one
+            // world-derived port pair as the classic formula above assumes.
             ConnectionInfo.game.address = "127.0.0.1";
-            ConnectionInfo.game.defaultPort = ConnectionInfo.game.world + 40000;
+            ConnectionInfo.game.defaultPort = 50015;
+            ConnectionInfo.game.alternatePort = 50015;
             ConnectionInfo.lobby.address = "127.0.0.1";
-            ConnectionInfo.game.alternatePort = ConnectionInfo.game.world + 50000;
-            ConnectionInfo.lobby.defaultPort = ConnectionInfo.lobby.world + 40000;
-            ConnectionInfo.lobby.alternatePort = ConnectionInfo.lobby.world + 50000;
+            ConnectionInfo.lobby.defaultPort = 50015;
+            ConnectionInfo.lobby.alternatePort = 50015;
+
+            ConnectionInfo.js5 = new ConnectionInfo();
+            ConnectionInfo.js5.address = "127.0.0.1";
+            ConnectionInfo.js5.defaultPort = 50016;
+            ConnectionInfo.js5.alternatePort = 50016;
         }
 
         ConnectionInfo.login = ConnectionInfo.game;
+        if (ConnectionInfo.js5 == null) {
+            // Non-LOCAL modes: JS5 and login share one server/port pair, same as original.
+            ConnectionInfo.js5 = ConnectionInfo.login;
+        }
         Client.clientpalette = LocType.clientpalette = NPCType.clientpalette = ObjType.clientpalette = new short[256];
 
         if (Client.modeGame == ModeGame.RUNESCAPE) {

@@ -324,6 +324,17 @@ public final class SignLink implements Runnable {
             path = "jagex_" + game + "_preferences" + name + ".dat";
         }
 
+        // Explicit isolated local profiles for diagnostics; normal clients retain the original path.
+        String preferencesDirectory = System.getProperty("rsps.preferencesDir");
+        if (preferencesDirectory != null) {
+            File directory = new File(preferencesDirectory);
+            if (!directory.isDirectory() && !directory.mkdirs()) return null;
+            try {
+                return new FileOnDisk(new File(directory, path), FILE_ACCESS_PERMISSIONS, 10000L);
+            } catch (java.io.IOException failure) {
+                return null;
+            }
+        }
         @Pc(121) String[] cacheLocations = {
             "c:/rscache/",
             "/rscache/",
