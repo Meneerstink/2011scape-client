@@ -268,7 +268,11 @@ public final class OverlayManager {
                     } else {
                         @Pc(720) PlayerEntity player = (PlayerEntity) entity;
 
-                        if (player.pkIcon != -1) {
+                        // RSPS: this project's server can assign risk-tier skull icon ids (see
+                        // SkullIcon.kt DMM_* variants) beyond this client's loaded headicons_pk
+                        // sprite count; guard the same way the npcType.headIcon case above already
+                        // does rather than crash with an ArrayIndexOutOfBoundsException.
+                        if (player.pkIcon != -1 && Sprites.headiconsPk.length > player.pkIcon) {
                             @Pc(496) Sprite headicon = Sprites.headiconsPk[player.pkIcon];
                             y -= headicon.getHeight();
 
@@ -406,7 +410,7 @@ public final class OverlayManager {
                                 @Pc(1355) int soakInnerOffsetX = 0;
                                 @Pc(1357) int soakLeftOffsetX = 0;
                                 @Pc(1359) int soakRightOffsetX = 0;
-                                @Pc(1364) Sprite damageIcon = damageType.getIcon(Toolkit.active);
+                                @Pc(1364) Sprite damageIcon = ScaledHitsplatSprite.wrap(damageType.getIcon(Toolkit.active));
                                 @Pc(1366) int maxHeight = 0;
 
                                 if (damageIcon != null) {
@@ -419,7 +423,7 @@ public final class OverlayManager {
                                     damageIconOffsetX = Static167.hitmarkOffsets[0];
                                 }
 
-                                @Pc(1391) Sprite damageInner = damageType.getInner(Toolkit.active);
+                                @Pc(1391) Sprite damageInner = ScaledHitsplatSprite.wrap(damageType.getInner(Toolkit.active));
                                 if (damageInner != null) {
                                     damageInnerWidth = damageInner.getWidth();
                                     @Pc(1374) int iconHeight = damageInner.getHeight();
@@ -430,7 +434,7 @@ public final class OverlayManager {
                                     damageInnerOffsetX = Static167.hitmarkOffsets[0];
                                 }
 
-                                @Pc(1420) Sprite damageLeft = damageType.getLeft(Toolkit.active);
+                                @Pc(1420) Sprite damageLeft = ScaledHitsplatSprite.wrap(damageType.getLeft(Toolkit.active));
                                 if (damageLeft != null) {
                                     damageLeftWidth = damageLeft.getWidth();
                                     @Pc(1374) int iconHeight = damageLeft.getHeight();
@@ -441,7 +445,7 @@ public final class OverlayManager {
                                     damageLeftOffsetX = Static167.hitmarkOffsets[0];
                                 }
 
-                                @Pc(1449) Sprite damageRight = damageType.getRight(Toolkit.active);
+                                @Pc(1449) Sprite damageRight = ScaledHitsplatSprite.wrap(damageType.getRight(Toolkit.active));
                                 if (damageRight != null) {
                                     damageRightWidth = damageRight.getWidth();
                                     @Pc(1374) int iconHeight = damageRight.getHeight();
@@ -453,7 +457,7 @@ public final class OverlayManager {
                                 }
 
                                 if (soakType != null) {
-                                    soakIcon = soakType.getIcon(Toolkit.active);
+                                    soakIcon = ScaledHitsplatSprite.wrap(soakType.getIcon(Toolkit.active));
 
                                     if (soakIcon != null) {
                                         soakIconWidth = soakIcon.getWidth();
@@ -465,7 +469,7 @@ public final class OverlayManager {
                                         soakIconOffsetX = Static167.hitmarkOffsets[0];
                                     }
 
-                                    soakInner = soakType.getInner(Toolkit.active);
+                                    soakInner = ScaledHitsplatSprite.wrap(soakType.getInner(Toolkit.active));
                                     if (soakInner != null) {
                                         soakInnerWidth = soakInner.getWidth();
                                         @Pc(1374) int iconHeight = soakInner.getHeight();
@@ -476,7 +480,7 @@ public final class OverlayManager {
                                         soakInnerOffsetX = Static167.hitmarkOffsets[0];
                                     }
 
-                                    soakLeft = soakType.getLeft(Toolkit.active);
+                                    soakLeft = ScaledHitsplatSprite.wrap(soakType.getLeft(Toolkit.active));
                                     if (soakLeft != null) {
                                         soakLeftWidth = soakLeft.getWidth();
                                         @Pc(1374) int iconHeight = soakLeft.getHeight();
@@ -487,7 +491,7 @@ public final class OverlayManager {
                                         soakLeftOffsetX = Static167.hitmarkOffsets[0];
                                     }
 
-                                    soakRight = soakType.getRight(Toolkit.active);
+                                    soakRight = ScaledHitsplatSprite.wrap(soakType.getRight(Toolkit.active));
                                     if (soakRight != null) {
                                         soakRightWidth = soakRight.getWidth();
                                         @Pc(1374) int iconHeight = soakRight.getHeight();
@@ -616,10 +620,10 @@ public final class OverlayManager {
                                 @Pc(1871) int local1871 = damageType.offsetX - damageType.offsetX * timeRemaining / damageType.duration;
                                 @Pc(1884) int local1884 = timeRemaining * damageType.offsetY / damageType.duration - damageType.offsetY;
                                 @Pc(1898) int local1898 = screenX + hitmarkpos[0] + local1871 - (local1719 >> 1);
-                                @Pc(1908) int local1908 = hitmarkpos[1] + screenY + local1884 - 12;
+                                @Pc(1908) int local1908 = hitmarkpos[1] + screenY + local1884 - OldStyleHitsplatDisplay.size(12);
                                 @Pc(1910) int local1910 = local1908;
                                 @Pc(1915) int local1915 = local1908 + maxHeight;
-                                @Pc(1922) int local1922 = damageType.anInt7178 + local1908 + 15;
+                                @Pc(1922) int local1922 = OldStyleHitsplatDisplay.size(damageType.anInt7178 + 15) + local1908;
 
                                 @Pc(1928) int local1928 = local1922 - hitFontMetrics.paddingTop;
                                 if (local1928 < local1908) {
@@ -635,7 +639,7 @@ public final class OverlayManager {
                                 @Pc(1963) int local1963;
                                 @Pc(1969) int local1969;
                                 if (soakType != null) {
-                                    local1949 = soakType.anInt7178 + local1908 + 15;
+                                    local1949 = OldStyleHitsplatDisplay.size(soakType.anInt7178 + 15) + local1908;
                                     local1963 = local1949 - soakFontMetrics.paddingTop;
                                     local1969 = local1949 + soakFontMetrics.paddingBottom;
                                     if (local1910 > local1963) {
