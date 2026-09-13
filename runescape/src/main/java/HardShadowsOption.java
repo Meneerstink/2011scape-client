@@ -59,9 +59,6 @@ public final class HardShadowsOption extends Option {
         if (super.options.isLowDetail()) {
             super.value = 0;
         }
-        if (super.options.textures.getValue() == 0) {
-            super.value = 0;
-        }
         if (super.value < 0 || super.value > 2) {
             super.value = this.getDefaultValue();
         }

@@ -31,9 +31,6 @@ public final class AntialiasingMode extends Option {
     @OriginalMember(owner = "client!jha", name = "a", descriptor = "(B)V")
     @Override
     public void validate() {
-        if (super.options.toolkit.isActive() && !ToolkitType.isHardware(super.options.toolkit.getValue())) {
-            super.value = 0;
-        }
         if (super.value < 0 || super.value > 2) {
             super.value = this.getDefaultValue();
         }

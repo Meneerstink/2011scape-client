@@ -1323,8 +1323,9 @@ public final class InterfaceManager {
                     }
 
                     if (hovered && Static611.mouseWheelRotation != 0) {
-                        if (component.clientcode == ComponentClientCode.SCENE) {
-                            mouseWheelOverScene = true;
+                    if (component.clientcode == ComponentClientCode.SCENE) {
+                        mouseWheelOverScene = true;
+                        mouseWheelClaimedByInterface = false; // Scene covers earlier background layers.
                         } else if (component.onScrollWheel != null || component.noClickThrough || component.type == Component.TYPE_INVENTORY || component.clientcode != 0) {
                             mouseWheelClaimedByInterface = true;
                         }
@@ -2395,6 +2396,11 @@ public final class InterfaceManager {
 
     @OriginalMember(owner = "client!mt", name = "a", descriptor = "(IIIZI)V")
     public static void changeWindowMode(@OriginalArg(1) int mode, @OriginalArg(2) int width, @OriginalArg(4) int height, @OriginalArg(3) boolean different) {
+        if (mode == WindowMode.FULLSCREEN) {
+            java.awt.Rectangle desktop = com.jagex.graphics.awt.DesktopDisplay.bounds();
+            width = desktop.width;
+            height = desktop.height;
+        }
         OrthoMode.enter();
         Client.nextWindowModeChange = 0L;
 
@@ -2427,14 +2433,14 @@ public final class InterfaceManager {
         }
 
         if (newMode == WindowMode.FULLSCREEN && GameShell.fsframe == null) {
-            windowModeChanged(ClientOptions.instance.screenSizeDefault.getValue(), oldMode, -1, -1, true);
+            windowModeChanged(ClientOptions.instance.screenSizeDefault.getValue() == WindowMode.FULLSCREEN ? WindowMode.RESIZABLE : ClientOptions.instance.screenSizeDefault.getValue(), oldMode, -1, -1, true);
             return;
         }
 
         @Pc(95) Container topContainer;
         if (GameShell.fsframe != null) {
-            GameShell.frameHei = height;
-            GameShell.frameWid = width;
+            GameShell.frameHei = GameShell.fsframe.getHeight();
+            GameShell.frameWid = GameShell.fsframe.getWidth();
             topContainer = GameShell.fsframe;
         } else if (GameShell.frame != null) {
             @Pc(110) Insets insets = GameShell.frame.getInsets();
@@ -2740,19 +2746,13 @@ public final class InterfaceManager {
 
     @OriginalMember(owner = "client!un", name = "a", descriptor = "(Lclient!vq;ILjava/awt/Frame;)V")
     public static void exitFullscreen(@OriginalArg(0) SignLink signLink, @OriginalArg(2) Frame frame) {
-        while (true) {
-            @Pc(10) SignedResource resource = signLink.fullscreenExit(frame);
-            while (resource.status == SignedResourceStatus.IDLE) {
-                TimeUtils.sleep(10L);
-            }
-
-            if (resource.status == SignedResourceStatus.SUCCESS) {
-                frame.setVisible(false);
-                frame.dispose();
-                return;
-            }
-
-            TimeUtils.sleep(100L);
+        SignedResource resource = signLink.fullscreenExit(frame);
+        while (resource.status == SignedResourceStatus.IDLE) TimeUtils.sleep(10L);
+        // Never trap the game thread in a retry loop on desktop/driver failure.
+        frame.setVisible(false);
+        frame.dispose();
+        if (resource.status != SignedResourceStatus.SUCCESS) {
+            System.err.println("Fullscreen cleanup failed; the window was disposed.");
         }
     }
 
@@ -2797,33 +2797,12 @@ public final class InterfaceManager {
 
     @OriginalMember(owner = "client!kda", name = "a", descriptor = "(I)V")
     public static void applyMaxScreenSize() {
-        @Pc(5) int maxScreenSize = 0;
-        if (ClientOptions.instance != null) {
-            maxScreenSize = ClientOptions.instance.maxScreenSize.getValue();
-        }
-
-        if (maxScreenSize == MaxScreenSize._800x600) {
-            @Pc(34) int width = GameShell.frameWid > 800 ? 800 : GameShell.frameWid;
-            GameShell.leftMargin = (GameShell.frameWid - width) / 2;
-            GameShell.canvasWid = width;
-
-            @Pc(51) int height = GameShell.frameHei > 600 ? 600 : GameShell.frameHei;
-            GameShell.topMargin = 0;
-            GameShell.canvasHei = height;
-        } else if (maxScreenSize == MaxScreenSize._1024x768) {
-            @Pc(34) int width = GameShell.frameWid > 1024 ? 1024 : GameShell.frameWid;
-            GameShell.leftMargin = (GameShell.frameWid - width) / 2;
-            GameShell.canvasWid = width;
-
-            @Pc(51) int height = GameShell.frameHei > 768 ? 768 : GameShell.frameHei;
-            GameShell.topMargin = 0;
-            GameShell.canvasHei = height;
-        } else {
-            GameShell.topMargin = 0;
-            GameShell.canvasHei = GameShell.frameHei;
-            GameShell.canvasWid = GameShell.frameWid;
-            GameShell.leftMargin = 0;
-        }
+        int maximum = ClientOptions.instance == null ? MaxScreenSize.ANY : ClientOptions.instance.maxScreenSize.getValue();
+        int[] size = DisplaySizing.canvas(GameShell.frameWid, GameShell.frameHei, maximum, GameShell.fsframe != null);
+        GameShell.canvasWid = size[0];
+        GameShell.canvasHei = size[1];
+        GameShell.leftMargin = Math.max(0, (GameShell.frameWid - size[0]) / 2);
+        GameShell.topMargin = 0;
     }
 
     @OriginalMember(owner = "client!nfa", name = "a", descriptor = "(IIIII)V")

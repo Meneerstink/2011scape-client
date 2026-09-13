@@ -4,8 +4,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Local preset version; deliberately independent of the server's preference packet version. */
 public final class RspsGraphicsProfile {
-    public static final String NAME = "RSPS Performance";
-    public static final int VERSION = 3;
+    public static final String NAME = "MID";
+    public static final int VERSION = 4;
     private static final AtomicBoolean restoreRequested = new AtomicBoolean();
 
     private RspsGraphicsProfile() { }
@@ -24,19 +24,17 @@ public final class RspsGraphicsProfile {
         options.lightDetail.setSafeValue(0);
         options.waterDetail.setSafeValue(0);
         options.fog.setSafeValue(0);
-        // The software renderer disables this UI setter, but the stored hardware setting
-        // still needs to be off before first-start hardware selection happens.
-        options.skydetail.setValue(0);
         options.idleAnimations.setSafeValue(0); // Few, verified against the in-game dropdown.
-        // Lowest fresh-client profile: disable optional scenery and combat effects for weak hardware.
         options.groundDecor.setSafeValue(0);
         options.groundBlending.setSafeValue(0);
-        options.textures.setSafeValue(0);
-        options.flickeringEffects.setSafeValue(0);
-        options.particles.setSafeValue(0);
-        options.cpuUsage.setSafeValue(options.environment.cpuCount() > 1 ? 4 : 2);
-        options.graphicsQuality.setSafeValue(0); // CUSTOM, not a falsely labelled built-in preset.
+        options.textures.setSafeValue(1);
+        options.flickeringEffects.setSafeValue(1);
+        options.particles.setSafeValue(1);
+        options.cpuUsage.setSafeValue(4);
+        options.customCursors.setSafeValue(0); // Owner requirement: custom cursor defaults to Off.
+        options.maxScreenSize.setSafeValue(com.jagex.core.constants.MaxScreenSize.ANY);
         options.validate();
+        options.graphicsQuality.setSafeValue(3); // Rev-667 MID.
     }
 
     /** Called by the AWT menu; actual changes belong on the game thread. */

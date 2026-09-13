@@ -18,13 +18,7 @@ public final class WaterDetailOption extends Option {
     @OriginalMember(owner = "client!ro", name = "a", descriptor = "(IB)I")
     @Override
     public int canSet(@OriginalArg(0) int value) {
-        if (super.options.isLowDetail()) {
-            return 3;
-        } else if (value == 0 || super.options.groundBlending.getValue() == 1) {
-            return 1;
-        } else {
-            return 2;
-        }
+        return super.options.isLowDetail() ? 3 : 1;
     }
 
     @OriginalMember(owner = "client!ro", name = "a", descriptor = "(Z)I")

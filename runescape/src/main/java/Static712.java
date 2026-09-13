@@ -55,6 +55,14 @@ public final class Static712 {
                 GameShell.canvasWid = Client.loadingScreenWidth;
             } else {
                 InterfaceManager.applyMaxScreenSize();
+                if (ClientOptions.instance != null && GameShell.frameWid >= 765 && GameShell.frameHei >= 503) {
+                    if (ClientOptions.instance.windowWidth != GameShell.frameWid
+                        || ClientOptions.instance.windowHeight != GameShell.frameHei) {
+                        ClientOptions.instance.windowWidth = GameShell.frameWid;
+                        ClientOptions.instance.windowHeight = GameShell.frameHei;
+                        ClientOptions.save();
+                    }
+                }
             }
 
             if (Client.modeWhere != ModeWhere.LIVE) {

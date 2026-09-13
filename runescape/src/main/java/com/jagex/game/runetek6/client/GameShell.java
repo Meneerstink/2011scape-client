@@ -670,18 +670,9 @@ public abstract class GameShell extends Applet implements Runnable, FocusListene
     @OriginalMember(owner = "client!kh", name = "paint", descriptor = "(Ljava/awt/Graphics;)V")
     @Override
     public final synchronized void paint(@OriginalArg(0) Graphics graphics) {
-        if (instance != this || shutdown) {
-            return;
-        }
-
-        fullredraw = true;
-
-        if (java5OrLater && SystemTimer.safetime() - lastCanvasReplace > 1000L) {
-            @Pc(28) Rectangle clipBounds = graphics.getClipBounds();
-
-            if (clipBounds == null || clipBounds.width >= frameWid && clipBounds.height >= frameHei) {
-                canvasReplaceRecommended = true;
-            }
+        if (instance == this && !shutdown) {
+            // AWT exposure/resize is not evidence that the native surface was lost.
+            fullredraw = true;
         }
     }
 
@@ -730,6 +721,7 @@ public abstract class GameShell extends Applet implements Runnable, FocusListene
         canvas = new Canvas_Sub1(this);
         topContainer.add(canvas);
         canvas.setSize(canvasWid, canvasHei);
+        canvas.setIgnoreRepaint(true);
         canvas.setVisible(true);
 
         if (topContainer == frame) {

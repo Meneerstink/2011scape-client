@@ -3,6 +3,18 @@ public final class CameraZoomController {
     static final int MIN_ZOOM = 150;
     static final int MAX_ZOOM = 660;
     static final int ZOOM_STEP = 15;
+    static final int DEFAULT_ZOOM = 320;
+    private static int userZoom = DEFAULT_ZOOM;
+
+    static int getZoom() { return userZoom; }
+
+    static void restoreZoom(int zoom) {
+        userZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+    }
+
+    static int scaleDistance(int distance) {
+        return (int) ((long) distance * userZoom / DEFAULT_ZOOM);
+    }
 
     public static boolean applyWheelRotation(
         int rotation,
@@ -16,7 +28,12 @@ public final class CameraZoomController {
         if (!shouldConsume(rotation, overScene, claimedByInterface, modalOpen, menuOpen, debugConsoleOpen, staffPlaneShortcut)) {
             return false;
         }
-        Camera.zoom = (short) adjustedZoom(Camera.zoom, rotation);
+        userZoom = adjustedZoom(userZoom, rotation);
+        if (ClientOptions.instance != null) {
+            ClientOptions.instance.markCustom();
+            ClientOptions.instance.cameraZoom = userZoom;
+            ClientOptions.save();
+        }
         return true;
     }
 

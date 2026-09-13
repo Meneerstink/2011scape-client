@@ -41,13 +41,7 @@ public final class MaxScreenSizeOption extends Option {
     @OriginalMember(owner = "client!nf", name = "a", descriptor = "(I)I")
     @Override
     protected int getDefaultValue() {
-        if (super.options.isLowDetail()) {
-            return 2;
-        } else if (super.options.toolkit.isActive() && ToolkitType.isSoftware(super.options.toolkit.getValue())) {
-            return 1;
-        } else {
-            return 0;
-        }
+        return com.jagex.core.constants.MaxScreenSize.ANY;
     }
 
     @OriginalMember(owner = "client!nf", name = "c", descriptor = "(B)Z")

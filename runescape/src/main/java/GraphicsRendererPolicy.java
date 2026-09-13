@@ -12,7 +12,6 @@ public final class GraphicsRendererPolicy {
     static int defaultRenderer(boolean signed, boolean openGlAvailable, boolean directXAvailable) {
         if (!signed) return ToolkitType.JAVA;
         if (openGlAvailable) return ToolkitType.GL;
-        if (directXAvailable) return ToolkitType.D3D;
         return ToolkitType.JAVA;
     }
 

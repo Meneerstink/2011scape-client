@@ -41,7 +41,7 @@ public final class R13RegressionTest {
         custom.update(23, custom.musicVolume);
         custom.update(2, custom.screenSizeDefault);
         custom.update(2, custom.screenSize);
-        custom.update(0, custom.customCursors);
+        custom.update(1, custom.customCursors);
         byte[] saved = encode(custom);
         ClientOptions loaded = options(saved, ENV);
         check(!loaded.needsDefaultRenderer, "Saved preferences skip default selection");
@@ -60,7 +60,7 @@ public final class R13RegressionTest {
         profile(loaded);
         check(loaded.soundVolume.getValue() == 31 && loaded.musicVolume.getValue() == 23, "Reset preserves audio");
         check(loaded.screenSizeDefault.getValue() == 2 && loaded.screenSize.getValue() == 2, "Reset preserves window mode");
-        check(loaded.customCursors.getValue() == 0, "Reset preserves cursor choice");
+        check(loaded.customCursors.getValue() == 0, "MID disables custom cursors (owner default: Off)");
         check(loaded.toolkitDefault.getValue() == ToolkitType.GL && loaded.toolkit.getValue() == ToolkitType.GL,
                 "Reset preserves selected renderer");
         check(Arrays.equals(encode(loaded), encode(options(encode(loaded), ENV))), "Reset persists and reloads");
@@ -112,7 +112,7 @@ public final class R13RegressionTest {
         }
 
         check(GraphicsRendererPolicy.defaultRenderer(true, true, true) == ToolkitType.GL, "Available GL default");
-        check(GraphicsRendererPolicy.defaultRenderer(true, false, true) == ToolkitType.D3D, "DX alternative");
+        check(GraphicsRendererPolicy.defaultRenderer(true, false, true) == ToolkitType.JAVA, "DX is never an automatic default");
         check(GraphicsRendererPolicy.defaultRenderer(true, false, false) == ToolkitType.JAVA, "Missing native fallback");
         check(GraphicsRendererPolicy.defaultRenderer(false, true, true) == ToolkitType.JAVA, "Unsigned fallback");
         List<Integer> attempts = new ArrayList<>();
@@ -129,7 +129,7 @@ public final class R13RegressionTest {
         attempts.clear();
         GraphicsRendererPolicy.create(ToolkitType.GL, id -> { attempts.add(id); return "software"; });
         check(attempts.equals(List.of(ToolkitType.JAVA)), "Failed native renderer is not retried this session");
-        check(options(saved, ENV).toolkitDefault.getValue() == ToolkitType.JAVA, "Failed saved renderer becomes durable fallback");
+        check(options(saved, ENV).toolkitDefault.getValue() == ToolkitType.GL, "Failed saved renderer becomes durable fallback");
         attempts.clear();
         GraphicsRendererPolicy.create(ToolkitType.D3D, id -> {
             attempts.add(id);
@@ -173,9 +173,9 @@ public final class R13RegressionTest {
         check(options.antialiasingMode.getValue() == 0 && options.antialiasingQuality.getValue() == 0, "AA off");
         check(options.removeRoofs.getValue() == 1 && options.removeRoofsOverride.getValue() == 1, "Roofs always hidden");
         check(options.hardShadows.getValue() == 0 && options.spotShadows.getValue() == 0, "Expensive shadows off");
-        check(options.skydetail.getValue() == 0 && options.bloom.getValue() == 0, "Sky and bloom off before hardware startup");
-        check(options.groundDecor.getValue() == 0 && options.textures.getValue() == 0, "Optional scenery disabled");
-        check(options.flickeringEffects.getValue() == 0 && options.particles.getValue() == 0, "Optional effects disabled");
+        check(options.skydetail.getValue() == 1 && options.bloom.getValue() == 0, "Original skybox default retained; bloom off");
+        check(options.groundDecor.getValue() == 0 && options.textures.getValue() == 1, "Optional scenery disabled");
+        check(options.flickeringEffects.getValue() == 1 && options.particles.getValue() == 1, "Optional effects disabled");
     }
     private static byte[] omit(byte[] bytes, int index) {
         byte[] result = new byte[bytes.length - 1];

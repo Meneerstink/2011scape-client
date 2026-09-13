@@ -38,14 +38,14 @@ public final class ToolkitOption extends Option {
         if (!super.options.getEnvironment().isSigned()) {
             super.value = 0;
         }
-        super.value = GraphicsRendererPolicy.usablePreference(super.value);
+        super.value = GraphicsRendererPolicy.isKnown(super.value) ? super.value : 0;
     }
 
     @OriginalMember(owner = "client!tba", name = "a", descriptor = "(I)I")
     @Override
     protected int getDefaultValue() {
         this.dflt = true;
-        return super.options.getEnvironment().isSigned() ? 2 : 0;
+        return super.options.getEnvironment().isSigned() ? com.jagex.graphics.ToolkitType.GL : 0;
     }
 
     @OriginalMember(owner = "client!tba", name = "a", descriptor = "(ZI)V")

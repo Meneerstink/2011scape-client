@@ -17,10 +17,10 @@ public final class CameraZoomControllerRegressionTest {
         check(!consume(true, false, false, false, false, true), "Staff plane shortcut keeps wheel input");
         check(!CameraZoomController.shouldConsume(0, true, false, false, false, false, false), "Zero rotation is ignored");
 
-        Camera.zoom = 320;
+        CameraZoomController.restoreZoom(320);
         check(CameraZoomController.applyWheelRotation(1, true, false, false, false, false, false), "Eligible wheel input is consumed");
-        check(Camera.zoom == 335, "Consumed wheel input updates the real camera zoom field");
-        check(!CameraZoomController.applyWheelRotation(1, true, true, false, false, false, false) && Camera.zoom == 335,
+        check(CameraZoomController.getZoom() == 335, "Consumed wheel input updates the real camera zoom field");
+        check(!CameraZoomController.applyWheelRotation(1, true, true, false, false, false, false) && CameraZoomController.getZoom() == 335,
             "Blocked interface input leaves the real camera unchanged");
 
         System.out.println("Camera zoom regression checks passed: " + assertions);

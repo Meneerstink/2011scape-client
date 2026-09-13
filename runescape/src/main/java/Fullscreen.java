@@ -14,9 +14,6 @@ public final class Fullscreen {
 
     @OriginalMember(owner = "client!sia", name = "g", descriptor = "(I)[Lclient!oga;")
     public static FullscreenMode[] getModes() {
-        if (modes != null) {
-            return modes;
-        }
 
         @Pc(20) FullscreenMode[] modes = SignLink.fullscreenModes(GameShell.signLink);
         @Pc(24) FullscreenMode[] result = new FullscreenMode[modes.length];
@@ -27,7 +24,7 @@ public final class Fullscreen {
         for (@Pc(33) int i = 0; i < modes.length; i++) {
             @Pc(38) FullscreenMode mode = modes[i];
 
-            if ((mode.bits <= 0 || mode.bits >= 24) && mode.width >= 800 && mode.height >= 600 && (maxScreenSize != MaxScreenSize._800x600 || mode.width <= 800 && mode.height <= 600) && (maxScreenSize != MaxScreenSize._1024x768 || mode.width <= 1024 && mode.height <= 768)) {
+            if ((mode.bits <= 0 || mode.bits >= 24) && mode.width >= 800 && mode.height >= 600) {
                 for (@Pc(112) int j = 0; j < count; j++) {
                     @Pc(117) FullscreenMode otherMode = result[j];
 

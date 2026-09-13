@@ -8,6 +8,7 @@ public final class Static443 {
 
     @OriginalMember(owner = "client!nw", name = "a", descriptor = "(Z)V")
     public static void method5981() {
+        InterfaceManager.beginMouseWheelFrame();
         if (InterfaceManager.topLevelInterface == -1) {
             return;
         }
@@ -27,7 +28,6 @@ public final class Static443 {
             parentY = Static422.method5771();
         }
 
-        InterfaceManager.beginMouseWheelFrame();
         InterfaceManager.mainLogic(InterfaceManager.topLevelInterface, parentX, parentY, parentX + mouseX, parentY + GameShell.canvasHei, parentX, parentY, mouseX, mouseY, mouseY + parentY, parentX + GameShell.canvasWid);
         if (WorldMap.component != null) {
             WorldMap.method6759(mouseX + parentX, mouseY - -parentY);

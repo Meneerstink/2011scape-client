@@ -1518,6 +1518,7 @@ public final class ScriptRunner {
 
             if (op == CC_IF_SETTEXT) {
                 @Pc(1394) String text = stringStack[--stringStackPointer];
+                text = OldStyleOrbDisplay.text(component.id, component.slot, text);
 
                 if (!text.equals(component.text)) {
                     component.text = text;
@@ -2828,7 +2829,9 @@ public final class ScriptRunner {
 
             if (op == STAT) {
                 @Pc(15) int skill = intStack[--intStackPointer];
-            intStack[intStackPointer++] = OldStyleStatDisplay.value(skill, Static581.statLevels[skill]);
+                // Must stay raw. statLevels carries ordinary skill levels (1-99), while the
+                // lifepoint/prayer-point totals live in varbits 7198/9816 and are now 1:1.
+                intStack[intStackPointer++] = Static581.statLevels[skill];
                 return;
             }
 
@@ -5883,6 +5886,7 @@ public final class ScriptRunner {
                 @Pc(192) int width = intStack[intStackPointer];
                 @Pc(834) int height = intStack[intStackPointer + 1];
                 InterfaceManager.changeWindowMode(WindowMode.FULLSCREEN, width, height, false);
+                if (GameShell.fsframe != null) ClientOptions.instance.rememberWindowMode(WindowMode.FULLSCREEN);
                 intStack[intStackPointer++] = GameShell.fsframe == null ? 0 : 1;
                 return;
             }
@@ -5890,6 +5894,7 @@ public final class ScriptRunner {
             if (opcode == FULLSCREEN_EXIT) {
                 if (GameShell.fsframe != null) {
                     InterfaceManager.changeWindowMode(ClientOptions.instance.screenSizeDefault.getValue(), -1, -1, false);
+                    ClientOptions.instance.rememberWindowMode(InterfaceManager.getWindowMode());
                 }
                 return;
             }
@@ -5936,6 +5941,7 @@ public final class ScriptRunner {
                 @Pc(192) int mode = intStack[--intStackPointer];
                 if (mode >= 1 && mode <= 2) {
                     InterfaceManager.changeWindowMode(mode, -1, -1, false);
+                    ClientOptions.instance.rememberWindowMode(mode);
                     return;
                 }
                 return;
@@ -6777,6 +6783,8 @@ public final class ScriptRunner {
                 if (toolkit < ToolkitType.JAVA || toolkit > ToolkitType.GLX) {
                     toolkit = ToolkitType.SSE;
                 }
+                ClientOptions.instance.update(toolkit, ClientOptions.instance.toolkitDefault);
+                ClientOptions.instance.markCustom();
                 Static32.setToolkit(toolkit, false);
                 return;
             }

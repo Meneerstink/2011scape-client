@@ -19,24 +19,7 @@ public final class GroundBlendingOption extends Option {
     @OriginalMember(owner = "client!qia", name = "a", descriptor = "(IB)I")
     @Override
     public int canSet(@OriginalArg(0) int value) {
-        if (super.options.isLowDetail()) {
-            return 3;
-        } else if (super.options.getModeGame() == ModeGame.RUNESCAPE) {
-            if (value == 0) {
-                if (super.options.fog.getValue() == 1) {
-                    return 2;
-                }
-                if (super.options.textures.getValue() == 1) {
-                    return 2;
-                }
-                if (super.options.waterDetail.getValue() > 0) {
-                    return 2;
-                }
-            }
-            return 1;
-        } else {
-            return 3;
-        }
+        return super.options.isLowDetail() || super.options.getModeGame() != ModeGame.RUNESCAPE ? 3 : 1;
     }
 
     @OriginalMember(owner = "client!qia", name = "a", descriptor = "(B)V")

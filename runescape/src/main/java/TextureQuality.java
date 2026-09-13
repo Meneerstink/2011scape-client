@@ -52,15 +52,7 @@ public final class TextureQuality extends Option {
     @OriginalMember(owner = "client!tv", name = "a", descriptor = "(IB)I")
     @Override
     public int canSet(@OriginalArg(0) int value) {
-        if (super.options.getModeGame() != ModeGame.RUNESCAPE) {
-            return 3;
-        } else if (super.options.isLowDetail()) {
-            return 3;
-        } else if (value == 0 || super.options.groundBlending.getValue() == 1) {
-            return 1;
-        } else {
-            return 2;
-        }
+        return super.options.isLowDetail() || super.options.getModeGame() != ModeGame.RUNESCAPE ? 3 : 1;
     }
 
     @OriginalMember(owner = "client!tv", name = "a", descriptor = "(I)I")

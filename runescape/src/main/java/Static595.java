@@ -51,8 +51,8 @@ public final class Static595 {
         Static59.aMatrix_5 = Toolkit.active.createMatrix();
         Static209.method3110();
         Toolkit.active.setShrinkTextures(ClientOptions.instance.smallTextures.getValue() == 1);
-        if (Toolkit.active.supportsBloom()) {
-            Static249.setBloom(ClientOptions.instance.bloom.getValue() == 1);
+        if (Toolkit.active.supportsBloom() && ClientOptions.instance.bloom.getValue() == 1) {
+            Toolkit.active.hasBloom();
         }
         Static613.method8239(Toolkit.active, Static501.mapLength >> 3, Static720.mapWidth >> 3);
         InterfaceManager.loginOpened();
@@ -62,7 +62,6 @@ public final class Static595 {
         OrthoMode.enter();
         if (requested != toolkit) {
             // Validation normalizes only the failed preference, preserving other saved choices.
-            ClientOptions.instance.validate();
             ClientOptions.save();
         }
     }

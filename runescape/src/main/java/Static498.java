@@ -33,7 +33,7 @@ public final class Static498 {
         @Pc(115) int local115;
         @Pc(122) int local122;
         @Pc(86) short local86;
-        if (local72 < Static552.aShort123) {
+        if (!InterfaceManager.resizableScreen && local72 < Static552.aShort123) {
             local86 = Static552.aShort123;
             local49 = local86 * arg4 * 334 / (arg3 * 512);
             if (Static598.aShort120 < local49) {
@@ -48,7 +48,7 @@ public final class Static498 {
                 arg0 += local122;
                 arg4 -= local122 * 2;
             }
-        } else if (Static306.aShort59 < local72) {
+        } else if (!InterfaceManager.resizableScreen && Static306.aShort59 < local72) {
             local86 = Static306.aShort59;
             local49 = local86 * 334 * arg4 / (arg3 * 512);
             if (Static25.aShort1 > local49) {

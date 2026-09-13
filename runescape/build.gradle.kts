@@ -83,3 +83,20 @@ val debugOverlayRegression by tasks.registering(JavaExec::class) {
 tasks.check {
     dependsOn(r13Regression, audioSettingsRegression, cameraZoomRegression, oldStyleHitsplatRegression, debugOverlayRegression)
 }
+
+val graphicsDisplayRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("GraphicsDisplayRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+val desktopDisplayRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("DesktopDisplayRegressionTest")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+tasks.check { dependsOn(graphicsDisplayRegression) }

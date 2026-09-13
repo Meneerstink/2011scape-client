@@ -298,7 +298,11 @@ public final class Loading {
             }
 
             Static595.setToolkit(null, true, 0);
-            loadingSpritesRaw = !method7721();
+            // The embedded AWT/JPEG capability probe is incompatible with the JDK 11
+            // decoder on this client and emits ImageFormatException asynchronously.
+            // Archive 34 is the existing indexed/raw loading-sprite fallback; select it
+            // directly so startup does not invoke the failing decoder at all.
+            loadingSpritesRaw = true;
             js5.LOADING_SPRITES = client.createJs5(false, loadingSpritesRaw ? Js5Archive.LOADING_SPRITES_RAW : Js5Archive.LOADING_SPRITES, 1);
             js5.LOADING_SCREENS = client.createJs5(false, Js5Archive.LOADING_SCREENS, 1);
             js5.FONTMETRICS = client.createJs5(false, Js5Archive.FONTMETRICS, 1);
@@ -590,9 +594,7 @@ public final class Loading {
             cacheReset();
             Static3.chooseSafeMode = ClientOptions.instance.safeMode.getValue() == 1;
             ClientOptions.instance.update(1, ClientOptions.instance.safeMode);
-            if (Static3.chooseSafeMode) {
-                ClientOptions.instance.update(0, ClientOptions.instance.toolkitDefault);
-            } else if (ClientOptions.instance.needsDefaultRenderer) {
+            if (!Static3.chooseSafeMode && ClientOptions.instance.needsDefaultRenderer) {
                 int defaultRenderer = GraphicsRendererPolicy.defaultRenderer(
                         ClientOptions.instance.environment.isSigned(),
                         rs2.client.loading.library.LibraryManager.isLoaded("jaggl"),
@@ -609,7 +611,9 @@ public final class Loading {
             } else {
                 Static32.setToolkit(ClientOptions.instance.toolkitDefault.getValue(), false);
             }
-            InterfaceManager.changeWindowMode(ClientOptions.instance.screenSizeDefault.getValue(), -1, -1, false);
+            CameraZoomController.restoreZoom(ClientOptions.instance.cameraZoom);
+            com.jagex.graphics.awt.DesktopDisplay.restoreWindowSize(ClientOptions.instance.windowWidth, ClientOptions.instance.windowHeight);
+            InterfaceManager.changeWindowMode(ClientOptions.instance.startupWindowMode(), -1, -1, false);
             FontTypeList.method7549(Toolkit.active);
             Fonts.init(Toolkit.active);
             Sprites.init(js5.SPRITES, Toolkit.active);

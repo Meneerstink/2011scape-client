@@ -160,6 +160,52 @@ public final class ClientOptions extends Node {
     @OriginalMember(owner = "client!kv", name = "F", descriptor = "Lclient!le;")
     public final EnvironmentContext environment;
 
+    // Local trailer only: never sent in the revision-667 preference packet.
+    int preferredWindowMode;
+    int windowWidth;
+    int windowHeight;
+    int cameraZoom = CameraZoomController.DEFAULT_ZOOM;
+
+    public void markCustom() { graphicsQuality.setValue(0); }
+
+    int startupWindowMode() {
+        return preferredWindowMode == 0 ? screenSizeDefault.getValue() : preferredWindowMode;
+    }
+
+    void rememberWindowMode(int mode) {
+        preferredWindowMode = mode;
+        if (mode != com.jagex.core.constants.WindowMode.FULLSCREEN) {
+            update(mode, screenSizeDefault);
+            update(mode, screenSize);
+        }
+        markCustom();
+        save();
+    }
+
+    byte[] encodeLocal() {
+        Packet packet = encode();
+        java.nio.ByteBuffer data = java.nio.ByteBuffer.allocate(packet.pos + 18);
+        data.put(packet.data, 0, packet.pos).putInt(0x52535053).put((byte) 1);
+        data.put((byte) startupWindowMode()).putInt(windowWidth).putInt(windowHeight).putInt(cameraZoom);
+        return data.array();
+    }
+
+    private void decodeLocal(Packet packet) {
+        if (packet == null || packet.data.length - packet.pos < 18) return;
+        java.nio.ByteBuffer data = java.nio.ByteBuffer.wrap(packet.data, packet.pos, 18);
+        if (data.getInt() != 0x52535053 || data.get() != 1) return;
+        int mode = data.get();
+        int width = data.getInt();
+        int height = data.getInt();
+        int zoom = data.getInt();
+        if (mode >= 1 && mode <= 3) preferredWindowMode = mode;
+        if (width >= 765 && height >= 503 && width <= 32767 && height <= 32767) {
+            windowWidth = width;
+            windowHeight = height;
+        }
+        if (zoom >= CameraZoomController.MIN_ZOOM && zoom <= CameraZoomController.MAX_ZOOM) cameraZoom = zoom;
+    }
+
     @OriginalMember(owner = "client!kv", name = "Z", descriptor = "Lclient!tba;")
     public ToolkitOption toolkit;
 
@@ -198,11 +244,10 @@ public final class ClientOptions extends Node {
             if (resource.status == SignedResourceStatus.SUCCESS) {
                 file = (FileOnDisk) resource.result;
                 if (file == null) throw new IOException("Preferences unavailable");
-                @Pc(41) Packet packet = instance.encode();
                 Path target = file.source().toPath();
                 file.close(); // Windows cannot replace an open destination.
                 file = null;
-                ClientPreferencesIO.write(target, Arrays.copyOf(packet.data, packet.pos));
+            ClientPreferencesIO.write(target, instance.encodeLocal());
                 saveWarningReported = false;
             } else {
                 throw new IOException("Preferences unavailable");
@@ -246,6 +291,7 @@ public final class ClientOptions extends Node {
             this.loadDefaults(true);
         }
         this.validate();
+        decodeLocal(packet);
     }
 
     private void decodeValues(Packet packet) {
@@ -443,8 +489,18 @@ public final class ClientOptions extends Node {
 
     @OriginalMember(owner = "client!kv", name = "a", descriptor = "(IILclient!ta;)V")
     public void update(@OriginalArg(1) int value, @OriginalArg(2) Option option) {
+        int previous = option.value;
         option.setSafeValue(value);
-        this.validate();
+        option.validate();
+        if (option == antialiasingQuality) antialiasingMode.value = option.value;
+        if (option == antialiasingMode) antialiasingQuality.value = option.value;
+        if (previous != option.value && option != graphicsQuality && option != toolkit
+            && option != safeMode && option != loadingSequence && option != stereoSound
+            && !(option instanceof VolumeOption) && option != animateBackground
+            && option != removeRoofsOverride && option != screenSize) {
+            markCustom();
+        }
+        if (option == maxScreenSize) Fullscreen.modes = null;
     }
 
     @OriginalMember(owner = "client!kv", name = "h", descriptor = "(I)Lclient!ul;")

@@ -34,7 +34,7 @@ public final class FogOption extends Option {
     @OriginalMember(owner = "client!mea", name = "a", descriptor = "(IB)I")
     @Override
     public int canSet(@OriginalArg(0) int value) {
-        return value == 0 || super.options.groundBlending.getValue() == 1 ? 1 : 2;
+        return 1;
     }
 
     @OriginalMember(owner = "client!mea", name = "a", descriptor = "(I)I")
@@ -46,9 +46,6 @@ public final class FogOption extends Option {
     @OriginalMember(owner = "client!mea", name = "a", descriptor = "(B)V")
     @Override
     public void validate() {
-        if (super.value != 0 && super.options.groundBlending.getValue() != 1) {
-            super.value = 0;
-        }
         if (super.value < 0 || super.value > 1) {
             super.value = this.getDefaultValue();
         }
