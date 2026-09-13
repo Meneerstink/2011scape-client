@@ -2138,6 +2138,7 @@ public final class ServerConnectionReader {
             @Pc(526) int delay = bitPacket.g2();
             @Pc(1409) int volume = bitPacket.g1();
             @Pc(1413) int rate = bitPacket.g2();
+            AvTrace.log("packet SYNTH_SOUND id=" + id + " loops=" + loops + " delay=" + delay + " volume=" + volume + " rate=" + rate);
             SoundManager.playSynthSound(id, loops, delay, volume, rate);
             context.currentProt = null;
             return true;

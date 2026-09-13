@@ -760,6 +760,8 @@ public abstract class PathingEntity extends PositionEntity {
     public final void setSpotAnim(@OriginalArg(0) int index, @OriginalArg(1) int rotation, @OriginalArg(2) boolean loop, @OriginalArg(3) int heightAndDelay, @OriginalArg(4) int wornSlot, @OriginalArg(5) int id) {
         @Pc(16) EntitySpotAnimation spotAnim = this.spotAnims[index];
         @Pc(19) int currentId = spotAnim.id;
+        String traceWho = AvTrace.ENABLED ? ((this instanceof PlayerEntity ? "player" : "npc") + (this == PlayerEntity.self ? "(self)" : "")) : null;
+        AvTrace.log("spotanim recv " + traceWho + " slot=" + index + " id=" + id + " height=" + (heightAndDelay >> 16) + " delay=" + (heightAndDelay & 0xFFFF) + " rot=" + rotation + " worn=" + wornSlot + " loop=" + loop + " current=" + currentId);
 
         if (id != -1 && currentId != -1) {
             if (currentId == id) {
@@ -770,9 +772,11 @@ public abstract class PathingEntity extends PositionEntity {
                     @Pc(57) int replayMode = seqType.replayMode;
 
                     if (replayMode == SeqReplayMode.STOP) {
+                        AvTrace.log("spotanim ignored " + traceWho + " slot=" + index + " id=" + id + " reason=same-id replayMode STOP");
                         return;
                     } else if (replayMode == SeqReplayMode.RESTART_LOOP) {
                         spotAnim.animator.restartLoop();
+                        AvTrace.log("spotanim restart-loop " + traceWho + " slot=" + index + " id=" + id);
                         return;
                     }
                 }
@@ -785,10 +789,15 @@ public abstract class PathingEntity extends PositionEntity {
                     @Pc(109) SeqType currSeqType = SeqTypeList.instance.list(currType.seq);
 
                     if (newSeqType.priority < currSeqType.priority) {
+                        AvTrace.log("spotanim ignored " + traceWho + " slot=" + index + " id=" + id + " reason=lower seq priority than current " + currentId);
                         return;
                     }
                 }
             }
+        }
+        if (AvTrace.ENABLED && id != -1) {
+            SpotAnimationType traceType = SpotAnimationTypeList.instance.list(id);
+            AvTrace.log("spotanim applied " + traceWho + " slot=" + index + " id=" + id + " seq=" + traceType.seq + " model=" + traceType.model + " loopSeq=" + traceType.loopSeq);
         }
 
         @Pc(118) byte loopMode = 0;

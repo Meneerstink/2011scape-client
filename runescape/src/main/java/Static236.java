@@ -16,6 +16,8 @@ public final class Static236 {
         try {
             return ServerConnectionReader.decodeServerProt(connection);
         } catch (@Pc(15) IOException local15) {
+            // Diagnostic: the invalid-opcode/socket path used to drop the connection silently.
+            JagException.print("T0 - " + local15 + " - " + (connection.currentProt == null ? -1 : connection.currentProt.getOpcode()) + "," + (connection.penultimateProt == null ? -1 : connection.penultimateProt.getOpcode()) + "," + (connection.antepenultimateProt == null ? -1 : connection.antepenultimateProt.getOpcode()) + " - " + connection.currentPacketSize + " step=" + MainLogicManager.step);
             if (MainLogicManager.step == MainLogicStep.STEP_LOGGING_IN_FROM_LOBBYSCREEN_TO_GAME) {
                 connection.connection = null;
                 return false;

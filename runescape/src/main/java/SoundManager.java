@@ -423,6 +423,9 @@ public final class SoundManager {
     public static void playSynthSound(@OriginalArg(2) int id, @OriginalArg(3) int loops, @OriginalArg(1) int delay, @OriginalArg(4) int volume, @OriginalArg(0) int rate) {
         if (ClientOptions.instance.soundVolume.getValue() != 0 && loops != 0 && count < 50 && id != -1) {
             sounds[count++] = new Sound((byte) SoundType.SYNTH, id, loops, delay, volume, rate, 0, null);
+            AvTrace.log("synth queued id=" + id + " loops=" + loops + " delay=" + delay + " volume=" + volume + " rate=" + rate + " queue=" + count);
+        } else {
+            AvTrace.log("synth dropped id=" + id + " soundVolumeOption=" + ClientOptions.instance.soundVolume.getValue() + " loops=" + loops + " queue=" + count);
         }
     }
 

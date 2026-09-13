@@ -27,6 +27,7 @@ public final class AudioRenderer {
 
                 if (sound.delay < (sound.isVorbis() ? -1500 : -10)) {
                     stopped = true;
+                    AvTrace.log("sound expired without playing id=" + sound.id + " type=" + sound.type + " synthLoaded=" + (sound.synth != null) + " coord=" + sound.coord);
                 } else {
                     if (sound.type == SoundType.SYNTH && sound.synth == null) {
                         sound.synth = SynthSound.get(js5.SYNTH_SOUNDS, sound.id, 0);
