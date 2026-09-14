@@ -6,7 +6,23 @@ public final class CameraZoomController {
     static final int DEFAULT_ZOOM = 320;
     private static int userZoom = DEFAULT_ZOOM;
 
+    /**
+     * The chatbox pane interface. Server dialogues (npc / player chat heads, message boxes, option and item boxes) are mounted
+     * into 752:12 / 752:13 as MODAL sub-interfaces (server QueueTaskExt `openInterface(parent = 752, ...)`, InterfaceDestination
+     * CHAT_BOX_PANE), but they sit in the chatbox and never cover the 3D scene.
+     */
+    static final int CHATBOX_PANE_INTERFACE = 752;
+
     static int getZoom() { return userZoom; }
+
+    /**
+     * RCV-012.B15: whether an open sub-interface blocks world zoom. Only a MODAL sub-interface outside the chatbox pane does (the
+     * bank-style screens the modal block was meant for); a dialogue in the chatbox left wheel zoom blocked for as long as the
+     * player was talking to an npc.
+     */
+    static boolean blocksWorldZoom(boolean modal, int parentInterfaceId) {
+        return modal && parentInterfaceId != CHATBOX_PANE_INTERFACE;
+    }
 
     static void restoreZoom(int zoom) {
         userZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));

@@ -17,6 +17,12 @@ public final class CameraZoomControllerRegressionTest {
         check(!consume(true, false, false, false, false, true), "Staff plane shortcut keeps wheel input");
         check(!CameraZoomController.shouldConsume(0, true, false, false, false, false, false), "Zero rotation is ignored");
 
+        // RCV-012.B15: npc dialogues are MODAL sub-interfaces in the chatbox pane 752 and must not block world zoom.
+        check(!CameraZoomController.blocksWorldZoom(true, 752), "Chatbox dialogue (752) leaves world zoom available");
+        check(CameraZoomController.blocksWorldZoom(true, 548), "Main-screen modal (fixed gameframe 548) still blocks zoom");
+        check(CameraZoomController.blocksWorldZoom(true, 746), "Main-screen modal (resizable gameframe 746) still blocks zoom");
+        check(!CameraZoomController.blocksWorldZoom(false, 548), "Non-modal overlays never block zoom");
+
         CameraZoomController.restoreZoom(320);
         check(CameraZoomController.applyWheelRotation(1, true, false, false, false, false, false), "Eligible wheel input is consumed");
         check(CameraZoomController.getZoom() == 335, "Consumed wheel input updates the real camera zoom field");

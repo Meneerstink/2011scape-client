@@ -205,6 +205,17 @@ public final class InterfaceManager {
         return false;
     }
 
+    /** A MODAL sub-interface that blocks world zoom; the table key is the parent component hash, so its interface is key >>> 16. */
+    public static boolean hasSceneModalSubInterface() {
+        HashTableIterator iterator = new HashTableIterator(subInterfaces);
+        for (SubInterface sub = (SubInterface) iterator.first(); sub != null; sub = (SubInterface) iterator.next()) {
+            if (CameraZoomController.blocksWorldZoom(sub.type == SubInterfaceType.MODAL, (int) (sub.key >>> 16))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @OriginalMember(owner = "client!wn", name = "c", descriptor = "I")
     public static int targetMask;
 

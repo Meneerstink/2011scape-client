@@ -625,7 +625,7 @@ public final class MainLogicManager {
                 Static611.mouseWheelRotation,
                 InterfaceManager.mouseWheelOverScene,
                 InterfaceManager.mouseWheelClaimedByInterface,
-                InterfaceManager.hasModalSubInterface(),
+                InterfaceManager.hasSceneModalSubInterface(),
                 MiniMenu.open,
                 debugconsole.isOpen(),
                 staffPlaneShortcut
