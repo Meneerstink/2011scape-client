@@ -218,6 +218,13 @@ public final class PlayerEntity extends PathingEntity {
     @OriginalMember(owner = "client!ca", name = "qd", descriptor = "I")
     public int pkIcon = -1;
 
+    /**
+     * RSPS Deadman: number of loot keys (0-5) drawn beside the skull head icon. The server packs
+     * it into the appearance pk-icon byte as {@code skullIcon | (keys << 4)}; see
+     * {@code PlayerUpdateBlockSegment} (game server) and {@link OverlayManager}.
+     */
+    public int pkKeys = 0;
+
     @OriginalMember(owner = "client!ca", name = "Dd", descriptor = "B")
     public byte gender = 0;
 
@@ -614,6 +621,12 @@ public final class PlayerEntity extends PathingEntity {
         super.z += (this.getSize() - sizeBefore) << 8;
         this.titleKey = packet.g1b();
         this.pkIcon = packet.g1b();
+        // RSPS Deadman: high bits carry the loot-key count, low nibble the skull icon id.
+        this.pkKeys = 0;
+        if (this.pkIcon >= 16) {
+            this.pkKeys = this.pkIcon >> 4;
+            this.pkIcon &= 0xF;
+        }
         this.prayerIcon = packet.g1b();
         this.hideOnMap = packet.g1b() == 1;
         if (ModeWhere.LIVE == Client.modeWhere && Client.staffModLevel >= 2) {

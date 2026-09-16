@@ -58,6 +58,17 @@ public final class InterfaceList {
                         }
 
                         component.decode(new Packet(data));
+
+                        // RSPS Deadman HUD: the Wilderness overlay's two text components
+                        // (381:2 and 381:5) carry a baked onTimer hook (client script 54) that
+                        // every tick recomputes "Level: (z-3520)/8+1" from the player's own
+                        // coordinate and overwrites the text - the source of the "-2"/"-3"
+                        // readings outside the Wilderness and of any server text being clobbered.
+                        // The server (DeadmanHud) now owns this text (level / Guarded / Dangerous /
+                        // skull timer), so the client-side recomputation is dropped.
+                        if (id == 381 && (slot == 2 || slot == 5)) {
+                            component.onTimer = null;
+                        }
                     }
                 }
             }

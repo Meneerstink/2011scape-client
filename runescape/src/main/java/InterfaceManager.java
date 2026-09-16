@@ -322,6 +322,16 @@ public final class InterfaceManager {
             @Pc(125) int offsetX = screenX + child.x;
             @Pc(130) int offsetY = screenY + child.y;
 
+            // RSPS Deadman: the skull-timer layer of the PvP overlay (381:3) is drawn as a custom
+            // panel (skull in the player's own head-icon colour + remaining time) instead of the
+            // cache's white-skull layout - see DeadmanSkullHud. Redrawn every frame.
+            if (DeadmanSkullHud.isTimerLayer(child)) {
+                DeadmanSkullHud.draw(child, screenX, screenY);
+                Toolkit.active.KA(x1, y1, x2, y2);
+                dirtyRectangles[rectangle] = true;
+                continue;
+            }
+
             @Pc(132) int local132 = 0;
             @Pc(134) int local134 = 0;
             if (OrthoMode.toolkitActive) {

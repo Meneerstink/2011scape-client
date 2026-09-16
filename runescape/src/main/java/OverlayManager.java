@@ -268,16 +268,34 @@ public final class OverlayManager {
                     } else {
                         @Pc(720) PlayerEntity player = (PlayerEntity) entity;
 
-                        // RSPS: this project's server can assign risk-tier skull icon ids (see
-                        // SkullIcon.kt DMM_* variants) beyond this client's loaded headicons_pk
-                        // sprite count; guard the same way the npcType.headIcon case above already
-                        // does rather than crash with an ArrayIndexOutOfBoundsException.
-                        if (player.pkIcon != -1 && Sprites.headiconsPk.length > player.pkIcon) {
-                            @Pc(496) Sprite headicon = Sprites.headiconsPk[player.pkIcon];
+                        // RSPS Deadman head icon. Ids 0-7 are the cache's own headicons_pk frames.
+                        // Ids 8-12 are the server's risk-tier skulls (SkullIcon.kt DMM_* variants:
+                        // 8 red, 9 blue, 10 green, 11 iron, 12 bronze) which this 2011 cache has no
+                        // sprite for, so they are drawn as the plain skull frame tinted in the tier
+                        // colour. player.pkKeys loot keys are drawn as a count beside the skull.
+                        if (player.pkIcon != -1 && Sprites.headiconsPk.length > 0) {
+                            @Pc(496) Sprite headicon;
+                            int tint = 0;
+                            if (player.pkIcon < 8 && Sprites.headiconsPk.length > player.pkIcon) {
+                                headicon = Sprites.headiconsPk[player.pkIcon];
+                            } else {
+                                headicon = Sprites.headiconsPk[0];
+                                tint = deadmanSkullTint(player.pkIcon);
+                            }
                             y -= headicon.getHeight();
 
-                            headicon.render(hitmarkpos[0] + screenX - 12, y);
-                            OrthoMode.method8927(hitmarkpos[0] + screenX + -12, hitmarkpos[0] + screenX + headicon.scaleWidth() - 12, y, headicon.scaleHeight() + y);
+                            int iconX = hitmarkpos[0] + screenX - 12;
+                            if (tint == 0) {
+                                headicon.render(iconX, y);
+                            } else {
+                                headicon.render(iconX, y, 0, 0xFF000000 | tint, 1);
+                            }
+                            OrthoMode.method8927(iconX, iconX + headicon.scaleWidth(), y, headicon.scaleHeight() + y);
+
+                            if (player.pkKeys > 0 && Fonts.p11 != null) {
+                                String keys = Integer.toString(player.pkKeys);
+                                Fonts.p11.renderCentre(keys, iconX + headicon.getWidth() + 5, y + headicon.getHeight() - 2, 0xFFFFD700, 0xFF000000);
+                            }
 
                             y -= 2;
                         }
@@ -907,6 +925,28 @@ public final class OverlayManager {
             }
 
             OrthoMode.method8927(local409, local1274 + 1, local412, local2654 + 1);
+        }
+    }
+
+    /**
+     * RSPS Deadman risk-tier skull colours for the server's SkullIcon ids 8-12 (DMM_VERY_HIGH_RISK
+     * .. DMM_VERY_LOW_RISK): red (more than 8M), blue (2M-8M), green (800k-2M), iron (200k-800k),
+     * bronze (200k or less). Returns 0 (no tint) for any other id.
+     */
+    static int deadmanSkullTint(int pkIcon) {
+        switch (pkIcon) {
+            case 8:
+                return 0xD92B2B;
+            case 9:
+                return 0x3B7BE0;
+            case 10:
+                return 0x3FBF4A;
+            case 11:
+                return 0xA8A8B0;
+            case 12:
+                return 0xC08A4A;
+            default:
+                return 0;
         }
     }
 
