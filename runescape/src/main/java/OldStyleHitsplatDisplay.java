@@ -1,10 +1,10 @@
 public final class OldStyleHitsplatDisplay {
     /**
      * RCV-010 A6 (owner live 2026-09-13): hitsplats on targets looked too small; the owner asked for them
-     * about 10% bigger. Applied to every hitsplat sprite part through {@link ScaledHitsplatSprite}; the damage
-     * number keeps its cache font.
+     * about 10% bigger, and on 2026-09-18 another 5% (110 * 1.05 = 115.5, rounded to 116). Applied to every hitsplat
+     * sprite part through {@link ScaledHitsplatSprite}; the damage number keeps its cache font.
      */
-    public static final int SIZE_PERCENT = 110;
+    public static final int SIZE_PERCENT = 116;
 
     private OldStyleHitsplatDisplay() {
     }

@@ -268,34 +268,18 @@ public final class OverlayManager {
                     } else {
                         @Pc(720) PlayerEntity player = (PlayerEntity) entity;
 
-                        // RSPS Deadman head icon. Ids 0-7 are the cache's own headicons_pk frames.
-                        // Ids 8-12 are the server's risk-tier skulls (SkullIcon.kt DMM_* variants:
-                        // 8 red, 9 blue, 10 green, 11 iron, 12 bronze) which this 2011 cache has no
-                        // sprite for, so they are drawn as the plain skull frame tinted in the tier
-                        // colour. player.pkKeys loot keys are drawn as a count beside the skull.
-                        if (player.pkIcon != -1 && Sprites.headiconsPk.length > 0) {
-                            @Pc(496) Sprite headicon;
-                            int tint = 0;
-                            if (player.pkIcon < 8 && Sprites.headiconsPk.length > player.pkIcon) {
-                                headicon = Sprites.headiconsPk[player.pkIcon];
-                            } else {
-                                headicon = Sprites.headiconsPk[0];
-                                tint = deadmanSkullTint(player.pkIcon);
-                            }
-                            y -= headicon.getHeight();
+                        // RSPS Deadman head icon: the OSRS skull in the player's risk-tier colour
+                        // with its 0-5 loot keys as one sprite (OSRS headicons_pk frames 8..12 on
+                        // their own 25x25 canvas, so the keys sit exactly where OSRS puts them).
+                        // The cache's default skull is never drawn; the skull-timer HUD
+                        // (DeadmanSkullHud) draws the same sprite, so the colour always matches.
+                        Sprite pkSkull = Sprites.deadmanSkull(player.pkIcon, player.pkKeys);
+                        if (pkSkull != null) {
+                            y -= pkSkull.getHeight();
 
                             int iconX = hitmarkpos[0] + screenX - 12;
-                            if (tint == 0) {
-                                headicon.render(iconX, y);
-                            } else {
-                                headicon.render(iconX, y, 0, 0xFF000000 | tint, 1);
-                            }
-                            OrthoMode.method8927(iconX, iconX + headicon.scaleWidth(), y, headicon.scaleHeight() + y);
-
-                            if (player.pkKeys > 0 && Fonts.p11 != null) {
-                                String keys = Integer.toString(player.pkKeys);
-                                Fonts.p11.renderCentre(keys, iconX + headicon.getWidth() + 5, y + headicon.getHeight() - 2, 0xFFFFD700, 0xFF000000);
-                            }
+                            pkSkull.render(iconX, y);
+                            OrthoMode.method8927(iconX, iconX + pkSkull.scaleWidth(), y, pkSkull.scaleHeight() + y);
 
                             y -= 2;
                         }
@@ -576,10 +560,10 @@ public final class OverlayManager {
 
                                 @Pc(1719) int local1719 = 0;
                                 if (damageIconWidth > 0) {
-                                    local1719 = damageIconWidth;
+                                    // The 2 px gap separates an icon from the splat; without an icon it only pushed the
+                                    // splat off-centre (owner 2026-09-18: hitsplats must be centred like OSRS).
+                                    local1719 = damageIconWidth + 2;
                                 }
-
-                                local1719 += 2;
 
                                 @Pc(1730) int local1730 = local1719;
                                 if (damageLeftWidth > 0) {
@@ -638,7 +622,7 @@ public final class OverlayManager {
                                 @Pc(1871) int local1871 = damageType.offsetX - damageType.offsetX * timeRemaining / damageType.duration;
                                 @Pc(1884) int local1884 = timeRemaining * damageType.offsetY / damageType.duration - damageType.offsetY;
                                 @Pc(1898) int local1898 = screenX + hitmarkpos[0] + local1871 - (local1719 >> 1);
-                                @Pc(1908) int local1908 = hitmarkpos[1] + screenY + local1884 - OldStyleHitsplatDisplay.size(12);
+                                @Pc(1908) int local1908 = hitmarkpos[1] + screenY + local1884 - (maxHeight >> 1); // vertically centred on the anchor at any splat size
                                 @Pc(1910) int local1910 = local1908;
                                 @Pc(1915) int local1915 = local1908 + maxHeight;
                                 @Pc(1922) int local1922 = OldStyleHitsplatDisplay.size(damageType.anInt7178 + 15) + local1908;
@@ -925,28 +909,6 @@ public final class OverlayManager {
             }
 
             OrthoMode.method8927(local409, local1274 + 1, local412, local2654 + 1);
-        }
-    }
-
-    /**
-     * RSPS Deadman risk-tier skull colours for the server's SkullIcon ids 8-12 (DMM_VERY_HIGH_RISK
-     * .. DMM_VERY_LOW_RISK): red (more than 8M), blue (2M-8M), green (800k-2M), iron (200k-800k),
-     * bronze (200k or less). Returns 0 (no tint) for any other id.
-     */
-    static int deadmanSkullTint(int pkIcon) {
-        switch (pkIcon) {
-            case 8:
-                return 0xD92B2B;
-            case 9:
-                return 0x3B7BE0;
-            case 10:
-                return 0x3FBF4A;
-            case 11:
-                return 0xA8A8B0;
-            case 12:
-                return 0xC08A4A;
-            default:
-                return 0;
         }
     }
 
