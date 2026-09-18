@@ -81,7 +81,7 @@ public final class AudioRenderer {
                                     minRange = 0;
                                 }
 
-                                volume = ClientOptions.instance.backgroundSoundVolume.getValue() * (soundRange - minRange) * sound.volume / soundRange >> 2;
+                                volume = SoundManager.ambientVolume() * (soundRange - minRange) * sound.volume / soundRange >> 2;
 
                                 if (sound.entity != null && sound.entity instanceof PositionEntity) {
                                     @Pc(301) PositionEntity entity = (PositionEntity) sound.entity;

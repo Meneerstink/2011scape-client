@@ -2,6 +2,7 @@ import com.jagex.core.datastruct.key.Deque;
 import com.jagex.core.datastruct.key.IterableHashTable;
 import com.jagex.game.runetek6.config.loctype.LocType;
 import com.jagex.game.runetek6.config.npctype.NPCType;
+import com.jagex.game.runetek6.config.npctype.SummoningNpcAudioOverrides;
 import com.jagex.game.runetek6.config.seqtype.SeqType;
 import com.jagex.game.runetek6.config.vartype.TimedVarDomain;
 import com.jagex.js5.js5;
@@ -33,6 +34,13 @@ public final class SoundManager {
 
     @OriginalMember(owner = "client!bc", name = "c", descriptor = "I")
     public static int count = 0;
+
+    /** Owner mix decision (2026-09-18): every ambient/area sound is 15% quieter than its authored level. */
+    public static final int AMBIENT_GAIN_PERCENT = 85;
+
+    public static int ambientVolume() {
+        return ClientOptions.instance.backgroundSoundVolume.getValue() * AMBIENT_GAIN_PERCENT / 100;
+    }
 
     @OriginalMember(owner = "client!kka", name = "d", descriptor = "Lclient!nn;")
     public static Node_Sub6_Sub3 activeStreams;
@@ -181,8 +189,12 @@ public final class SoundManager {
             return;
         }
 
+        boolean provisionalSummoningMovement = sound.npc != null && sound.npc.type != null
+            && SummoningNpcAudioOverrides.isProvisionalPresentationSound(sound.npc.type.id, sound.id)
+            && sound.movementSpeed > 0;
+
         @Pc(23) int range = 0;
-        @Pc(33) int volume = sound.volume * ClientOptions.instance.backgroundSoundVolume.getValue() >> 8;
+        @Pc(33) int volume = sound.volume * ambientVolume() >> 8;
         if (sound.x2 < x) {
             range = x - sound.x2;
         } else if (sound.x1 > x) {
@@ -195,6 +207,15 @@ public final class SoundManager {
         }
 
         if (sound.rangeMax == 0 || range - 256 > sound.rangeMax || ClientOptions.instance.backgroundSoundVolume.getValue() == 0 || level != sound.level) {
+            if (sound.npc != null && sound.npc.type != null
+                && SummoningNpcAudioOverrides.soundFor(sound.npc.type.id) != -1
+                && !sound.summoningTraceRangeLogged) {
+                AvTrace.log("summon-audio blocked npc=" + sound.npc.type.id + " sound=" + sound.id
+                    + " distance=" + range + " max=" + sound.rangeMax
+                    + " backgroundVolume=" + ClientOptions.instance.backgroundSoundVolume.getValue()
+                    + " playerLevel=" + level + " npcLevel=" + sound.level);
+                sound.summoningTraceRangeLogged = true;
+            }
             if (sound.stream != null) {
                 activeStreams.remove(sound.stream);
                 sound.stream = null;
@@ -249,6 +270,18 @@ public final class SoundManager {
             soundRangeY = ((16384 - soundY) >> 1) + ((yaw * soundY) / 8192);
         }
 
+        if (sound.stream != null && !sound.stream.isLinked()) {
+            activeStreams.remove(sound.stream);
+            sound.stream = null;
+            sound.vorbisSound = null;
+            sound.packet = null;
+        }
+
+        if (provisionalSummoningMovement && sound.stream == null && sound.summoningOneShotCooldown > 0) {
+            sound.summoningOneShotCooldown -= clock;
+            return;
+        }
+
         if (sound.stream != null) {
             sound.stream.setVolume(soundRange);
             sound.stream.setRange(soundRangeY);
@@ -277,10 +310,38 @@ public final class SoundManager {
 
                 if (synth != null) {
                     @Pc(415) VariableRateSoundPacket packet = synth.sample().resample(Static681.aSampleRateConverter_2);
+                    boolean provisionalSummoningOneShot = provisionalSummoningMovement && packet.data.length > 1;
                     @Pc(423) SoundStream stream = SoundStream.create(packet, rate, soundRange << 6, soundRangeY);
-                    stream.setLoops(-1);
-                    activeStreams.addFirst(stream);
-                    sound.stream = stream;
+                    if (stream != null) {
+                        // QC3 has no authored loop window for these cues. Repeating the full
+                        // sample was the loud, incorrect Steel titan loop reported by the owner.
+                        stream.setLoops(provisionalSummoningOneShot ? 0 : -1);
+                        activeStreams.addFirst(stream);
+                        sound.stream = stream;
+                        if (provisionalSummoningOneShot) {
+                            int sampleTicks = Math.max(1, (packet.data.length * 20 + packet.sampleRate - 1) / packet.sampleRate);
+                            sound.summoningOneShotCooldown = sampleTicks + 2;
+                        }
+                    }
+                    if (sound.npc != null && sound.npc.type != null
+                        && SummoningNpcAudioOverrides.soundFor(sound.npc.type.id) != -1
+                        && !sound.summoningTraceStreamLogged) {
+                        AvTrace.log("summon-audio synth npc=" + sound.npc.type.id + " sound=" + sound.id
+                            + " synth=true stream=" + (stream != null) + " packet=" + packet.data.length
+                            + " loop=" + (!provisionalSummoningOneShot)
+                            + " oneShot=" + provisionalSummoningOneShot
+                            + " cooldown=" + sound.summoningOneShotCooldown
+                            + " range=" + soundRange + " backgroundVolume="
+                            + ClientOptions.instance.backgroundSoundVolume.getValue());
+                        sound.summoningTraceStreamLogged = true;
+                    }
+                } else if (sound.npc != null && sound.npc.type != null
+                    && SummoningNpcAudioOverrides.soundFor(sound.npc.type.id) != -1
+                    && !sound.summoningTraceStreamLogged) {
+                    AvTrace.log("summon-audio synth npc=" + sound.npc.type.id + " sound=" + sound.id
+                        + " synth=false stream=false backgroundVolume="
+                        + ClientOptions.instance.backgroundSoundVolume.getValue());
+                    sound.summoningTraceStreamLogged = true;
                 }
             }
         }
