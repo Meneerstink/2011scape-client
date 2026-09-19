@@ -35,11 +35,15 @@ public final class SoundManager {
     @OriginalMember(owner = "client!bc", name = "c", descriptor = "I")
     public static int count = 0;
 
-    /** Owner mix decision (2026-09-18): every ambient/area sound is 15% quieter than its authored level. */
-    public static final int AMBIENT_GAIN_PERCENT = 85;
+    /** Owner mix decision (2026-09-19): ambient/area sounds are 10% quieter than the prior 85% mix. */
+    public static final double AMBIENT_GAIN_PERCENT = 76.5D;
 
     public static int ambientVolume() {
-        return ClientOptions.instance.backgroundSoundVolume.getValue() * AMBIENT_GAIN_PERCENT / 100;
+        return ambientVolumeFor(ClientOptions.instance.backgroundSoundVolume.getValue());
+    }
+
+    static int ambientVolumeFor(int backgroundVolume) {
+        return (int) Math.round(backgroundVolume * AMBIENT_GAIN_PERCENT / 100.0D);
     }
 
     @OriginalMember(owner = "client!kka", name = "d", descriptor = "Lclient!nn;")
