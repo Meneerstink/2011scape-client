@@ -46,6 +46,16 @@ val audioSettingsRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
+val audioVolumeRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks the shared ambient volume gain used by location and area sounds."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass = "AudioVolumeRegressionTest"
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
 val cameraZoomRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks mouse-wheel viewport routing and safe camera zoom bounds."
@@ -80,8 +90,20 @@ val debugOverlayRegression by tasks.registering(JavaExec::class) {
     })
 }
 
+val deadmanWorldMapRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks Deadman safe/dangerous worldmap boundary projection."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("DeadmanWorldMapOverlayRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
+tasks.check { dependsOn(deadmanWorldMapRegression) }
+
 tasks.check {
-    dependsOn(r13Regression, audioSettingsRegression, cameraZoomRegression, oldStyleHitsplatRegression, debugOverlayRegression)
+    dependsOn(r13Regression, audioSettingsRegression, audioVolumeRegression, cameraZoomRegression, oldStyleHitsplatRegression, debugOverlayRegression)
 }
 
 val graphicsDisplayRegression by tasks.registering(JavaExec::class) {
@@ -100,3 +122,15 @@ val desktopDisplayRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 tasks.check { dependsOn(graphicsDisplayRegression) }
+
+val summoningNpcAudioRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks provisional QC3 ready/walk/run/crawl coverage for all 78 Summoning familiars."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("com.jagex.game.runetek6.config.npctype.SummoningNpcAudioRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
+tasks.check { dependsOn(summoningNpcAudioRegression) }

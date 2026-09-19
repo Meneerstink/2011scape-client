@@ -82,13 +82,25 @@ final class DeadmanWorldMapOverlay {
         // WorldMap.method5062 stores its source bounds relative to areaX/areaZ. The
         // overlay vertices are absolute world tiles, so convert them to the same
         // relative coordinate space before applying the active viewport transform.
-        int relativeX = tileX - WorldMap.areaX;
-        return WorldMap.anInt5649 + (WorldMap.anInt5651 - WorldMap.anInt5649) * (relativeX - WorldMap.anInt5652) / (WorldMap.anInt5647 - WorldMap.anInt5652);
+        return projectX(tileX, WorldMap.areaX, WorldMap.anInt5652, WorldMap.anInt5647,
+            WorldMap.anInt5649, WorldMap.anInt5651);
     }
 
     private static int projectZ(int tileZ) {
-        int relativeZ = tileZ - WorldMap.areaZ;
-        return WorldMap.anInt5646 - (WorldMap.anInt5646 - WorldMap.anInt5653) * (relativeZ - WorldMap.anInt5654) / (WorldMap.anInt5645 - WorldMap.anInt5654);
+        return projectZ(tileZ, WorldMap.areaZ, WorldMap.anInt5654, WorldMap.anInt5645,
+            WorldMap.anInt5653, WorldMap.anInt5646);
+    }
+
+    /** Pure projection contract used by the headless regression test. */
+    static int projectX(int tileX, int areaX, int sourceMin, int sourceMax, int screenMin, int screenMax) {
+        int relativeX = tileX - areaX;
+        return screenMin + (screenMax - screenMin) * (relativeX - sourceMin) / (sourceMax - sourceMin);
+    }
+
+    /** Pure projection contract used by the headless regression test. */
+    static int projectZ(int tileZ, int areaZ, int sourceMin, int sourceMax, int screenMin, int screenMax) {
+        int relativeZ = tileZ - areaZ;
+        return screenMax - (screenMax - screenMin) * (relativeZ - sourceMin) / (sourceMax - sourceMin);
     }
 
     private DeadmanWorldMapOverlay() {
