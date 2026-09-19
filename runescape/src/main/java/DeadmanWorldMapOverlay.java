@@ -79,11 +79,16 @@ final class DeadmanWorldMapOverlay {
     }
 
     private static int projectX(int tileX) {
-        return WorldMap.anInt5649 + (WorldMap.anInt5651 - WorldMap.anInt5649) * (tileX - WorldMap.anInt5652) / (WorldMap.anInt5647 - WorldMap.anInt5652);
+        // WorldMap.method5062 stores its source bounds relative to areaX/areaZ. The
+        // overlay vertices are absolute world tiles, so convert them to the same
+        // relative coordinate space before applying the active viewport transform.
+        int relativeX = tileX - WorldMap.areaX;
+        return WorldMap.anInt5649 + (WorldMap.anInt5651 - WorldMap.anInt5649) * (relativeX - WorldMap.anInt5652) / (WorldMap.anInt5647 - WorldMap.anInt5652);
     }
 
     private static int projectZ(int tileZ) {
-        return WorldMap.anInt5646 - (WorldMap.anInt5646 - WorldMap.anInt5653) * (tileZ - WorldMap.anInt5654) / (WorldMap.anInt5645 - WorldMap.anInt5654);
+        int relativeZ = tileZ - WorldMap.areaZ;
+        return WorldMap.anInt5646 - (WorldMap.anInt5646 - WorldMap.anInt5653) * (relativeZ - WorldMap.anInt5654) / (WorldMap.anInt5645 - WorldMap.anInt5654);
     }
 
     private DeadmanWorldMapOverlay() {
