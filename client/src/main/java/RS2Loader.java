@@ -95,7 +95,7 @@ public final class RS2Loader implements AppletStub {
             .map(file -> Toolkit.getDefaultToolkit().getImage(getClass().getResource(file)))
             .collect(Collectors.toList());
 
-        var frame = new Frame("2011Scape");
+        var frame = new Frame("78");
         frame.setIconImages(images);
         var menuBar = new java.awt.MenuBar();
         var graphicsMenu = new java.awt.Menu("Graphics");

@@ -622,7 +622,12 @@ public final class OverlayManager {
                                 @Pc(1831) int timeRemaining = entity.hitmarkEndTimes[j] - TimeUtils.clock;
                                 @Pc(1871) int local1871 = damageType.offsetX - damageType.offsetX * timeRemaining / damageType.duration;
                                 @Pc(1884) int local1884 = timeRemaining * damageType.offsetY / damageType.duration - damageType.offsetY;
-                                @Pc(1898) int local1898 = screenX + hitmarkpos[0] + local1871 - (local1719 >> 1);
+                                // RSPS (owner 2026-09-19, AGS / dragon dagger specs): centre the splat BODY (left + inner +
+                                // right) on the anchor, not the whole icon + splat + soak group. Centring the group put every
+                                // splat that carries a style icon or a soak part off-centre by half their width, so stacked
+                                // hits of different types no longer lined up. Icon and soak stay beside the centred body.
+                                @Pc(1897) int bodyWidth = local1752 - local1730 + Math.max(damageRightWidth, 0);
+                                @Pc(1898) int local1898 = screenX + hitmarkpos[0] + local1871 - local1730 - (bodyWidth >> 1);
                                 @Pc(1908) int local1908 = hitmarkpos[1] + screenY + local1884 - (maxHeight >> 1); // vertically centred on the anchor at any splat size
                                 @Pc(1910) int local1910 = local1908;
                                 @Pc(1915) int local1915 = local1908 + maxHeight;
