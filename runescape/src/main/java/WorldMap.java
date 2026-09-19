@@ -350,6 +350,7 @@ public final class WorldMap {
 
             @Pc(203) Deque local203 = method5081(toolkit);
             renderElements(local203, toolkit);
+            DeadmanWorldMapOverlay.draw(toolkit);
 
             if (anInt5084 > 0) {
                 anInt3467--;
@@ -406,6 +407,7 @@ public final class WorldMap {
         }
 
         overviewSprite.render(newX, newY);
+        DeadmanWorldMapOverlay.drawOverview(toolkit, newX, newY, newWidth, newHeight);
 
         @Pc(138) int local138 = (newWidth * WorldMap.width) / areaWidth;
         @Pc(144) int local144 = (newHeight * WorldMap.height) / areaHeight;
