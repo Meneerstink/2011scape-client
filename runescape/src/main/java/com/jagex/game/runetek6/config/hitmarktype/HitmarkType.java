@@ -12,7 +12,7 @@ import org.openrs2.deob.annotation.OriginalMember;
 import org.openrs2.deob.annotation.Pc;
 
 @OriginalClass("client!pb")
-public final class HitmarkType {
+public class HitmarkType { // not final: VenomHitmarkType derives the black venom splat from the poison type
 
     @OriginalMember(owner = "client!pb", name = "b", descriptor = "Lclient!ld;")
     public HitmarkTypeList myList;

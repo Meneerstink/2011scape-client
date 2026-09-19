@@ -14,6 +14,9 @@ public final class EquipmentInterfaceLayout {
     /** Background sprite of the worn ammo slot (387:37), reused for the Dizana's quiver slot. */
     private static int ammoSlotBackground = -1;
 
+    /** 667:14 while interface 667 is decoded, until the ammo slot 667:17 supplies its background. */
+    private static Component bonusesQuiverSlot;
+
     public static void apply(int interfaceId, int slot, Component component) {
         if (interfaceId == EQUIPMENT_TAB && slot == 37) {
             ammoSlotBackground = component.graphic;
@@ -39,8 +42,19 @@ public final class EquipmentInterfaceLayout {
         }
 
         if (slot == 14) {
-            // Matching slot-14 aura placeholder in the worn-items grid.
+            // Slot-14 aura placeholder in the worn-items grid = Dizana's quiver's second ammunition slot
+            // (owner 2026-09-19 picture "quiver bug": the stored ammo was drawn top-left). CS2 2373
+            // places the inv-94 slot-14 item at this component's position, so moving it directly
+            // above the ammo slot (667:17, x 41) moves the item with it. Hidden until the server
+            // shows it (quiver worn); its background becomes the ammo slot's arrow silhouette.
             component.hidden = true;
+            component.originalX = 41;
+            bonusesQuiverSlot = component;
+        } else if (slot == 17) {
+            if (bonusesQuiverSlot != null) {
+                bonusesQuiverSlot.graphic = component.graphic;
+                bonusesQuiverSlot = null;
+            }
         } else if (slot == 30) {
             // "Other Bonuses" title: directly below the five defence rows.
             component.originalY = 159;

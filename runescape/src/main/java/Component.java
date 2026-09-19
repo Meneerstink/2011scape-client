@@ -591,15 +591,37 @@ public final class Component {
     public int targetEndCursor = -1;
 
     @OriginalMember(owner = "client!hda", name = "a", descriptor = "(ZLclient!ha;)Lclient!st;")
+    /** The hitpoints orb interface (748) and the poison-family orb varp (102): 0 none, 1 poison, 2 venom. */
+    private static final int HITPOINTS_ORB_INTERFACE = 748;
+    private static final int POISON_VARP = 102;
+    private static final int VENOM_VARP_VALUE = 2;
+    /** Poison fill of the hitpoints orb (CS2 2923: varp 102 > 0). */
+    private static final int POISON_ORB_SPRITE = 1801;
+
+    /**
+     * RSPS venom (owner 2026-09-18, exactly like OSRS: "HP orb ... must go black"). The 2011 cache
+     * only knows the green poison orb, so while varp 102 reports venom every sprite of the
+     * hitpoints orb is drawn with its palette darkened to near-black; the number keeps its font.
+     */
+    private boolean venomOrb() {
+        // Only the poison fill (sprite 1801, set by CS2 2923 for any varp-102 value > 0) becomes the venom fill; the orb frame,
+        // icon and text keep their art (owner 2026-09-19 picture "venom hit").
+        return this.graphic == POISON_ORB_SPRITE && (this.id >>> 16) == HITPOINTS_ORB_INTERFACE
+            && com.jagex.game.runetek6.config.vartype.TimedVarDomain.instance != null
+            && com.jagex.game.runetek6.config.vartype.TimedVarDomain.instance.getVarValueInt(POISON_VARP) == VENOM_VARP_VALUE;
+    }
+
     public Sprite sprite(@OriginalArg(1) Toolkit toolkit) {
         redrawAll = false;
 
+        boolean venom = venomOrb();
         @Pc(54) long key = ((long) this.graphic)
             + ((this.alpha ? 1L : 0L) << 35)
             + ((long) this.outline << 36)
             + ((this.horizontalFlip ? 1L : 0L) << 38)
             + ((this.verticalFlip ? 1L : 0L) << 39)
-            + ((long) this.graphicShadow << 40);
+            + ((long) this.graphicShadow << 40)
+            + ((venom ? 1L : 0L) << 48);
 
         @Pc(60) Sprite sprite = (Sprite) spriteCache.get(key);
         if (sprite != null) {
@@ -610,6 +632,10 @@ public final class Component {
         if (image == null) {
             redrawAll = true;
             return null;
+        }
+
+        if (venom) {
+            com.jagex.game.runetek6.config.hitmarktype.VenomPalette.tint(image.palette, com.jagex.game.runetek6.config.hitmarktype.VenomPalette.ORB);
         }
 
         if (this.horizontalFlip) {

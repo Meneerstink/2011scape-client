@@ -390,8 +390,9 @@ public final class OverlayManager {
                             Static716.method9350(entity, screenHeight >> 1, midY, screenWidth >> 1);
 
                             if (hitmarkpos[0] > -1) {
-                                hitmarkpos[0] += GraphicsDefaults.instance.hitmarkpos_x[j];
-                                hitmarkpos[1] += GraphicsDefaults.instance.hitmarkpos_y[j];
+                                // RSPS: centred vertical stack scaled with the splat size (OldStyleHitsplatDisplay).
+                                hitmarkpos[0] += OldStyleHitsplatDisplay.offsetX(GraphicsDefaults.instance.hitmarkpos_x, j);
+                                hitmarkpos[1] += OldStyleHitsplatDisplay.offsetY(GraphicsDefaults.instance.hitmarkpos_y, j);
                                 @Pc(1321) int damageIconWidth = 0;
                                 @Pc(1323) int damageInnerWidth = 0;
                                 @Pc(1325) int damageLeftWidth = 0;
