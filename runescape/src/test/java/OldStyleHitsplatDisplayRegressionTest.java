@@ -52,25 +52,31 @@ public final class OldStyleHitsplatDisplayRegressionTest {
                 "orb text too long to be a stat total must be left alone");
 
         // RCV-010 A6: hitsplat parts are drawn 10% bigger, rounded to whole pixels, offsets keep their sign.
-        check(OldStyleHitsplatDisplay.SIZE_PERCENT == 110, "hitsplats must be 110% of the cache size");
-        check(OldStyleHitsplatDisplay.size(20) == 22, "a 20px part must become 22px");
-        check(OldStyleHitsplatDisplay.size(12) == 13, "the 12px anchor must become 13px");
-        check(OldStyleHitsplatDisplay.size(15) == 17, "15px must round to 17px");
+        check(OldStyleHitsplatDisplay.SIZE_PERCENT == 122, "hitsplats must be 122% of the cache size");
+        check(OldStyleHitsplatDisplay.size(20) == 24, "a 20px part must become 24px");
+        check(OldStyleHitsplatDisplay.size(12) == 15, "the 12px anchor must become 15px");
+        check(OldStyleHitsplatDisplay.size(15) == 18, "15px must round to 18px");
         check(OldStyleHitsplatDisplay.size(0) == 0, "zero must stay zero");
         check(OldStyleHitsplatDisplay.size(-5) == -6, "negative offsets must scale symmetrically");
+        check(OldStyleHitsplatDisplay.offsetY(new int[] {0, 20, 40, 60}, 0) == 0,
+                "the first visible hitsplat stays on the anchor");
+        check(OldStyleHitsplatDisplay.offsetY(new int[] {0, 20, 40, 60}, 1) == -26,
+                "the second visible hitsplat uses one scaled stack step");
+        check(OldStyleHitsplatDisplay.offsetY(new int[] {0, 20, 40, 60}, 2) == -52,
+                "the third visible hitsplat uses two scaled stack steps");
 
         RecordingSprite part = new RecordingSprite(20, 24);
         com.jagex.graphics.Sprite scaled = ScaledHitsplatSprite.wrap(part);
         check(ScaledHitsplatSprite.wrap(null) == null, "a missing hitsplat part must stay missing");
-        check(scaled.getWidth() == 22 && scaled.getHeight() == 26, "wrapped part must report scaled width/height");
+        check(scaled.getWidth() == 24 && scaled.getHeight() == 29, "wrapped part must report scaled width/height");
         int[] offsets = new int[] {0, 0, 0, 0};
         scaled.projectOffsets(offsets);
-        check(offsets[0] == 2 && offsets[1] == -3, "projected offsets must be scaled");
+        check(offsets[0] == 2 && offsets[1] == -4, "projected offsets must be scaled");
         scaled.render(100, 50);
-        check(part.lastWidth == 22 && part.lastHeight == 26 && part.lastX == 100 && part.lastY == 50,
+        check(part.lastWidth == 24 && part.lastHeight == 29 && part.lastX == 100 && part.lastY == 50,
                 "opaque draw must use the scaled blit at the same origin");
         scaled.render(7, 8, 0, 0x80FFFFFF, 1);
-        check(part.lastWidth == 22 && part.lastColour == 0x80FFFFFF && part.lastMode == 1,
+        check(part.lastWidth == 24 && part.lastColour == 0x80FFFFFF && part.lastMode == 1,
                 "fading draw must use the scaled blit with the same colour and mode");
 
         System.out.println("Old-style hitsplat display regression passed: " + checks + " checks");

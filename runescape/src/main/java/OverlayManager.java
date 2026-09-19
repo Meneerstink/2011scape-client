@@ -352,6 +352,7 @@ public final class OverlayManager {
                     }
                 }
 
+                int renderedHitmarkIndex = 0;
                 for (@Pc(267) int j = 0; j < GraphicsDefaults.instance.maxhitmarks; j++) {
                     @Pc(1179) int endTime = entity.hitmarkEndTimes[j];
                     @Pc(504) int damageTypeId = entity.damageHitmarkTypes[j];
@@ -392,7 +393,10 @@ public final class OverlayManager {
                             if (hitmarkpos[0] > -1) {
                                 // RSPS: centred vertical stack scaled with the splat size (OldStyleHitsplatDisplay).
                                 hitmarkpos[0] += OldStyleHitsplatDisplay.offsetX(GraphicsDefaults.instance.hitmarkpos_x, j);
-                                hitmarkpos[1] += OldStyleHitsplatDisplay.offsetY(GraphicsDefaults.instance.hitmarkpos_y, j);
+                                // Slot ids are reused after expiry and can be sparse. Stack by the
+                                // visible ordinal, not by the backing slot, or a delayed/mixed
+                                // multi-hit leaves a gap and appears unstacked.
+                                hitmarkpos[1] += OldStyleHitsplatDisplay.offsetY(GraphicsDefaults.instance.hitmarkpos_y, renderedHitmarkIndex);
                                 @Pc(1321) int damageIconWidth = 0;
                                 @Pc(1323) int damageInnerWidth = 0;
                                 @Pc(1325) int damageLeftWidth = 0;
@@ -742,6 +746,7 @@ public final class OverlayManager {
                                 }
 
                                 OrthoMode.method8927(local1898, local1719 + local1898, local1910, local1915 + 1);
+                                renderedHitmarkIndex++;
                             }
                         }
                     }
