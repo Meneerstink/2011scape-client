@@ -1,3 +1,4 @@
+import com.jagex.graphics.Fonts;
 import com.jagex.graphics.Toolkit;
 
 /**
@@ -5,8 +6,11 @@ import com.jagex.graphics.Toolkit;
  * so gameplay and the worldmap use the same OSRS Deadman tile boundaries.
  */
 final class DeadmanWorldMapOverlay {
-    private static final int SAFE_LINE = 0xCC20E060;
-    private static final int DANGEROUS_LINE = 0xCCF04040;
+    /** See-through green over the safe area, so the map stays readable underneath. */
+    private static final int SAFE_FILL = 0x4020E060;
+    private static final int SAFE_LINE = 0xFF20E060;
+    private static final int DANGEROUS_LINE = 0xFFF04040;
+    private static final int LEGEND_BACKGROUND = 0xB0000000;
 
     private static final int[][] ZONES = {
         // Varrock
@@ -41,55 +45,123 @@ final class DeadmanWorldMapOverlay {
         new int[] { 2624, 2560, 2624, 2681, 2688, 2681, 2688, 2560 },
     };
 
+    /**
+     * Main world map: every guarded zone is filled see-through green, outlined green on its safe
+     * side and red on its dangerous side, with a legend in the lower-left corner. Called after the
+     * map and its icons are drawn, inside the map viewport clip.
+     */
     static void draw(Toolkit toolkit) {
+        int sourceWidth = WorldMap.anInt5647 - WorldMap.anInt5652;
+        int sourceHeight = WorldMap.anInt5645 - WorldMap.anInt5654;
+        if (sourceWidth <= 0 || sourceHeight <= 0) return;
+        int left = WorldMap.anInt5649;
+        int top = WorldMap.anInt5653;
+        int right = WorldMap.anInt5651;
+        int bottom = WorldMap.anInt5646;
         for (int[] polygon : ZONES) {
-            drawPolygon(toolkit, polygon, 1, 1, DANGEROUS_LINE);
-            drawPolygon(toolkit, polygon, 0, 0, SAFE_LINE);
+            int n = polygon.length / 2;
+            double[] xs = new double[n];
+            double[] ys = new double[n];
+            for (int i = 0; i < n; i++) {
+                xs[i] = left + (right - left) * (double) (polygon[i * 2] - WorldMap.areaX - WorldMap.anInt5652) / sourceWidth;
+                ys[i] = bottom - (bottom - top) * (double) (polygon[i * 2 + 1] - WorldMap.areaZ - WorldMap.anInt5654) / sourceHeight;
+            }
+            renderZone(toolkit, xs, ys, left, top, right, bottom, 2);
         }
+        drawLegend(toolkit, left + 8, bottom - 46);
     }
 
+    /** Overview (mini) map: the same zones, 1-pixel borders. */
     static void drawOverview(Toolkit toolkit, int x, int y, int width, int height) {
         if (WorldMap.areaWidth <= 0 || WorldMap.areaHeight <= 0) return;
         for (int[] polygon : ZONES) {
-            drawOverviewPolygon(toolkit, polygon, x, y, width, height, 1, 1, DANGEROUS_LINE);
-            drawOverviewPolygon(toolkit, polygon, x, y, width, height, 0, 0, SAFE_LINE);
+            int n = polygon.length / 2;
+            double[] xs = new double[n];
+            double[] ys = new double[n];
+            for (int i = 0; i < n; i++) {
+                xs[i] = x + width * (double) (polygon[i * 2] - WorldMap.areaX) / WorldMap.areaWidth;
+                ys[i] = y + height - height * (double) (polygon[i * 2 + 1] - WorldMap.areaZ) / WorldMap.areaHeight;
+            }
+            renderZone(toolkit, xs, ys, x, y, x + width, y + height, 1);
         }
     }
 
-    private static void drawPolygon(Toolkit toolkit, int[] polygon, int offsetX, int offsetY, int colour) {
-        for (int i = 0; i < polygon.length; i += 2) {
-            int next = (i + 2) % polygon.length;
-            int x1 = projectX(polygon[i]) + offsetX;
-            int y1 = projectZ(polygon[i + 1]) + offsetY;
-            int x2 = projectX(polygon[next]) + offsetX;
-            int y2 = projectZ(polygon[next + 1]) + offsetY;
-            toolkit.line(x1, y1, x2, y2, colour, 0);
+    private static void renderZone(Toolkit toolkit, double[] xs, double[] ys, int left, int top, int right, int bottom, int thickness) {
+        double minX = Double.MAX_VALUE, maxX = -Double.MAX_VALUE, minY = Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
+        for (int i = 0; i < xs.length; i++) {
+            minX = Math.min(minX, xs[i]);
+            maxX = Math.max(maxX, xs[i]);
+            minY = Math.min(minY, ys[i]);
+            maxY = Math.max(maxY, ys[i]);
+        }
+        if (maxX < left - thickness || minX > right + thickness || maxY < top - thickness || minY > bottom + thickness) return;
+
+        // Fill: one blended horizontal span per screen row between each pair of edge crossings.
+        double[] crossings = new double[xs.length];
+        int firstRow = Math.max(top, (int) Math.floor(minY));
+        int lastRow = Math.min(bottom - 1, (int) Math.ceil(maxY));
+        for (int row = firstRow; row <= lastRow; row++) {
+            int count = crossingsAt(xs, ys, row + 0.5D, crossings);
+            for (int k = 0; k + 1 < count; k += 2) {
+                int from = Math.max(left, (int) Math.round(crossings[k]));
+                int to = Math.min(right, (int) Math.round(crossings[k + 1]));
+                if (to > from) toolkit.U(from, row, to - from, SAFE_FILL, 1);
+            }
+        }
+
+        // Border: green on the inner (safe) side of every edge, red on the outer (dangerous) side.
+        double outward = signedArea2(xs, ys) > 0 ? 1.0D : -1.0D;
+        for (int i = 0; i < xs.length; i++) {
+            int j = (i + 1) % xs.length;
+            double dx = xs[j] - xs[i];
+            double dy = ys[j] - ys[i];
+            double length = Math.sqrt(dx * dx + dy * dy);
+            if (length == 0) continue;
+            double nx = outward * dy / length;
+            double ny = outward * -dx / length;
+            for (int t = 0; t < thickness; t++) {
+                line(toolkit, xs[i], ys[i], xs[j], ys[j], -nx * t, -ny * t, SAFE_LINE);
+                line(toolkit, xs[i], ys[i], xs[j], ys[j], nx * (t + 1), ny * (t + 1), DANGEROUS_LINE);
+            }
         }
     }
 
-    private static void drawOverviewPolygon(Toolkit toolkit, int[] polygon, int x, int y, int width, int height, int offsetX, int offsetY, int colour) {
-        for (int i = 0; i < polygon.length; i += 2) {
-            int next = (i + 2) % polygon.length;
-            int x1 = x + (width * (polygon[i] - WorldMap.areaX)) / WorldMap.areaWidth + offsetX;
-            int y1 = y + height - (height * (polygon[i + 1] - WorldMap.areaZ)) / WorldMap.areaHeight + offsetY;
-            int x2 = x + (width * (polygon[next] - WorldMap.areaX)) / WorldMap.areaWidth + offsetX;
-            int y2 = y + height - (height * (polygon[next + 1] - WorldMap.areaZ)) / WorldMap.areaHeight + offsetY;
-            toolkit.line(x1, y1, x2, y2, colour, 0);
+    private static void line(Toolkit toolkit, double x1, double y1, double x2, double y2, double offsetX, double offsetY, int colour) {
+        toolkit.line((int) Math.round(x1 + offsetX), (int) Math.round(y1 + offsetY), (int) Math.round(x2 + offsetX), (int) Math.round(y2 + offsetY), colour, 1);
+    }
+
+    private static void drawLegend(Toolkit toolkit, int x, int y) {
+        toolkit.aa(x, y, 150, 38, LEGEND_BACKGROUND, 1);
+        toolkit.aa(x + 6, y + 6, 12, 12, SAFE_FILL | 0xA0000000, 1);
+        toolkit.outlineRect(x + 6, y + 6, 12, 12, SAFE_LINE, 1);
+        Fonts.p12.render("Safe zone (guarded)", x + 24, y + 16, 0, 0xFFFFFF);
+        toolkit.aa(x + 6, y + 22, 12, 4, DANGEROUS_LINE, 1);
+        Fonts.p12.render("Dangerous zone", x + 24, y + 32, 0, 0xFFFFFF);
+    }
+
+    /** Sorted x crossings of the polygon's edges with the horizontal line y = [scanY]; returns the count. */
+    static int crossingsAt(double[] xs, double[] ys, double scanY, double[] out) {
+        int count = 0;
+        for (int i = 0, j = xs.length - 1; i < xs.length; j = i++) {
+            if ((ys[i] > scanY) != (ys[j] > scanY)) {
+                out[count++] = xs[i] + (scanY - ys[i]) * (xs[j] - xs[i]) / (ys[j] - ys[i]);
+            }
         }
+        java.util.Arrays.sort(out, 0, count);
+        return count;
     }
 
-    private static int projectX(int tileX) {
-        // WorldMap.method5062 stores its source bounds relative to areaX/areaZ. The
-        // overlay vertices are absolute world tiles, so convert them to the same
-        // relative coordinate space before applying the active viewport transform.
-        return projectX(tileX, WorldMap.areaX, WorldMap.anInt5652, WorldMap.anInt5647,
-            WorldMap.anInt5649, WorldMap.anInt5651);
+    /** Twice the signed area in screen coordinates (y down): positive means (dy, -dx) points outward. */
+    static double signedArea2(double[] xs, double[] ys) {
+        double sum = 0;
+        for (int i = 0, j = xs.length - 1; i < xs.length; j = i++) {
+            sum += xs[j] * ys[i] - xs[i] * ys[j];
+        }
+        return sum;
     }
 
-    private static int projectZ(int tileZ) {
-        return projectZ(tileZ, WorldMap.areaZ, WorldMap.anInt5654, WorldMap.anInt5645,
-            WorldMap.anInt5653, WorldMap.anInt5646);
-    }
+    // WorldMap.method5062 stores its source bounds relative to areaX/areaZ; the vertices are
+    // absolute world tiles, so draw() converts them through areaX/areaZ exactly like these contracts.
 
     /** Pure projection contract used by the headless regression test. */
     static int projectX(int tileX, int areaX, int sourceMin, int sourceMax, int screenMin, int screenMax) {
