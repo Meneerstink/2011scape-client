@@ -1062,15 +1062,17 @@ public final class client extends GameShell {
             // server are two independent processes on fixed ports (game.yml
             // game-port=50015, file-server.properties port=50016), not one
             // world-derived port pair as the classic formula above assumes.
-            ConnectionInfo.game.address = "127.0.0.1";
+            // Remote players: launch with -Drsps.host=<server ip>; default stays local.
+            String rspsHost = System.getProperty("rsps.host", "127.0.0.1");
+            ConnectionInfo.game.address = rspsHost;
             ConnectionInfo.game.defaultPort = 50015;
             ConnectionInfo.game.alternatePort = 50015;
-            ConnectionInfo.lobby.address = "127.0.0.1";
+            ConnectionInfo.lobby.address = rspsHost;
             ConnectionInfo.lobby.defaultPort = 50015;
             ConnectionInfo.lobby.alternatePort = 50015;
 
             ConnectionInfo.js5 = new ConnectionInfo();
-            ConnectionInfo.js5.address = "127.0.0.1";
+            ConnectionInfo.js5.address = rspsHost;
             ConnectionInfo.js5.defaultPort = 50016;
             ConnectionInfo.js5.alternatePort = 50016;
         }
