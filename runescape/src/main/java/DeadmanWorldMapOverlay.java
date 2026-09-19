@@ -1,4 +1,3 @@
-import com.jagex.graphics.Fonts;
 import com.jagex.graphics.Toolkit;
 
 /**
@@ -6,11 +5,17 @@ import com.jagex.graphics.Toolkit;
  * so gameplay and the worldmap use the same OSRS Deadman tile boundaries.
  */
 final class DeadmanWorldMapOverlay {
-    /** See-through green over the safe area, so the map stays readable underneath. */
+    /** See-through green over the safe area (owner 2026-09-19: "the green is perfect"). */
     private static final int SAFE_FILL = 0x4020E060;
     private static final int SAFE_LINE = 0xFF20E060;
-    private static final int DANGEROUS_LINE = 0xFFF04040;
-    private static final int LEGEND_BACKGROUND = 0xB0000000;
+    /** A lighter see-through red over every dangerous tile, so the map stays readable underneath. */
+    private static final int DANGEROUS_FILL = 0x30E02828;
+    private static final int SAFE_SWATCH = 0xB020E060;
+    private static final int DANGEROUS_SWATCH = 0xB0E02828;
+    private static final int DANGEROUS_EDGE = 0xFFE04040;
+    private static final int LEGEND_BACKGROUND = 0xD0181410;
+    private static final int LEGEND_BORDER = 0xFF8C7340;
+    private static final int LEGEND_TITLE = 0xFFB040;
 
     private static final int[][] ZONES = {
         // Varrock
@@ -46,97 +51,137 @@ final class DeadmanWorldMapOverlay {
     };
 
     /**
-     * Main world map: every guarded zone is filled see-through green, outlined green on its safe
-     * side and red on its dangerous side, with a legend in the lower-left corner. Called after the
-     * map and its icons are drawn, inside the map viewport clip.
+     * Main world map (every map area, surface and dungeons alike): guarded zones are tinted
+     * see-through green with a green outline, everything else on the map image is tinted
+     * see-through red - OSRS Wiki: "No dungeons ... are considered safezones", so a dungeon or
+     * cellar map is red all over. A legend explains the colours. Called after the map and its
+     * icons are drawn, inside the map viewport clip.
      */
     static void draw(Toolkit toolkit) {
         int sourceWidth = WorldMap.anInt5647 - WorldMap.anInt5652;
         int sourceHeight = WorldMap.anInt5645 - WorldMap.anInt5654;
-        if (sourceWidth <= 0 || sourceHeight <= 0) return;
+        if (sourceWidth <= 0 || sourceHeight <= 0 || WorldMap.areaWidth <= 0 || WorldMap.areaHeight <= 0) return;
         int left = WorldMap.anInt5649;
         int top = WorldMap.anInt5653;
         int right = WorldMap.anInt5651;
         int bottom = WorldMap.anInt5646;
-        for (int[] polygon : ZONES) {
-            int n = polygon.length / 2;
-            double[] xs = new double[n];
-            double[] ys = new double[n];
-            for (int i = 0; i < n; i++) {
-                xs[i] = left + (right - left) * (double) (polygon[i * 2] - WorldMap.areaX - WorldMap.anInt5652) / sourceWidth;
-                ys[i] = bottom - (bottom - top) * (double) (polygon[i * 2 + 1] - WorldMap.areaZ - WorldMap.anInt5654) / sourceHeight;
-            }
-            renderZone(toolkit, xs, ys, left, top, right, bottom, 2);
-        }
-        drawLegend(toolkit, left + 8, bottom - 46);
+        double scaleX = (right - left) / (double) sourceWidth;
+        double scaleZ = (bottom - top) / (double) sourceHeight;
+        double originX = left - (WorldMap.areaX + WorldMap.anInt5652) * scaleX;
+        double originZ = bottom + (WorldMap.areaZ + WorldMap.anInt5654) * scaleZ;
+        renderZones(toolkit, originX, scaleX, originZ, scaleZ, left, top, right, bottom, 2);
+        drawLegend(toolkit, left + 10, bottom - 74);
     }
 
-    /** Overview (mini) map: the same zones, 1-pixel borders. */
+    /** Overview (mini) map: the same tints, 1-pixel outline. */
     static void drawOverview(Toolkit toolkit, int x, int y, int width, int height) {
         if (WorldMap.areaWidth <= 0 || WorldMap.areaHeight <= 0) return;
-        for (int[] polygon : ZONES) {
-            int n = polygon.length / 2;
-            double[] xs = new double[n];
-            double[] ys = new double[n];
+        double scaleX = width / (double) WorldMap.areaWidth;
+        double scaleZ = height / (double) WorldMap.areaHeight;
+        renderZones(toolkit, x - WorldMap.areaX * scaleX, scaleX, y + height + WorldMap.areaZ * scaleZ, scaleZ, x, y, x + width, y + height, 1);
+    }
+
+    /** Screen x = originX + tileX * scaleX; screen y = originZ - tileZ * scaleZ. */
+    private static void renderZones(Toolkit toolkit, double originX, double scaleX, double originZ, double scaleZ, int left, int top, int right, int bottom, int outline) {
+        // Only the map image itself is tinted, never the black border around a small map area.
+        int l = Math.max(left, (int) Math.round(originX + WorldMap.areaX * scaleX));
+        int r = Math.min(right, (int) Math.round(originX + (WorldMap.areaX + WorldMap.areaWidth) * scaleX));
+        int t = Math.max(top, (int) Math.round(originZ - (WorldMap.areaZ + WorldMap.areaHeight) * scaleZ));
+        int b = Math.min(bottom, (int) Math.round(originZ - WorldMap.areaZ * scaleZ));
+        if (r <= l || b <= t) return;
+
+        double[][] xs = new double[ZONES.length][];
+        double[][] ys = new double[ZONES.length][];
+        double[] minY = new double[ZONES.length];
+        double[] maxY = new double[ZONES.length];
+        int vertices = 0;
+        for (int z = 0; z < ZONES.length; z++) {
+            int n = ZONES[z].length / 2;
+            xs[z] = new double[n];
+            ys[z] = new double[n];
+            minY[z] = Double.MAX_VALUE;
+            maxY[z] = -Double.MAX_VALUE;
             for (int i = 0; i < n; i++) {
-                xs[i] = x + width * (double) (polygon[i * 2] - WorldMap.areaX) / WorldMap.areaWidth;
-                ys[i] = y + height - height * (double) (polygon[i * 2 + 1] - WorldMap.areaZ) / WorldMap.areaHeight;
+                xs[z][i] = originX + ZONES[z][i * 2] * scaleX;
+                ys[z][i] = originZ - ZONES[z][i * 2 + 1] * scaleZ;
+                minY[z] = Math.min(minY[z], ys[z][i]);
+                maxY[z] = Math.max(maxY[z], ys[z][i]);
             }
-            renderZone(toolkit, xs, ys, x, y, x + width, y + height, 1);
+            vertices += n;
         }
-    }
 
-    private static void renderZone(Toolkit toolkit, double[] xs, double[] ys, int left, int top, int right, int bottom, int thickness) {
-        double minX = Double.MAX_VALUE, maxX = -Double.MAX_VALUE, minY = Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
-        for (int i = 0; i < xs.length; i++) {
-            minX = Math.min(minX, xs[i]);
-            maxX = Math.max(maxX, xs[i]);
-            minY = Math.min(minY, ys[i]);
-            maxY = Math.max(maxY, ys[i]);
+        double[] crossings = new double[vertices];
+        double[] rowCrossings = new double[vertices];
+        int plainStart = -1; // first of a run of rows that contain no zone edge (one red rectangle)
+        for (int row = t; row < b; row++) {
+            double scanY = row + 0.5D;
+            int count = 0;
+            for (int z = 0; z < ZONES.length; z++) {
+                if (scanY < minY[z] || scanY > maxY[z]) continue;
+                int c = crossingsAt(xs[z], ys[z], scanY, rowCrossings);
+                System.arraycopy(rowCrossings, 0, crossings, count, c);
+                count += c;
+            }
+            if (count == 0) {
+                if (plainStart < 0) plainStart = row;
+                continue;
+            }
+            if (plainStart >= 0) {
+                toolkit.aa(l, plainStart, r - l, row - plainStart, DANGEROUS_FILL, 1);
+                plainStart = -1;
+            }
+            java.util.Arrays.sort(crossings, 0, count);
+            int from = l;
+            boolean safe = false;
+            for (int k = 0; k < count; k++) {
+                int to = Math.max(l, Math.min(r, (int) Math.round(crossings[k])));
+                if (to > from) toolkit.U(from, row, to - from, safe ? SAFE_FILL : DANGEROUS_FILL, 1);
+                from = Math.max(from, to);
+                safe = !safe;
+            }
+            if (r > from) toolkit.U(from, row, r - from, DANGEROUS_FILL, 1);
         }
-        if (maxX < left - thickness || minX > right + thickness || maxY < top - thickness || minY > bottom + thickness) return;
+        if (plainStart >= 0) toolkit.aa(l, plainStart, r - l, b - plainStart, DANGEROUS_FILL, 1);
 
-        // Fill: one blended horizontal span per screen row between each pair of edge crossings.
-        double[] crossings = new double[xs.length];
-        int firstRow = Math.max(top, (int) Math.floor(minY));
-        int lastRow = Math.min(bottom - 1, (int) Math.ceil(maxY));
-        for (int row = firstRow; row <= lastRow; row++) {
-            int count = crossingsAt(xs, ys, row + 0.5D, crossings);
-            for (int k = 0; k + 1 < count; k += 2) {
-                int from = Math.max(left, (int) Math.round(crossings[k]));
-                int to = Math.min(right, (int) Math.round(crossings[k + 1]));
-                if (to > from) toolkit.U(from, row, to - from, SAFE_FILL, 1);
+        // Green outline just inside every safe zone.
+        for (int z = 0; z < ZONES.length; z++) {
+            double inward = signedArea2(xs[z], ys[z]) > 0 ? -1.0D : 1.0D;
+            for (int i = 0; i < xs[z].length; i++) {
+                int j = (i + 1) % xs[z].length;
+                double dx = xs[z][j] - xs[z][i];
+                double dy = ys[z][j] - ys[z][i];
+                double length = Math.sqrt(dx * dx + dy * dy);
+                if (length == 0) continue;
+                for (int w = 0; w < outline; w++) {
+                    double ox = inward * dy / length * w;
+                    double oy = inward * -dx / length * w;
+                    toolkit.line((int) Math.round(xs[z][i] + ox), (int) Math.round(ys[z][i] + oy),
+                        (int) Math.round(xs[z][j] + ox), (int) Math.round(ys[z][j] + oy), SAFE_LINE, 1);
+                }
             }
         }
-
-        // Border: green on the inner (safe) side of every edge, red on the outer (dangerous) side.
-        double outward = signedArea2(xs, ys) > 0 ? 1.0D : -1.0D;
-        for (int i = 0; i < xs.length; i++) {
-            int j = (i + 1) % xs.length;
-            double dx = xs[j] - xs[i];
-            double dy = ys[j] - ys[i];
-            double length = Math.sqrt(dx * dx + dy * dy);
-            if (length == 0) continue;
-            double nx = outward * dy / length;
-            double ny = outward * -dx / length;
-            for (int t = 0; t < thickness; t++) {
-                line(toolkit, xs[i], ys[i], xs[j], ys[j], -nx * t, -ny * t, SAFE_LINE);
-                line(toolkit, xs[i], ys[i], xs[j], ys[j], nx * (t + 1), ny * (t + 1), DANGEROUS_LINE);
-            }
-        }
-    }
-
-    private static void line(Toolkit toolkit, double x1, double y1, double x2, double y2, double offsetX, double offsetY, int colour) {
-        toolkit.line((int) Math.round(x1 + offsetX), (int) Math.round(y1 + offsetY), (int) Math.round(x2 + offsetX), (int) Math.round(y2 + offsetY), colour, 1);
     }
 
     private static void drawLegend(Toolkit toolkit, int x, int y) {
-        toolkit.aa(x, y, 150, 38, LEGEND_BACKGROUND, 1);
-        toolkit.aa(x + 6, y + 6, 12, 12, SAFE_FILL | 0xA0000000, 1);
-        toolkit.outlineRect(x + 6, y + 6, 12, 12, SAFE_LINE, 1);
-        Fonts.p12.render("Safe zone (guarded)", x + 24, y + 16, 0, 0xFFFFFF);
-        toolkit.aa(x + 6, y + 22, 12, 4, DANGEROUS_LINE, 1);
-        Fonts.p12.render("Dangerous zone", x + 24, y + 32, 0, 0xFFFFFF);
+        int width = 178;
+        int height = 64;
+        toolkit.aa(x, y, width, height, LEGEND_BACKGROUND, 1);
+        toolkit.outlineRect(x, y, width, height, LEGEND_BORDER, 1);
+        toolkit.outlineRect(x + 1, y + 1, width - 2, height - 2, 0x60000000, 1);
+        WorldMapFont font = WorldMap.font12;
+        if (font != null) font.render(toolkit, "Deadman Mode zones", null, x + 9, y + 5, LEGEND_TITLE, true);
+        toolkit.aa(x + 8, y + 3 + 18, width - 16, 1, LEGEND_BORDER, 1);
+        swatch(toolkit, x + 10, y + 27, SAFE_SWATCH, SAFE_LINE);
+        swatch(toolkit, x + 10, y + 45, DANGEROUS_SWATCH, DANGEROUS_EDGE);
+        if (font != null) {
+            font.render(toolkit, "Safe - guarded", null, x + 32, y + 26, 0xFFFFFF, true);
+            font.render(toolkit, "Dangerous - PvP", null, x + 32, y + 44, 0xFFFFFF, true);
+        }
+    }
+
+    private static void swatch(Toolkit toolkit, int x, int y, int fill, int edge) {
+        toolkit.aa(x, y, 16, 12, fill, 1);
+        toolkit.outlineRect(x, y, 16, 12, edge, 1);
     }
 
     /** Sorted x crossings of the polygon's edges with the horizontal line y = [scanY]; returns the count. */
