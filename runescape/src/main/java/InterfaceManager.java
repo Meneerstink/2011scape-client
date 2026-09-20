@@ -155,6 +155,23 @@ public final class InterfaceManager {
     @OriginalMember(owner = "client!lr", name = "e", descriptor = "Z")
     public static boolean clipComponents = false;
 
+    /**
+     * RSPS: clip a model component's 3D render to the component's own box.
+     *
+     * Owner 2026-09-20, on the 78 Store preview panel: "the preview of the items is still not fitting inside the
+     * panel". A model component is scaled by a fixed aspect ratio baked into the cache (width * 512 /
+     * modelAspectRatioX), but item models are not a fixed size - a long weapon is drawn corner to corner across
+     * its inventory box and is roughly half again as tall as a boot. Whatever single scale the interface picks,
+     * some item overflows, and with no clip the overflow is drawn straight over the window frame and the rest of
+     * the screen.
+     *
+     * The 3D clip already exists here; it was simply tied to {@link #clipComponents}, a debug toggle that defaults
+     * to false, so nothing ever used it. A model has no legitimate reason to draw outside its own box, so it is
+     * clipped unconditionally by its own flag - leaving {@link #clipComponents}, which also clips *text* and would
+     * change the look of every native 667 interface, alone.
+     */
+    public static boolean clipModelComponents = true;
+
     @OriginalMember(owner = "client!ls", name = "j", descriptor = "I")
     public static volatile int topLevelInterface = -1;
 
@@ -882,7 +899,7 @@ public final class InterfaceManager {
 
                             child.method3384(Toolkit.active, model, Static59.aMatrix_5, TimeUtils.clock);
 
-                            if (clipComponents) {
+                            if (clipComponents || clipModelComponents) {
                                 Toolkit.active.T(offsetX, offsetY, offsetX + child.width, child.height + offsetY);
                             }
 
@@ -908,7 +925,7 @@ public final class InterfaceManager {
                                 }
                             }
 
-                            if (clipComponents) {
+                            if (clipComponents || clipModelComponents) {
                                 Toolkit.active.KA(x1, y1, x2, y2);
                             }
 
