@@ -191,7 +191,7 @@ public final class InterfaceManager {
     private static final int[] fitCorner = new int[3];
 
     private static boolean isFittedPreview(Component child) {
-        int interfaceId = child.id >>> 16;
+        int interfaceId = child.slot >>> 16; // slot = (interface << 16) | component (InterfaceList); id is unrelated
         for (int id : FITTED_PREVIEW_INTERFACES) {
             if (id == interfaceId) {
                 return true;
