@@ -166,11 +166,81 @@ public final class InterfaceManager {
      * the screen.
      *
      * The 3D clip already exists here; it was simply tied to {@link #clipComponents}, a debug toggle that defaults
-     * to false, so nothing ever used it. A model has no legitimate reason to draw outside its own box, so it is
-     * clipped unconditionally by its own flag - leaving {@link #clipComponents}, which also clips *text* and would
-     * change the look of every native 667 interface, alone.
+     * to false, so nothing ever used it.
+     *
+     * It must NOT be unconditional. Owner 2026-09-21/22: every NPC's dialogue head was "small and incorrect not
+     * fitting" (chatdialog.png: the Estate agent reduced to a moustache). Jagex's own chathead component (241-244
+     * component 2, and the player head in 64-67) is a small box the head is meant to draw well past; clipping it
+     * cut every portrait down to the square around the nose. Native 667 interfaces are therefore never clipped;
+     * only the RSPS item previews in {@link #FITTED_PREVIEW_INTERFACES} are, and those are fitted to their box
+     * first, so the clip is only a last safety net there.
      */
     public static boolean clipModelComponents = true;
+
+    /**
+     * Item preview panels whose model is fitted to the box per item instead of by one fixed scale (owner 2026-09-22,
+     * "shopp ui.png": the Dark bow ran out of the store preview). The cache can hold only one scale, and item models
+     * differ several times in size, so every fixed scale either overflowed long weapons or left small items tiny.
+     * Interface 1151 is the 78 Store (StoreInterfaceImportTool.PREVIEW_MODEL).
+     */
+    private static final int[] FITTED_PREVIEW_INTERFACES = { 1151 };
+
+    /** Share of the box the fitted model may use; the rest is margin. */
+    private static final float FITTED_PREVIEW_FILL = 0.84F;
+
+    private static final int[] fitCorner = new int[3];
+
+    private static boolean isFittedPreview(Component child) {
+        int interfaceId = child.id >>> 16;
+        for (int id : FITTED_PREVIEW_INTERFACES) {
+            if (id == interfaceId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Projects the eight corners of the model's bounding box through the model's own transform, then sets the
+     * projection scale and centre so that box fills {@link #FITTED_PREVIEW_FILL} of the component, centred. Uses one
+     * scale for both axes, so the item is never stretched.
+     */
+    private static void fitModelToBox(Component child, Model model, int offsetX, int offsetY) {
+        int[] xs = { model.V(), model.RA() };
+        int[] ys = { model.fa(), model.EA() };
+        int[] zs = { model.HA(), model.G() };
+        float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, minY = Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+        for (int x : xs) {
+            for (int y : ys) {
+                for (int z : zs) {
+                    Static59.aMatrix_5.project(x, y, z, fitCorner);
+                    if (fitCorner[2] <= 16) {
+                        return; // a corner at or behind the eye: keep the cache scale rather than divide by ~0
+                    }
+                    float sx = (float) fitCorner[0] / fitCorner[2];
+                    float sy = (float) fitCorner[1] / fitCorner[2];
+                    minX = Math.min(minX, sx);
+                    maxX = Math.max(maxX, sx);
+                    minY = Math.min(minY, sy);
+                    maxY = Math.max(maxY, sy);
+                }
+            }
+        }
+        float spanX = maxX - minX;
+        float spanY = maxY - minY;
+        if (spanX <= 0.0001F && spanY <= 0.0001F) {
+            return;
+        }
+        float scaleX = spanX <= 0.0001F ? Float.MAX_VALUE : child.width * FITTED_PREVIEW_FILL / spanX;
+        float scaleY = spanY <= 0.0001F ? Float.MAX_VALUE : child.height * FITTED_PREVIEW_FILL / spanY;
+        int scale = (int) Math.min(scaleX, scaleY);
+        if (scale <= 0) {
+            return;
+        }
+        int centreX = offsetX + child.width / 2 - (int) ((minX + maxX) / 2.0F * scale);
+        int centreY = offsetY + child.height / 2 - (int) ((minY + maxY) / 2.0F * scale);
+        Toolkit.active.DA(centreX, centreY, scale, scale);
+    }
 
     @OriginalMember(owner = "client!ls", name = "j", descriptor = "I")
     public static volatile int topLevelInterface = -1;
@@ -339,13 +409,19 @@ public final class InterfaceManager {
             @Pc(125) int offsetX = screenX + child.x;
             @Pc(130) int offsetY = screenY + child.y;
 
-            // RSPS Deadman: the skull-timer layer of the PvP overlay (381:3) is drawn as a custom
-            // panel (skull in the player's own head-icon colour + remaining time) instead of the
-            // cache's white-skull layout - see DeadmanSkullHud. Redrawn every frame.
-            if (DeadmanSkullHud.isTimerLayer(child)) {
-                DeadmanSkullHud.draw(child, screenX, screenY);
-                Toolkit.active.KA(x1, y1, x2, y2);
-                dirtyRectangles[rectangle] = true;
+            // RSPS Deadman: both layers of the PvP overlay (381:0 zone state, 381:3 skull timer) are
+            // drawn as custom panels (guarded / dangerous icon + text; the player's own head-icon
+            // skull + remaining time) instead of the cache's layouts - see DeadmanSkullHud. Their
+            // cache children are never drawn. Redrawn every frame, in every display and graphics mode.
+            if ((child.slot >>> 16) == DeadmanSkullHud.INTERFACE_ID) {
+                // Every component of interface 381 - whichever layer it hangs under - is handled
+                // here; the cache's own skull/text layout is never drawn (owner: "remove the old
+                // hud completely").
+                if (DeadmanSkullHud.isZoneLayer(child)) {
+                    DeadmanSkullHud.draw(child, screenX, screenY);
+                    Toolkit.active.KA(x1, y1, x2, y2);
+                    dirtyRectangles[rectangle] = true;
+                }
                 continue;
             }
 
@@ -899,7 +975,11 @@ public final class InterfaceManager {
 
                             child.method3384(Toolkit.active, model, Static59.aMatrix_5, TimeUtils.clock);
 
-                            if (clipComponents || clipModelComponents) {
+                            if (!child.orthoView && child.invObject != -1 && isFittedPreview(child)) {
+                                fitModelToBox(child, model, offsetX, offsetY);
+                            }
+
+                            if (clipComponents || clipModelComponents && isFittedPreview(child)) {
                                 Toolkit.active.T(offsetX, offsetY, offsetX + child.width, child.height + offsetY);
                             }
 
@@ -925,7 +1005,7 @@ public final class InterfaceManager {
                                 }
                             }
 
-                            if (clipComponents || clipModelComponents) {
+                            if (clipComponents || clipModelComponents && isFittedPreview(child)) {
                                 Toolkit.active.KA(x1, y1, x2, y2);
                             }
 
