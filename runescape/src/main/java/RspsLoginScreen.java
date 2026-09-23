@@ -56,11 +56,16 @@ public final class RspsLoginScreen {
     /** Shell (744) message boxes and their buttons: restyled like the form's status boxes. */
     static final int SHELL_BOX_A = 51, SHELL_BOX_B = 52, SHELL_BUTTON_A = 56, SHELL_BUTTON_B = 57;
 
+    /** The shell's old background layer (tiles 8-15), drawn right after its full-screen black rectangle (20). */
+    static final int SHELL_BACKGROUND = 21;
+
     /**
      * The shell's 2011 look: the background art tiles (8-15), the
      * RuneScape logo (23), the screen frame (22, 96-102) and the message boxes' frame and button sprites.
      * Its working parts (sound buttons 81, message texts and buttons, dialog 28, the bottom bar 103) stay. The login
-     * scene (19) is never hidden - the shell's fade (20) waits for it - it is covered by {@link #drawOverScene}.
+     * scene (19, the animated background) and the shell's black backdrop (20, animated background off) stay; the art
+     * is drawn over both - after the scene ({@link #drawOverScene}) and in place of the old background layer
+     * ({@link #SHELL_BACKGROUND}).
      */
     private static final int[] SHELL_HIDDEN = {
         0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 22, 23, 58, 59, 60, 62, 63, 64,
@@ -174,13 +179,21 @@ public final class RspsLoginScreen {
         }
     }
 
-    public static void beforeComponent(Component c, int x, int y) {
+    /** Returns true when it drew the full-screen art (the caller then restores its clip). */
+    public static boolean beforeComponent(Component c, int x, int y) {
         try {
-            if (!failed) {
-                beforeComponentImpl(c, x, y);
+            if (failed) {
+                return false;
             }
+            if (isShell(c) && index(c) == SHELL_BACKGROUND) {
+                drawBackdropImpl(lastOriginX, lastOriginY);
+                return true;
+            }
+            beforeComponentImpl(c, x, y);
+            return false;
         } catch (Throwable t) {
             fail("beforeComponent", t);
+            return false;
         }
     }
 
@@ -202,8 +215,8 @@ public final class RspsLoginScreen {
     }
 
     /**
-     * {@link InterfaceManager#draw}, right after the shell's login scene: the art again, over the scene. Returns
-     * true when it drew (the caller then restores its clip).
+     * {@link InterfaceManager#draw}, right after the shell's login scene (animated background on): the art over
+     * the scene. Returns true when it drew (the caller then restores its clip).
      */
     public static boolean drawOverScene() {
         try {
@@ -217,7 +230,6 @@ public final class RspsLoginScreen {
             return false;
         }
     }
-
     /** One capture of the real login screen per client run, 4 s after it appears (C:/RSPS/screens). */
     private static void screenshotOnce() {
         if (screenshotTaken || !active()) {

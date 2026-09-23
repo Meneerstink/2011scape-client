@@ -409,8 +409,11 @@ public final class InterfaceManager {
             @Pc(125) int offsetX = screenX + child.x;
             @Pc(130) int offsetY = screenY + child.y;
 
-            // RSPS 78 login screen: the frame behind the login status boxes and their buttons.
-            RspsLoginScreen.beforeComponent(child, offsetX, offsetY);
+            // RSPS 78 login screen: the art (in place of the shell's old background) and the frame behind the
+            // login status boxes and their buttons.
+            if (RspsLoginScreen.beforeComponent(child, offsetX, offsetY)) {
+                Toolkit.active.KA(x1, y1, x2, y2);
+            }
 
             // RSPS Deadman: both layers of the PvP overlay (381:0 zone state, 381:3 skull timer) are
             // drawn as custom panels (guarded / dangerous icon + text; the player's own head-icon
@@ -512,12 +515,11 @@ public final class InterfaceManager {
                             Static294.method4339(offsetY, child.clientcode == ComponentClientCode.LOGIN_SCENE, child.width, child.height, offsetX);
                             Toolkit.active.KA(x1, y1, x2, y2);
                         }
-
-                        // RSPS 78 login screen: the art covers the login scene (which keeps running, so the
-                        // login shell's own fade and state logic are untouched).
+                        // RSPS 78 login screen: with the animated background on, the art covers the login scene.
                         if (child.clientcode == ComponentClientCode.LOGIN_SCENE && RspsLoginScreen.drawOverScene()) {
                             Toolkit.active.KA(x1, y1, x2, y2);
                         }
+
 
                         dirtyRectangles[rectangle] = true;
                         continue;
