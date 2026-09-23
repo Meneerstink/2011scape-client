@@ -198,8 +198,6 @@ public final class RspsLoginScreen {
     }
 
     private static int lastOriginX, lastOriginY;
-    private static long activeSince;
-    private static boolean screenshotTaken;
 
     public static void drawBackdrop(int originX, int originY) {
         try {
@@ -207,7 +205,6 @@ public final class RspsLoginScreen {
                 lastOriginX = originX;
                 lastOriginY = originY;
                 drawBackdropImpl(originX, originY);
-                screenshotOnce();
             }
         } catch (Throwable t) {
             fail("drawBackdrop", t);
@@ -230,23 +227,6 @@ public final class RspsLoginScreen {
             return false;
         }
     }
-    /** One capture of the real login screen per client run, 4 s after it appears (C:/RSPS/screens). */
-    private static void screenshotOnce() {
-        if (screenshotTaken || !active()) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        if (activeSince == 0) {
-            activeSince = now;
-            return;
-        }
-        if (now - activeSince >= 4000) {
-            screenshotTaken = true;
-            RspsScreenshot.capture("login78_" + GameShell.canvasWid + "x" + GameShell.canvasHei);
-            log("screenshot taken (C:/RSPS/screens)");
-        }
-    }
-
     /** The login shell is the top level, has the layout this class was written for, and the art exists. */
     public static boolean active() {
         if (failed) {
@@ -399,8 +379,11 @@ public final class RspsLoginScreen {
                 break;
             case USERNAME_CARET:
             case PASSWORD_CARET:
-                // The clientscript moves the caret along the text from 6 px; follow the text's new start.
-                c.x += inset - 6;
+                // Script 3237 places the caret at the text layer's x + 6 + the typed width, so once it has run the
+                // position already includes the icon inset; only the cache default (6) still needs it.
+                if (c.originalX < inset) {
+                    c.x = c.originalX + inset - 6;
+                }
                 c.y = (l.panelRect(RspsLoginLayout.USERNAME)[3] - c.height) / 2;
                 c.colour = TEXT_COLOUR;
                 break;
