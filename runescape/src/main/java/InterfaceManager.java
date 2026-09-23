@@ -513,6 +513,12 @@ public final class InterfaceManager {
                             Toolkit.active.KA(x1, y1, x2, y2);
                         }
 
+                        // RSPS 78 login screen: the art covers the login scene (which keeps running, so the
+                        // login shell's own fade and state logic are untouched).
+                        if (child.clientcode == ComponentClientCode.LOGIN_SCENE && RspsLoginScreen.drawOverScene()) {
+                            Toolkit.active.KA(x1, y1, x2, y2);
+                        }
+
                         dirtyRectangles[rectangle] = true;
                         continue;
                     }

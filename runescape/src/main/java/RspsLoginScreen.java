@@ -57,12 +57,13 @@ public final class RspsLoginScreen {
     static final int SHELL_BOX_A = 51, SHELL_BOX_B = 52, SHELL_BUTTON_A = 56, SHELL_BUTTON_B = 57;
 
     /**
-     * The shell's 2011 look: the login scene (19, clientcode LOGIN_SCENE), the background art tiles (8-15), the
+     * The shell's 2011 look: the background art tiles (8-15), the
      * RuneScape logo (23), the screen frame (22, 96-102) and the message boxes' frame and button sprites.
-     * Its working parts (sound buttons 81, message texts and buttons, dialog 28, the bottom bar 103) stay.
+     * Its working parts (sound buttons 81, message texts and buttons, dialog 28, the bottom bar 103) stay. The login
+     * scene (19) is never hidden - the shell's fade (20) waits for it - it is covered by {@link #drawOverScene}.
      */
     private static final int[] SHELL_HIDDEN = {
-        0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 19, 22, 23, 58, 59, 60, 62, 63, 64,
+        0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 22, 23, 58, 59, 60, 62, 63, 64,
         67, 68, 69, 70, 71, 72, 73, 74, 75, 96, 97, 98, 99, 100, 101, 102
     };
     private static final boolean[] SHELL_HIDDEN_SET = new boolean[SHELL_COMPONENTS];
@@ -183,13 +184,54 @@ public final class RspsLoginScreen {
         }
     }
 
+    private static int lastOriginX, lastOriginY;
+    private static long activeSince;
+    private static boolean screenshotTaken;
+
     public static void drawBackdrop(int originX, int originY) {
         try {
             if (!failed) {
+                lastOriginX = originX;
+                lastOriginY = originY;
                 drawBackdropImpl(originX, originY);
+                screenshotOnce();
             }
         } catch (Throwable t) {
             fail("drawBackdrop", t);
+        }
+    }
+
+    /**
+     * {@link InterfaceManager#draw}, right after the shell's login scene: the art again, over the scene. Returns
+     * true when it drew (the caller then restores its clip).
+     */
+    public static boolean drawOverScene() {
+        try {
+            if (failed || !active()) {
+                return false;
+            }
+            drawBackdropImpl(lastOriginX, lastOriginY);
+            return true;
+        } catch (Throwable t) {
+            fail("drawOverScene", t);
+            return false;
+        }
+    }
+
+    /** One capture of the real login screen per client run, 4 s after it appears (C:/RSPS/screens). */
+    private static void screenshotOnce() {
+        if (screenshotTaken || !active()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (activeSince == 0) {
+            activeSince = now;
+            return;
+        }
+        if (now - activeSince >= 4000) {
+            screenshotTaken = true;
+            RspsScreenshot.capture("login78_" + GameShell.canvasWid + "x" + GameShell.canvasHei);
+            log("screenshot taken (C:/RSPS/screens)");
         }
     }
 
