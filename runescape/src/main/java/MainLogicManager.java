@@ -116,7 +116,13 @@ public final class MainLogicManager {
             Toolkit.active.method7969();
         }
 
+        boolean filled = RspsLoginScreen.fillsWindow();
         step = newStep;
+
+        // RSPS 78 login screen: entering or leaving the login re-sizes the canvas (whole window vs the window mode).
+        if (filled != RspsLoginScreen.fillsWindow()) {
+            Static712.method9329((byte) 0);
+        }
     }
 
     @OriginalMember(owner = "client!od", name = "b", descriptor = "(I)V")

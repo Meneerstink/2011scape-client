@@ -227,6 +227,19 @@ public final class RspsLoginScreen {
             return false;
         }
     }
+    /**
+     * While the login is shown the canvas takes the whole window in every window mode (fixed would be 765 x 503,
+     * resizable is capped by the max-screen-size option); the game keeps its own sizing once logged in.
+     */
+    public static boolean fillsWindow() {
+        try {
+            return !failed && MainLogicStep.isLoggedOut(MainLogicManager.step) && artLoaded();
+        } catch (Throwable t) {
+            fail("fillsWindow", t);
+            return false;
+        }
+    }
+
     /** The login shell is the top level, has the layout this class was written for, and the art exists. */
     public static boolean active() {
         if (failed) {

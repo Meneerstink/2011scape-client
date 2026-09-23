@@ -2601,7 +2601,10 @@ public final class InterfaceManager {
             GameShell.frameHei = topContainer.getSize().height;
         }
 
-        if (newMode == WindowMode.FIXED) {
+        if (RspsLoginScreen.fillsWindow() && GameShell.fsframe == null) {
+            // RSPS 78 login screen: the login fills the whole window in every window mode.
+            fillCanvasToFrame();
+        } else if (newMode == WindowMode.FIXED) {
             GameShell.topMargin = 0;
             GameShell.leftMargin = (GameShell.frameWid - Client.loadingScreenWidth) / 2;
             GameShell.canvasHei = Client.loadingScreenHeight;
@@ -2942,6 +2945,14 @@ public final class InterfaceManager {
         GameShell.canvasWid = size[0];
         GameShell.canvasHei = size[1];
         GameShell.leftMargin = Math.max(0, (GameShell.frameWid - size[0]) / 2);
+        GameShell.topMargin = 0;
+    }
+
+    /** RSPS 78 login screen: the canvas takes the whole window (no fixed size, no max-screen-size cap). */
+    public static void fillCanvasToFrame() {
+        GameShell.canvasWid = Math.max(1, GameShell.frameWid);
+        GameShell.canvasHei = Math.max(1, GameShell.frameHei);
+        GameShell.leftMargin = 0;
         GameShell.topMargin = 0;
     }
 
