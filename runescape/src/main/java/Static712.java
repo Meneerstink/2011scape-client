@@ -48,10 +48,7 @@ public final class Static712 {
                 GameShell.frameWid -= insets.right + insets.left;
             }
 
-            if (RspsLoginScreen.fillsWindow()) {
-                // RSPS 78 login screen: the login fills the whole window in every window mode.
-                InterfaceManager.fillCanvasToFrame();
-            } else if (InterfaceManager.getWindowMode() == WindowMode.FIXED) {
+            if (InterfaceManager.getWindowMode() == WindowMode.FIXED) {
                 GameShell.topMargin = 0;
                 GameShell.canvasHei = Client.loadingScreenHeight;
                 GameShell.leftMargin = (GameShell.frameWid - Client.loadingScreenWidth) / 2;
