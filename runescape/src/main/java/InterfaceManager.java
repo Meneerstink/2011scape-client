@@ -2553,6 +2553,16 @@ public final class InterfaceManager {
         }
 
         windowModeChanged(mode, current, width, height, different);
+
+        // RSPS: fixed mode draws a 765 x 503 canvas, so the window fits it exactly (no black borders); back to
+        // resizable, the window returns to its saved resizable size.
+        if (GameShell.fsframe == null && ClientOptions.instance != null) {
+            if (mode == WindowMode.FIXED) {
+                com.jagex.graphics.awt.DesktopDisplay.restoreWindowSize(Client.loadingScreenWidth, Client.loadingScreenHeight);
+            } else if (mode == WindowMode.RESIZABLE && current == WindowMode.FIXED) {
+                com.jagex.graphics.awt.DesktopDisplay.restoreWindowSize(ClientOptions.instance.windowWidth, ClientOptions.instance.windowHeight);
+            }
+        }
     }
 
     @OriginalMember(owner = "client!li", name = "a", descriptor = "(IIIIIZ)V")

@@ -1,4 +1,5 @@
 import com.jagex.Client;
+import com.jagex.core.constants.WindowMode;
 import com.jagex.IndexedImage;
 import com.jagex.game.runetek6.config.quickchatcattype.QuickChatCatTypeList;
 import rs2.client.loading.library.LibraryManager;
@@ -612,7 +613,10 @@ public final class Loading {
                 Static32.setToolkit(ClientOptions.instance.toolkitDefault.getValue(), false);
             }
             CameraZoomController.restoreZoom(ClientOptions.instance.cameraZoom);
-            com.jagex.graphics.awt.DesktopDisplay.restoreWindowSize(ClientOptions.instance.windowWidth, ClientOptions.instance.windowHeight);
+            // RSPS: a fixed-mode start keeps the window at the fixed canvas (changeWindowMode fits it).
+            if (ClientOptions.instance.startupWindowMode() != WindowMode.FIXED) {
+                com.jagex.graphics.awt.DesktopDisplay.restoreWindowSize(ClientOptions.instance.windowWidth, ClientOptions.instance.windowHeight);
+            }
             InterfaceManager.changeWindowMode(ClientOptions.instance.startupWindowMode(), -1, -1, false);
             FontTypeList.method7549(Toolkit.active);
             Fonts.init(Toolkit.active);
