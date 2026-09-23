@@ -1,4 +1,5 @@
 import com.jagex.game.runetek6.config.defaults.GraphicsDefaults;
+import com.jagex.game.runetek6.config.iftype.SubInterface;
 import com.jagex.graphics.Sprite;
 import com.jagex.graphics.Toolkit;
 import com.jagex.core.constants.MainLogicStep;
@@ -15,8 +16,8 @@ import java.io.InputStream;
 /**
  * The RSPS "78" login screen: the owner's approved artwork drawn natively behind the cache login interface.
  *
- * <p>The login itself stays the cache interface ({@link GraphicsDefaults#login_interface}, 596) with all its
- * clientscripts: username/password fields (VARCSTR 32/33, focus VARC 174, masking, Enter), the Log In button
+ * <p>The login itself stays the cache interfaces - the login shell ({@link GraphicsDefaults#login_interface}, 744)
+ * and the login form it opens as a sub-interface (596) - with all their clientscripts: username/password fields (VARCSTR 32/33, focus VARC 174, masking, Enter), the Log In button
  * (script 2944 -> 2945 -> LOGIN_REQUEST), Recover Password (47), Create Account (61) and the status/error
  * boxes (8, 9). Nothing of the networking or authentication changes. This class only
  * <ul>
@@ -37,13 +38,34 @@ import java.io.InputStream;
  */
 public final class RspsLoginScreen {
 
+    /**
+     * The login form, interface 596. It is not the top level: the cache's login shell
+     * ({@link GraphicsDefaults#login_interface}, 744 in this cache) opens it as a sub-interface.
+     */
+    static final int FORM_INTERFACE = 596;
+    static final int EXPECTED_COMPONENTS = 90;
+    static final int SHELL_COMPONENTS = 135;
+
     /** Components of interface 596 used here (see the class comment for their roles). */
     static final int FORM_CONTAINER = 6, FORM_FRAME = 4, FORM = 5, STATUS_LAYER = 7, STATUS_BOX = 8, STATUS_SMALL = 9;
     static final int USERNAME = 40, PASSWORD = 42, LOGIN_BUTTON = 45, RECOVER = 47, CREATE = 61;
     static final int USERNAME_TEXT_LAYER = 72, USERNAME_TEXT = 73, USERNAME_CARET = 74;
     static final int PASSWORD_TEXT_LAYER = 78, PASSWORD_TEXT = 79, PASSWORD_CARET = 80;
     static final int STATUS_BUTTON_A = 15, STATUS_BUTTON_B = 63;
-    static final int EXPECTED_COMPONENTS = 90;
+
+    /** Shell (744) message boxes and their buttons: restyled like the form's status boxes. */
+    static final int SHELL_BOX_A = 51, SHELL_BOX_B = 52, SHELL_BUTTON_A = 56, SHELL_BUTTON_B = 57;
+
+    /**
+     * The shell's 2011 look: the login scene (19, clientcode LOGIN_SCENE), the background art tiles (8-15), the
+     * RuneScape logo (23), the screen frame (22, 96-102) and the message boxes' frame and button sprites.
+     * Its working parts (sound buttons 81, message texts and buttons, dialog 28, the bottom bar 103) stay.
+     */
+    private static final int[] SHELL_HIDDEN = {
+        0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 19, 22, 23, 58, 59, 60, 62, 63, 64,
+        67, 68, 69, 70, 71, 72, 73, 74, 75, 96, 97, 98, 99, 100, 101, 102
+    };
+    private static final boolean[] SHELL_HIDDEN_SET = new boolean[SHELL_COMPONENTS];
 
     /** VARC 174: the focused field, set by script 2943 (3 username, 4 password). */
     static final int FOCUS_VARC = 174;
@@ -62,6 +84,9 @@ public final class RspsLoginScreen {
     static {
         for (int id : HIDDEN) {
             HIDDEN_SET[id] = true;
+        }
+        for (int id : SHELL_HIDDEN) {
+            SHELL_HIDDEN_SET[id] = true;
         }
     }
 
@@ -107,47 +132,120 @@ public final class RspsLoginScreen {
         return background != null && logo != null && panel != null;
     }
 
-    /** The login interface is the top level, has the layout this class was written for, and the art exists. */
+    private static Component[] components(int id) {
+        return InterfaceList.interfaces == null || id < 0 || id >= InterfaceList.interfaces.length ? null : InterfaceList.interfaces[id];
+    }
+
+    /** The login shell is the top level, has the layout this class was written for, and the art exists. */
     public static boolean active() {
         int id = loginInterface();
         if (id < 0 || InterfaceManager.topLevelInterface != id) {
             return false;
         }
-        Component[] components = InterfaceList.interfaces == null || id >= InterfaceList.interfaces.length ? null : InterfaceList.interfaces[id];
-        return components != null && components.length == EXPECTED_COMPONENTS && artLoaded();
+        Component[] shell = components(id);
+        return shell != null && shell.length == SHELL_COMPONENTS && artLoaded();
     }
 
-    private static boolean ours(Component c) {
+    private static boolean formLoaded() {
+        Component[] form = components(FORM_INTERFACE);
+        return form != null && form.length == EXPECTED_COMPONENTS;
+    }
+
+    private static boolean isShell(Component c) {
         return c != null && c.slot != -1 && (c.slot >>> 16) == loginInterface() && active();
+    }
+
+    private static boolean isForm(Component c) {
+        return c != null && c.slot != -1 && (c.slot >>> 16) == FORM_INTERFACE && active() && formLoaded();
     }
 
     private static int index(Component c) {
         return c.slot & 0xFFFF;
     }
 
+    /** Shell component that holds the form as a sub-interface, or null. */
+    private static Component formContainer() {
+        Component[] shell = components(loginInterface());
+        if (shell == null) {
+            return null;
+        }
+        for (Component c : shell) {
+            if (c != null && isFormContainer(c)) {
+                return c;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isFormContainer(Component c) {
+        SubInterface sub = (SubInterface) InterfaceManager.subInterfaces.get(c.slot);
+        return sub != null && sub.id == FORM_INTERFACE;
+    }
+
+    /** Screen x/y (relative to the interface origin) of a component, through its parents and sub-interface container. */
+    private static int[] absolute(Component c) {
+        int x = 0, y = 0;
+        for (int guard = 0; c != null && guard < 64; guard++) {
+            x += c.x;
+            y += c.y;
+            Component parent;
+            if (c.layer != -1) {
+                Component[] owner = components(c.layer >>> 16);
+                parent = owner == null ? null : owner[c.layer & 0xFFFF];
+            } else if ((c.slot >>> 16) == FORM_INTERFACE) {
+                parent = formContainer();
+            } else {
+                parent = null;
+            }
+            if (parent != null && parent.type == Component.TYPE_LAYER) {
+                x -= parent.scrollX;
+                y -= parent.scrollY;
+            }
+            c = parent;
+        }
+        return new int[] {x, y};
+    }
+
     // ------------------------------------------------------------------ interface hooks
 
     /** {@link InterfaceManager#isHidden}: the 2011 decoration is never drawn nor clickable. */
     public static boolean hides(Component c) {
-        if (!ours(c)) {
-            return false;
+        if (isShell(c)) {
+            int id = index(c);
+            return id < SHELL_HIDDEN_SET.length && SHELL_HIDDEN_SET[id];
         }
-        int id = index(c);
-        return id < HIDDEN_SET.length && HIDDEN_SET[id];
+        if (isForm(c)) {
+            int id = index(c);
+            return id < HIDDEN_SET.length && HIDDEN_SET[id];
+        }
+        return false;
     }
 
     /** {@link InterfaceManager#reposition} (after the cache layout): puts the working components on the art. */
     public static void adjust(Component c) {
-        if (!ours(c)) {
+        if (isShell(c)) {
+            if (isFormContainer(c)) {
+                // The form's container spans the whole screen, so the panel is never clipped by it.
+                Component[] shell = components(loginInterface());
+                Component parent = c.layer == -1 ? null : shell[c.layer & 0xFFFF];
+                int[] p = parent == null ? new int[] {0, 0} : absolute(parent);
+                set(c, -p[0], -p[1], GameShell.canvasWid, GameShell.canvasHei);
+            }
+            return;
+        }
+        if (!isForm(c)) {
             return;
         }
         RspsLoginLayout l = layout();
         int[] body = l.panelRect(RspsLoginLayout.BODY);
         int inset = l.panelLength(RspsLoginLayout.FIELD_TEXT_INSET);
         switch (index(c)) {
-            case FORM_CONTAINER:
-                set(c, body[0], body[1], body[2], body[3]);
+            case FORM_CONTAINER: {
+                Component container = formContainer();
+                int[] origin = container == null ? new int[] {0, 0} : absolute(container);
+                set(c, body[0] - origin[0], body[1] - origin[1], body[2], body[3]);
                 break;
+            }
             case FORM_FRAME:
             case FORM:
                 set(c, 0, 0, body[2], body[3]);
@@ -214,21 +312,25 @@ public final class RspsLoginScreen {
 
     /** Status boxes hang under the full-screen layer 7; centre them on the panel body. */
     private static void centreOnBody(Component c, int[] body) {
-        Component[] components = InterfaceList.interfaces[loginInterface()];
-        Component parent = components[STATUS_LAYER];
-        int px = parent == null ? 0 : parent.x;
-        int py = parent == null ? 0 : parent.y;
-        c.x = body[0] + (body[2] - c.width) / 2 - px;
-        c.y = body[1] + (body[3] - c.height) / 2 - py;
+        Component parent = components(FORM_INTERFACE)[STATUS_LAYER];
+        int[] p = parent == null ? new int[] {0, 0} : absolute(parent);
+        c.x = body[0] + (body[2] - c.width) / 2 - p[0];
+        c.y = body[1] + (body[3] - c.height) / 2 - p[1];
     }
 
     /** {@link InterfaceManager#draw}: the frame behind the status boxes and their buttons. */
     public static void beforeComponent(Component c, int x, int y) {
-        if (!ours(c)) {
+        boolean shell = isShell(c);
+        if (!shell && !isForm(c)) {
             return;
         }
+        int id = index(c);
+        if (shell) {
+            // The shell's message boxes and buttons share the form's status styling.
+            id = id == SHELL_BOX_A || id == SHELL_BOX_B ? STATUS_BOX : id == SHELL_BUTTON_A || id == SHELL_BUTTON_B ? STATUS_BUTTON_A : -1;
+        }
         Toolkit t = Toolkit.active;
-        switch (index(c)) {
+        switch (id) {
             case STATUS_BOX:
             case STATUS_SMALL: {
                 int pad = 10;
