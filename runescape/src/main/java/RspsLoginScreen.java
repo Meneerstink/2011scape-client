@@ -136,8 +136,68 @@ public final class RspsLoginScreen {
         return InterfaceList.interfaces == null || id < 0 || id >= InterfaceList.interfaces.length ? null : InterfaceList.interfaces[id];
     }
 
+    /** Set after any failure: the stock login screen shows again instead of a broken one. */
+    private static boolean failed;
+    private static boolean reportedActive;
+
+    /** One line to the client's error stream (the launcher keeps it in launcher-logs/client-*.err.log). */
+    static void log(String message) {
+        System.err.println("[78 login] " + message);
+    }
+
+    private static void fail(String where, Throwable t) {
+        if (!failed) {
+            failed = true;
+            log("disabled after an error in " + where + ": " + t);
+            t.printStackTrace();
+            InterfaceManager.redrawAll();
+        }
+    }
+
+    public static boolean hides(Component c) {
+        try {
+            return !failed && hidesImpl(c);
+        } catch (Throwable t) {
+            fail("hides", t);
+            return false;
+        }
+    }
+
+    public static void adjust(Component c) {
+        try {
+            if (!failed) {
+                adjustImpl(c);
+            }
+        } catch (Throwable t) {
+            fail("adjust", t);
+        }
+    }
+
+    public static void beforeComponent(Component c, int x, int y) {
+        try {
+            if (!failed) {
+                beforeComponentImpl(c, x, y);
+            }
+        } catch (Throwable t) {
+            fail("beforeComponent", t);
+        }
+    }
+
+    public static void drawBackdrop(int originX, int originY) {
+        try {
+            if (!failed) {
+                drawBackdropImpl(originX, originY);
+            }
+        } catch (Throwable t) {
+            fail("drawBackdrop", t);
+        }
+    }
+
     /** The login shell is the top level, has the layout this class was written for, and the art exists. */
     public static boolean active() {
+        if (failed) {
+            return false;
+        }
         int id = loginInterface();
         if (id < 0 || InterfaceManager.topLevelInterface != id) {
             return false;
@@ -209,7 +269,7 @@ public final class RspsLoginScreen {
     // ------------------------------------------------------------------ interface hooks
 
     /** {@link InterfaceManager#isHidden}: the 2011 decoration is never drawn nor clickable. */
-    public static boolean hides(Component c) {
+    private static boolean hidesImpl(Component c) {
         if (isShell(c)) {
             int id = index(c);
             return id < SHELL_HIDDEN_SET.length && SHELL_HIDDEN_SET[id];
@@ -222,7 +282,7 @@ public final class RspsLoginScreen {
     }
 
     /** {@link InterfaceManager#reposition} (after the cache layout): puts the working components on the art. */
-    public static void adjust(Component c) {
+    private static void adjustImpl(Component c) {
         if (isShell(c)) {
             if (isFormContainer(c)) {
                 // The form's container spans the whole screen, so the panel is never clipped by it.
@@ -319,7 +379,7 @@ public final class RspsLoginScreen {
     }
 
     /** {@link InterfaceManager#draw}: the frame behind the status boxes and their buttons. */
-    public static void beforeComponent(Component c, int x, int y) {
+    private static void beforeComponentImpl(Component c, int x, int y) {
         boolean shell = isShell(c);
         if (!shell && !isForm(c)) {
             return;
@@ -368,7 +428,7 @@ public final class RspsLoginScreen {
      * states of the button, links and fields. Also marks the whole interface dirty, because the backdrop
      * repaints the full screen every frame.
      */
-    public static void drawBackdrop(int originX, int originY) {
+    private static void drawBackdropImpl(int originX, int originY) {
         if (!active()) {
             return;
         }
@@ -393,6 +453,24 @@ public final class RspsLoginScreen {
             }
         }
         RspsLoginLayout l = built;
+        if (!reportedActive) {
+            reportedActive = true;
+            Component container = formContainer();
+            Component[] form = components(FORM_INTERFACE);
+            String formInfo = "form " + (form == null ? "not loaded" : form.length + " components");
+            if (formLoaded()) {
+                int[] a6 = absolute(form[FORM_CONTAINER]);
+                int[] a40 = absolute(form[USERNAME]);
+                int[] a45 = absolute(form[LOGIN_BUTTON]);
+                formInfo += ", panel body at " + a6[0] + "," + a6[1] + " " + form[FORM_CONTAINER].width + "x" + form[FORM_CONTAINER].height
+                    + ", username at " + a40[0] + "," + a40[1] + ", button at " + a45[0] + "," + a45[1]
+                    + ", hidden 6/40/45: " + form[FORM_CONTAINER].hidden + "/" + form[USERNAME].hidden + "/" + form[LOGIN_BUTTON].hidden;
+            }
+            log("active: toolkit " + t.getClass().getSimpleName() + ", canvas " + GameShell.canvasWid + "x" + GameShell.canvasHei
+                + ", origin " + originX + "," + originY + ", sprites " + (bgSprite != null) + "/" + (logoSprite != null) + "/" + (panelSprite != null)
+                + ", container " + (container == null ? "none" : (container.slot & 0xFFFF) + " " + container.width + "x" + container.height)
+                + ", " + formInfo);
+        }
         if (l == null || bgSprite == null) {
             return;
         }
@@ -495,6 +573,7 @@ public final class RspsLoginScreen {
         Sprite bg = sprite(t, RspsLoginArt.scale(background, l.bgW, l.bgH), l.bgW, l.bgH);
         Sprite lg = sprite(t, RspsLoginArt.scale(logo, l.logoW(), l.logoH()), l.logoW(), l.logoH());
         Sprite pn = sprite(t, RspsLoginArt.scale(panel, l.panelW(), l.panelH()), l.panelW(), l.panelH());
+        log("build " + l.width + "x" + l.height + (l.compact ? " compact" : "") + ": background " + (bg != null) + ", logo " + (lg != null) + ", panel " + (pn != null));
         if (bg == null || lg == null || pn == null) {
             return;
         }
@@ -521,6 +600,7 @@ public final class RspsLoginScreen {
         try {
             return t.createSprite(w, w, h, argb);
         } catch (RuntimeException e) {
+            log("sprite " + w + "x" + h + " failed: " + e);
             return null;
         }
     }
@@ -542,6 +622,7 @@ public final class RspsLoginScreen {
         background = read("background");
         logo = read("logo");
         panel = read("panel");
+        log("art loaded: background " + (background != null) + ", logo " + (logo != null) + ", panel " + (panel != null));
         if (panel == null) {
             return;
         }
