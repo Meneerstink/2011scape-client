@@ -575,6 +575,7 @@ public final class MiniMenu {
                                 if (RspsDev.enabled) {
                                     String locLabel = "<col=00ffff>" + local1661.name + RspsDev.tag(local1654.getId(), WorldMap.areaBaseX + local186, WorldMap.areaBaseZ + local584, PlayerEntity.self.level);
                                     long locV1 = Static277.method4042(local1654, local584, local186);
+                                    RspsDev.LOC_LEVELS.put(locV1, (int) local543.aEntity_18.level);
                                     for (int nudge = 3; nudge >= 0; nudge--) {
                                         addEntryInner(false, -1, locV1, local186, local584, "Nudge " + RspsDev.NUDGE_NAMES[nudge], RspsDev.ACTION_NUDGE_LOC + nudge, true, -1, locLabel, local1654.hashCode(), false);
                                     }
@@ -1281,7 +1282,8 @@ public final class MiniMenu {
             }
             int locId = RspsDev.isLocAction(action) ? (int) (v1Long >>> 32) & Integer.MAX_VALUE : -1;
             String locName = locId >= 0 ? LocTypeList.instance.list(locId).name : "";
-            RspsDev.perform(action, WorldMap.areaBaseX + v2, WorldMap.areaBaseZ + v3, PlayerEntity.self.level, locId, locName);
+            int level = locId >= 0 ? RspsDev.locLevel(v1Long, PlayerEntity.self.level) : PlayerEntity.self.level;
+            RspsDev.perform(action, WorldMap.areaBaseX + v2, WorldMap.areaBaseZ + v3, level, locId, locName);
             return;
         }
 

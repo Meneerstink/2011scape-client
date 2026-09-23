@@ -63,6 +63,17 @@ public final class RspsDev {
 
     public static final int STANDARD_78 = 62750;
 
+    /**
+     * Level of each loc offered in the current menu, keyed by its entry v1. A loc can stand on another level than the
+     * player (a tree canopy, an upper floor, a roof), and the edit must name the loc's own level.
+     */
+    public static final java.util.HashMap<Long, Integer> LOC_LEVELS = new java.util.HashMap<>();
+
+    public static int locLevel(long v1, int fallback) {
+        Integer level = LOC_LEVELS.get(v1);
+        return level == null ? fallback : level;
+    }
+
     /** The picked thing for Move/Copy: 0 nothing, 1 loc, 2 npc. */
     public static int pickKind = 0;
 
