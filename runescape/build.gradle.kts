@@ -134,3 +134,13 @@ val summoningNpcAudioRegression by tasks.registering(JavaExec::class) {
 }
 
 tasks.check { dependsOn(summoningNpcAudioRegression) }
+
+val loginScreenRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks the 78 login screen layout at fixed, 4:3, 16:9, 16:10, ultrawide and 4K; previews to build/login-preview."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("RspsLoginLayoutRegressionTest")
+    args(layout.buildDirectory.dir("login-preview").get().asFile.absolutePath)
+    jvmArgs("-Djava.awt.headless=true")
+}
