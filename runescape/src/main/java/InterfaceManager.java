@@ -2947,7 +2947,9 @@ public final class InterfaceManager {
 
     @OriginalMember(owner = "client!kda", name = "a", descriptor = "(I)V")
     public static void applyMaxScreenSize() {
-        int maximum = ClientOptions.instance == null ? MaxScreenSize.ANY : ClientOptions.instance.maxScreenSize.getValue();
+        // RSPS owner 2026-09-24: resizable always fills the whole window. The 2011 max-screen-size cap (forced to
+        // 800x600 on low detail) left black borders around the game.
+        int maximum = MaxScreenSize.ANY;
         int[] size = DisplaySizing.canvas(GameShell.frameWid, GameShell.frameHei, maximum, GameShell.fsframe != null);
         GameShell.canvasWid = size[0];
         GameShell.canvasHei = size[1];
