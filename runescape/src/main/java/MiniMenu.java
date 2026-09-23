@@ -355,6 +355,7 @@ public final class MiniMenu {
                             addEntryInner(false, -1, 0L, local140, local142, "Copy " + RspsDev.pickName + " here", RspsDev.ACTION_COPY_HERE, true, -1, here, (local142 | local140 << 0) + 0x44000000L, true);
                             addEntryInner(false, -1, 0L, local140, local142, "Move " + RspsDev.pickName + " here", RspsDev.ACTION_MOVE_HERE, true, -1, here, (local142 | local140 << 0) + 0x43000000L, true);
                         }
+                        addEntryInner(false, -1, 0L, local140, local142, "78 small", RspsDev.ACTION_SMALL_TILE, true, -1, here, (local142 | local140 << 0) + 0x46000000L, true);
                         addEntryInner(false, -1, 0L, local140, local142, "78 standard", RspsDev.ACTION_STANDARD_TILE, true, -1, here, (local142 | local140 << 0) + 0x42000000L, true);
                         addEntryInner(false, -1, 0L, local140, local142, "78 banner", RspsDev.ACTION_BANNER_TILE, true, -1, here, (local142 | local140 << 0) + 0x41000000L, true);
                         addEntryInner(false, -1, 0L, local140, local142, "Tag tile", RspsDev.ACTION_TAG_TILE, true, -1, here, (local142 | local140 << 0) + 0x40000000L, true);
@@ -1270,7 +1271,7 @@ public final class MiniMenu {
         }
         @Pc(35) long v1Long = entry.v1;
 
-        // RSPS developer mode: Tag / Remove / Rotate on a loc, Tag / 78 banner / 78 standard on a tile.
+        // RSPS developer mode: Tag / Remove / Rotate on a loc, Tag / 78 banner / 78 standard / 78 small on a tile.
         if (RspsDev.isDevAction(action)) {
             if (RspsDev.isNpcAction(action)) {
                 NPCEntityNode node = (NPCEntityNode) NPCList.local.get(v1);

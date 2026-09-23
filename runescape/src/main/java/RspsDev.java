@@ -5,7 +5,7 @@
  * <ul>
  * <li>loc: Tag, Remove, Rotate, Pick;</li>
  * <li>npc: Tag, Remove, Rotate, Pick;</li>
- * <li>ground: Tag tile, 78 banner, 78 standard, and after a Pick "Move ... here" / "Copy ... here".</li>
+ * <li>ground: Tag tile, 78 banner, 78 standard, 78 small, and after a Pick "Move ... here" / "Copy ... here".</li>
  * </ul>
  */
 public final class RspsDev {
@@ -52,6 +52,8 @@ public final class RspsDev {
 
     public static final int ACTION_NUDGE_NPC = 1920;
 
+    public static final int ACTION_SMALL_TILE = 1924;
+
     public static final String[] NUDGE_NAMES = {"north", "east", "south", "west"};
 
     private static final int[] NUDGE_DX = {0, 1, 0, -1};
@@ -62,6 +64,9 @@ public final class RspsDev {
     public static final int BANNER_78 = 62751;
 
     public static final int STANDARD_78 = 62750;
+
+    /** Small bank-wall banner (HouseBannerTool smallLoc). */
+    public static final int SMALL_78 = 62753;
 
     /**
      * Level of each loc offered in the current menu, keyed by its entry v1. A loc can stand on another level than the
@@ -107,7 +112,7 @@ public final class RspsDev {
     }
 
     public static boolean isDevAction(int action) {
-        return action >= ACTION_TAG_LOC && action <= ACTION_NUDGE_NPC + 3;
+        return action >= ACTION_TAG_LOC && action <= ACTION_SMALL_TILE;
     }
 
     public static boolean isNpcAction(int action) {
@@ -146,6 +151,9 @@ public final class RspsDev {
                 break;
             case ACTION_STANDARD_TILE:
                 send("devplace " + at + " " + STANDARD_78);
+                break;
+            case ACTION_SMALL_TILE:
+                send("devplace " + at + " " + SMALL_78);
                 break;
             case ACTION_MOVE_HERE:
             case ACTION_COPY_HERE:
