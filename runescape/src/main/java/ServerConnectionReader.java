@@ -57,8 +57,11 @@ import rs2.client.web.ClientURLTools;
 import rs2.client.web.OpenUrlType;
 
 import java.io.IOException;
+import java.awt.datatransfer.StringSelection;
 
 public final class ServerConnectionReader {
+
+    private static final String RSPS_COPY_POSITION_PREFIX = "__RSPS_COPY_POS__:";
 
     @OriginalMember(owner = "client!jr", name = "I", descriptor = "[I")
     public static final int[] LOC_LAYERS_BY_SHAPE = {
@@ -1154,7 +1157,25 @@ public final class ServerConnectionReader {
 
             @Pc(1750) String message = bitPacket.gjstr();
             if (type == ChatLineType.CONSOLE_PRINT) {
-                debugconsole.addline(message);
+                if (message.startsWith(RspsScreenshot.PREFIX)) {
+                    RspsScreenshot.capture(message.substring(RspsScreenshot.PREFIX.length()));
+                } else if (message.startsWith(RspsDev.PREFIX)) {
+                    RspsDev.handle(message.substring(RspsDev.PREFIX.length()));
+                } else if (message.startsWith(RSPS_COPY_POSITION_PREFIX)) {
+                    String position = message.substring(RSPS_COPY_POSITION_PREFIX.length());
+                    if (client.clipboard != null) {
+                        try {
+                            client.clipboard.setContents(new StringSelection(position), null);
+                            debugconsole.addline("Position copied: " + position);
+                        } catch (Exception ignored) {
+                            debugconsole.addline("Position could not be copied: " + position);
+                        }
+                    } else {
+                        debugconsole.addline("Position could not be copied: " + position);
+                    }
+                } else {
+                    debugconsole.addline(message);
+                }
             } else if (type == ChatLineType.CONSOLE_SET) {
                 debugconsole.set(message);
             } else if (nameUnfiltered.equals("") || !IgnoreList.contains(nameUnfiltered)) {

@@ -72,6 +72,15 @@ public final class Sprites {
     @OriginalMember(owner = "client!nu", name = "d", descriptor = "[Lclient!st;")
     public static Sprite[] headiconsPk;
 
+    /**
+     * RSPS Deadman: the head-icon sprite for a server skull id carrying {@code keys} loot keys, or
+     * null when not skulled. Always one of the five tier skulls ({@link DeadmanIcons#headSkull});
+     * the cache's own headicons_pk frames are never drawn.
+     */
+    public static Sprite deadmanSkull(int pkIcon, int keys) {
+        return DeadmanIcons.headSkull(pkIcon, keys);
+    }
+
     @OriginalMember(owner = "client!pj", name = "a", descriptor = "[Lclient!st;")
     public static Sprite[] headiconsPrayer;
 

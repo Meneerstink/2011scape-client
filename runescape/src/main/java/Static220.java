@@ -1,5 +1,6 @@
 import com.jagex.game.runetek6.config.bastype.BASType;
 import com.jagex.game.runetek6.config.npctype.NPCType;
+import com.jagex.game.runetek6.config.npctype.SummoningNpcAudioOverrides;
 import com.jagex.game.runetek6.config.vartype.TimedVarDomain;
 import com.jagex.js5.js5;
 import com.jagex.sound.MixBuss;
@@ -38,6 +39,12 @@ public final class Static220 {
 
             if (sound.movementSpeed != movementSpeed) {
                 @Pc(154) int currentSound = NPCEntity.currentSound(sound.npc);
+
+                if (sound.npc.type != null && SummoningNpcAudioOverrides.soundFor(sound.npc.type.id) != -1) {
+                    AvTrace.log("summon-audio movement npc=" + sound.npc.type.id + " speed=" + movementSpeed
+                        + " animation=" + animation + " ready=" + sound.npc.ready
+                        + " currentSound=" + currentSound);
+                }
 
                 @Pc(158) NPCType npcType = sound.npc.type;
                 if (npcType.multinpcs != null) {

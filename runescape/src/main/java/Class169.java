@@ -41,7 +41,7 @@ public final class Class169 {
             return (Class93_Sub2) local10;
         } else if (this.anTextureSource_4.textureAvailable(arg0)) {
             @Pc(33) TextureMetrics local33 = this.anTextureSource_4.getMetrics(arg0);
-            @Pc(52) int local52 = local33.small ? 64 : this.aClass19_Sub3_17.anInt7981;
+            @Pc(52) int local52 = local33.small ? 64 : RspsTextures.hardwareSize(arg0, this.aClass19_Sub3_17.anInt7981);
             @Pc(90) Class93_Sub2 local90;
             if (local33.aBoolean237 && this.aClass19_Sub3_17.bloom()) {
                 @Pc(71) float[] local71 = this.anTextureSource_4.floatArgbOutput(local52, arg0, 0.7F, local52);

@@ -10,6 +10,7 @@ import com.jagex.game.runetek6.config.bastype.BASTypeList;
 import com.jagex.game.runetek6.config.defaults.GraphicsDefaults;
 import com.jagex.game.runetek6.config.npctype.NPCType;
 import com.jagex.game.runetek6.config.npctype.NPCTypeCustomisation;
+import com.jagex.game.runetek6.config.npctype.SummoningNpcAudioOverrides;
 import com.jagex.game.runetek6.config.seqtype.SeqTypeList;
 import com.jagex.game.runetek6.config.spotanimationtype.SpotAnimationType;
 import com.jagex.game.runetek6.config.spotanimationtype.SpotAnimationTypeList;
@@ -73,8 +74,10 @@ public final class NPCEntity extends PathingEntity {
         @Pc(22) int sound = type.walkSound;
         @Pc(32) BASType basType = entity.getBASType();
         @Pc(37) int animationId = entity.animator.getAnimationId();
-        if (animationId == -1 || entity.ready) {
+        if ((animationId == -1 || entity.ready) && !SummoningNpcAudioOverrides.suppressIdleSound(type.id)) {
             sound = type.readySound;
+        } else if (animationId == -1 || entity.ready) {
+            sound = -1;
         } else if (animationId == basType.run || animationId == basType.runFollowTurn180 || animationId == basType.runFollowTurnCw || animationId == basType.runFollowTurnCcw) {
             sound = type.runSound;
         } else if (animationId == basType.crawl || animationId == basType.crawlFollowTurn180 || animationId == basType.crawlFollowTurnCw || animationId == basType.crawlFollowTurnCcw) {

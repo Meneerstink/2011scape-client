@@ -58,6 +58,7 @@ public final class InterfaceList {
                         }
 
                         component.decode(new Packet(data));
+                        EquipmentInterfaceLayout.apply(id, slot, component);
 
                         // RSPS Deadman HUD: the Wilderness overlay's two text components
                         // (381:2 and 381:5) carry a baked onTimer hook (client script 54) that

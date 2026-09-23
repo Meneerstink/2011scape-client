@@ -9,6 +9,7 @@ public final class Static203 {
     @OriginalMember(owner = "client!gf", name = "a", descriptor = "(B)V")
     public static void resetStaticSprites() {
         Sprites.headiconsPk = null;
+        DeadmanIcons.reset();
         Sprites.hintMapedge = null;
         Sprites.hintMapmarkers = null;
         Fonts.p11 = null;

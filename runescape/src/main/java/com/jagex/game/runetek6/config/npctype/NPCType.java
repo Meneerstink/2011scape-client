@@ -241,6 +241,8 @@ public final class NPCType {
                 this.aByte107 = 0;
             }
         }
+
+        SummoningNpcAudioOverrides.apply(this);
     }
 
     @OriginalMember(owner = "client!o", name = "c", descriptor = "(B)Z")

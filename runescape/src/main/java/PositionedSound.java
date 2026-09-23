@@ -96,6 +96,15 @@ public final class PositionedSound extends Node {
     @OriginalMember(owner = "client!tg", name = "B", descriptor = "I")
     public int movementSpeed = 0;
 
+    /** One-shot diagnostics for the owner-approved Summoning audio trace. */
+    public boolean summoningTraceRangeLogged;
+
+    /** One-shot diagnostics for the owner-approved Summoning audio trace. */
+    public boolean summoningTraceStreamLogged;
+
+    /** Cooldown used by provisional familiar movement one-shots. */
+    public int summoningOneShotCooldown;
+
     @OriginalMember(owner = "client!tg", name = "b", descriptor = "(I)V")
     public void update() {
         @Pc(11) int sound = this.id;

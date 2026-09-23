@@ -349,6 +349,17 @@ public final class MiniMenu {
                         addEntryInner(false, -1, 0L, local140, local142, LocalisedText.FACEHERE.localise(Client.language), 11, true, -1, "", local142 | local140 << 0, true);
                     }
                     addEntryInner(false, -1, 0L, local140, local142, Static331.moveText, 58, true, Static331.moveCursor, "", local142 | local140 << 0, true);
+                    if (RspsDev.enabled) {
+                        String here = "<col=ffffff>" + (WorldMap.areaBaseX + local140) + "," + (WorldMap.areaBaseZ + local142) + "," + PlayerEntity.self.level;
+                        if (RspsDev.pickKind != 0) {
+                            addEntryInner(false, -1, 0L, local140, local142, "Copy " + RspsDev.pickName + " here", RspsDev.ACTION_COPY_HERE, true, -1, here, (local142 | local140 << 0) + 0x44000000L, true);
+                            addEntryInner(false, -1, 0L, local140, local142, "Move " + RspsDev.pickName + " here", RspsDev.ACTION_MOVE_HERE, true, -1, here, (local142 | local140 << 0) + 0x43000000L, true);
+                        }
+                        addEntryInner(false, -1, 0L, local140, local142, "78 standard", RspsDev.ACTION_STANDARD_TILE, true, -1, here, (local142 | local140 << 0) + 0x42000000L, true);
+                        addEntryInner(false, -1, 0L, local140, local142, "78 banner", RspsDev.ACTION_BANNER_TILE, true, -1, here, (local142 | local140 << 0) + 0x41000000L, true);
+                        addEntryInner(false, -1, 0L, local140, local142, "Tag tile", RspsDev.ACTION_TAG_TILE, true, -1, here, (local142 | local140 << 0) + 0x40000000L, true);
+                        addEntryInner(false, -1, 0L, local140, local142, "Teleport here", RspsDev.ACTION_TELE_TILE, true, -1, here, (local142 | local140 << 0) + 0x45000000L, true);
+                    }
                 }
             }
         }
@@ -505,7 +516,7 @@ public final class MiniMenu {
                                             if (local723 == local1424.cursor2op) {
                                                 local864 = local1424.cursor2;
                                             }
-                                            addEntryInner(false, -1, local1416.id, local186, local584, local1525[local723], local1540, true, local864, "<col=ff9040>" + local1424.name, local295, false);
+                                            addEntryInner(false, -1, local1416.id, local186, local584, local1525[local723], local1540, true, local864, "<col=ff9040>" + local1424.name + RspsDev.tag(local1416.id), local295, false);
                                         }
                                     }
                                 }
@@ -557,9 +568,21 @@ public final class MiniMenu {
                                             if (local1661.cursor2Op == local295) {
                                                 local317 = local1661.cursor2;
                                             }
-                                            addEntryInner(false, -1, Static277.method4042(local1654, local584, local186), local186, local584, local1763[local295], local1780, true, local317, "<col=00ffff>" + local1661.name, local1654.hashCode(), false);
+                                            addEntryInner(false, -1, Static277.method4042(local1654, local584, local186), local186, local584, local1763[local295], local1780, true, local317, "<col=00ffff>" + local1661.name + RspsDev.tag(local1654.getId(), WorldMap.areaBaseX + local186, WorldMap.areaBaseZ + local584, PlayerEntity.self.level), local1654.hashCode(), false);
                                         }
                                     }
+                                }
+                                if (RspsDev.enabled) {
+                                    String locLabel = "<col=00ffff>" + local1661.name + RspsDev.tag(local1654.getId(), WorldMap.areaBaseX + local186, WorldMap.areaBaseZ + local584, PlayerEntity.self.level);
+                                    long locV1 = Static277.method4042(local1654, local584, local186);
+                                    for (int nudge = 3; nudge >= 0; nudge--) {
+                                        addEntryInner(false, -1, locV1, local186, local584, "Nudge " + RspsDev.NUDGE_NAMES[nudge], RspsDev.ACTION_NUDGE_LOC + nudge, true, -1, locLabel, local1654.hashCode(), false);
+                                    }
+                                    addEntryInner(false, -1, locV1, local186, local584, "Info", RspsDev.ACTION_INFO_LOC, true, -1, locLabel, local1654.hashCode(), false);
+                                    addEntryInner(false, -1, locV1, local186, local584, "Pick", RspsDev.ACTION_PICK_LOC, true, -1, locLabel, local1654.hashCode(), false);
+                                    addEntryInner(false, -1, locV1, local186, local584, "Remove", RspsDev.ACTION_REMOVE_LOC, true, -1, locLabel, local1654.hashCode(), false);
+                                    addEntryInner(false, -1, locV1, local186, local584, "Rotate", RspsDev.ACTION_ROTATE_LOC, true, -1, locLabel, local1654.hashCode(), false);
+                                    addEntryInner(false, -1, locV1, local186, local584, "Tag", RspsDev.ACTION_TAG_LOC, true, -1, locLabel, local1654.hashCode(), false);
                                 }
                             }
                         }
@@ -760,11 +783,28 @@ public final class MiniMenu {
             npcName = type.name;
         }
 
-        if (!type.interactive) {
+        if (!type.interactive && !RspsDev.enabled) {
             return;
         }
 
-        if (npc.combatLevel != 0) {
+        // RSPS developer mode: npc edit entries (the server id is the base type, not a multinpc transform).
+        if (RspsDev.enabled) {
+            String label = "<col=ffff00>" + npcName + RspsDev.tag(npc.type.id);
+            for (int nudge = 3; nudge >= 0; nudge--) {
+                addEntryInner(false, -1, npc.slot, 0, 0, "Nudge " + RspsDev.NUDGE_NAMES[nudge], RspsDev.ACTION_NUDGE_NPC + nudge, true, -1, label, npc.slot, false);
+            }
+            addEntryInner(false, -1, npc.slot, 0, 0, "Info", RspsDev.ACTION_INFO_NPC, true, -1, label, npc.slot, false);
+            addEntryInner(false, -1, npc.slot, 0, 0, "Tag", RspsDev.ACTION_NPC_TAG, true, -1, label, npc.slot, false);
+            addEntryInner(false, -1, npc.slot, 0, 0, "Pick", RspsDev.ACTION_NPC_PICK, true, -1, label, npc.slot, false);
+            addEntryInner(false, -1, npc.slot, 0, 0, "Rotate", RspsDev.ACTION_NPC_ROTATE, true, -1, label, npc.slot, false);
+            addEntryInner(false, -1, npc.slot, 0, 0, "Remove", RspsDev.ACTION_NPC_REMOVE, true, -1, label, npc.slot, false);
+        }
+
+        // RSPS: an npc whose NPCType carries no combat level decodes as -1 (every OSRS import such as
+        // Skully); the original only suppressed the "(level N)" suffix for exactly 0, so such npcs
+        // showed a nonsense level. No suffix for any non-positive level (owner 2026-09-17: "haal
+        // alle combat levels weg bij alle skullys").
+        if (npc.combatLevel > 0) {
             @Pc(67) String text = ModeGame.STELLAR_DAWN == Client.modeGame ? LocalisedText.RATING.localise(Client.language) : LocalisedText.LEVEL.localise(Client.language);
             npcName = npcName + colourCode(PlayerEntity.self.combatLevel, npc.combatLevel) + " (" + text + npc.combatLevel + ")";
         }
@@ -820,7 +860,7 @@ public final class MiniMenu {
                     cursor = type.cursor2;
                 }
 
-                addEntryInner(false, -1, npc.slot, 0, 0, ops[op], action, true, ops[op].equalsIgnoreCase(LocalisedText.ATTACK.localise(Client.language)) ? type.attackCursor : cursor, "<col=ffff00>" + npcName, npc.slot, false);
+                addEntryInner(false, -1, npc.slot, 0, 0, ops[op], action, true, ops[op].equalsIgnoreCase(LocalisedText.ATTACK.localise(Client.language)) ? type.attackCursor : cursor, "<col=ffff00>" + npcName + RspsDev.tag(type.id), npc.slot, false);
             }
         }
 
@@ -864,7 +904,7 @@ public final class MiniMenu {
                         cursor = type.cursor2;
                     }
 
-                    addEntryInner(false, -1, npc.slot, 0, 0, ops[op], action, true, ops[op].equalsIgnoreCase(LocalisedText.ATTACK.localise(Client.language)) ? type.attackCursor : cursor, "<col=ffff00>" + npcName, npc.slot, false);
+                    addEntryInner(false, -1, npc.slot, 0, 0, ops[op], action, true, ops[op].equalsIgnoreCase(LocalisedText.ATTACK.localise(Client.language)) ? type.attackCursor : cursor, "<col=ffff00>" + npcName + RspsDev.tag(type.id), npc.slot, false);
                 }
             }
         }
@@ -1228,6 +1268,22 @@ public final class MiniMenu {
             action -= 2000;
         }
         @Pc(35) long v1Long = entry.v1;
+
+        // RSPS developer mode: Tag / Remove / Rotate on a loc, Tag / 78 banner / 78 standard on a tile.
+        if (RspsDev.isDevAction(action)) {
+            if (RspsDev.isNpcAction(action)) {
+                NPCEntityNode node = (NPCEntityNode) NPCList.local.get(v1);
+                if (node != null) {
+                    NPCEntity npc = node.npc;
+                    RspsDev.performNpc(action, WorldMap.areaBaseX + npc.pathX[0], WorldMap.areaBaseZ + npc.pathZ[0], PlayerEntity.self.level, npc.type.id, npc.name);
+                }
+                return;
+            }
+            int locId = RspsDev.isLocAction(action) ? (int) (v1Long >>> 32) & Integer.MAX_VALUE : -1;
+            String locName = locId >= 0 ? LocTypeList.instance.list(locId).name : "";
+            RspsDev.perform(action, WorldMap.areaBaseX + v2, WorldMap.areaBaseZ + v3, PlayerEntity.self.level, locId, locName);
+            return;
+        }
 
         if (action == MiniMenuAction.TGT_PLAYER) {
             @Pc(44) PlayerEntity player = PlayerList.highResolutionPlayers[v1];

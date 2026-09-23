@@ -43,7 +43,8 @@ public final class Static658 {
                 }
             }
         }
-        if (local64.interactive) {
+        // RSPS developer mode: every loc is pickable, so option-less scenery (banners, decor) can be edited too.
+        if (local64.interactive || RspsDev.enabled) {
             local64.aEntity_18 = arg0;
             if (Static661.aBoolean457) {
                 @Pc(127) Class213 local127 = Static514.aClass213_2;
