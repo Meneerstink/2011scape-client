@@ -351,7 +351,9 @@ public final class MiniMenu {
                     addEntryInner(false, -1, 0L, local140, local142, Static331.moveText, 58, true, Static331.moveCursor, "", local142 | local140 << 0, true);
                     if (RspsDev.enabled) {
                         String here = "<col=ffffff>" + (WorldMap.areaBaseX + local140) + "," + (WorldMap.areaBaseZ + local142) + "," + PlayerEntity.self.level;
-                        if (RspsDev.pickKind != 0) {
+                        if (RspsDev.pickKind == RspsDev.PICK_TELE) {
+                            addEntryInner(false, -1, 0L, local140, local142, "Link teleport (" + RspsDev.pickName + ") here", RspsDev.ACTION_LINK_TELE, true, -1, here, (local142 | local140 << 0) + 0x47000000L, true);
+                        } else if (RspsDev.pickKind != 0) {
                             addEntryInner(false, -1, 0L, local140, local142, "Copy " + RspsDev.pickName + " here", RspsDev.ACTION_COPY_HERE, true, -1, here, (local142 | local140 << 0) + 0x44000000L, true);
                             addEntryInner(false, -1, 0L, local140, local142, "Move " + RspsDev.pickName + " here", RspsDev.ACTION_MOVE_HERE, true, -1, here, (local142 | local140 << 0) + 0x43000000L, true);
                         }
@@ -577,6 +579,11 @@ public final class MiniMenu {
                                     String locLabel = "<col=00ffff>" + local1661.name + RspsDev.tag(local1654.getId(), WorldMap.areaBaseX + local186, WorldMap.areaBaseZ + local584, PlayerEntity.self.level);
                                     long locV1 = Static277.method4042(local1654, local584, local186);
                                     RspsDev.LOC_LEVELS.put(locV1, (int) local543.aEntity_18.level);
+                                    addEntryInner(false, -1, locV1, local186, local584, "Remove teleport", RspsDev.ACTION_UNTELE, true, -1, locLabel, local1654.hashCode(), false);
+                                    addEntryInner(false, -1, locV1, local186, local584, "Teleport from", RspsDev.ACTION_TELE_FROM, true, -1, locLabel, local1654.hashCode(), false);
+                                    addEntryInner(false, -1, locV1, local186, local584, "Walk-through on/off", RspsDev.ACTION_PASSABLE, true, -1, locLabel, local1654.hashCode(), false);
+                                    addEntryInner(false, -1, locV1, local186, local584, "Hang 78 small", RspsDev.ACTION_HANG_SMALL, true, -1, locLabel, local1654.hashCode(), false);
+                                    addEntryInner(false, -1, locV1, local186, local584, "Hang 78 banner", RspsDev.ACTION_HANG_BANNER, true, -1, locLabel, local1654.hashCode(), false);
                                     for (int nudge = 3; nudge >= 0; nudge--) {
                                         addEntryInner(false, -1, locV1, local186, local584, "Nudge " + RspsDev.NUDGE_NAMES[nudge], RspsDev.ACTION_NUDGE_LOC + nudge, true, -1, locLabel, local1654.hashCode(), false);
                                     }
@@ -795,6 +802,8 @@ public final class MiniMenu {
             for (int nudge = 3; nudge >= 0; nudge--) {
                 addEntryInner(false, -1, npc.slot, 0, 0, "Nudge " + RspsDev.NUDGE_NAMES[nudge], RspsDev.ACTION_NUDGE_NPC + nudge, true, -1, label, npc.slot, false);
             }
+            addEntryInner(false, -1, npc.slot, 0, 0, "Walk radius", RspsDev.ACTION_NPC_RADIUS, true, -1, label, npc.slot, false);
+            addEntryInner(false, -1, npc.slot, 0, 0, "Rename", RspsDev.ACTION_NPC_RENAME, true, -1, label, npc.slot, false);
             addEntryInner(false, -1, npc.slot, 0, 0, "Info", RspsDev.ACTION_INFO_NPC, true, -1, label, npc.slot, false);
             addEntryInner(false, -1, npc.slot, 0, 0, "Tag", RspsDev.ACTION_NPC_TAG, true, -1, label, npc.slot, false);
             addEntryInner(false, -1, npc.slot, 0, 0, "Pick", RspsDev.ACTION_NPC_PICK, true, -1, label, npc.slot, false);

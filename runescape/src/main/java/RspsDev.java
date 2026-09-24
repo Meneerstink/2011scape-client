@@ -3,8 +3,9 @@
  * every loc (also option-less scenery), npc and ground item shows its id on right-click, and extra entries edit the
  * world live through the server's world-edit commands:
  * <ul>
- * <li>loc: Tag, Remove, Rotate, Pick;</li>
- * <li>npc: Tag, Remove, Rotate, Pick;</li>
+ * <li>loc: Tag, Remove, Rotate, Pick, Teleport from, Walk-through on/off, Remove teleport, and on a wall "Hang 78
+ * banner" / "Hang 78 small" (on the side you stand);</li>
+ * <li>npc: Tag, Remove, Rotate, Pick, Rename, Walk radius;</li>
  * <li>ground: Tag tile, 78 banner, 78 standard, 78 small, and after a Pick "Move ... here" / "Copy ... here".</li>
  * </ul>
  */
@@ -53,6 +54,29 @@ public final class RspsDev {
     public static final int ACTION_NUDGE_NPC = 1920;
 
     public static final int ACTION_SMALL_TILE = 1924;
+
+    /** On a wall: hang the 78 banner / small banner on the side of the wall the player stands on (server picks tile and rotation). */
+    public static final int ACTION_HANG_BANNER = 1925;
+
+    public static final int ACTION_HANG_SMALL = 1926;
+
+    /** Npc: rename (server asks the name and "this one / every one"), set walk radius (server asks the tiles). */
+    public static final int ACTION_NPC_RENAME = 1927;
+
+    public static final int ACTION_NPC_RADIUS = 1928;
+
+    /** Loc: pick as teleport start; then ground "Link teleport here". */
+    public static final int ACTION_TELE_FROM = 1929;
+
+    public static final int ACTION_LINK_TELE = 1930;
+
+    /** Loc: toggle walk-through (stays visible); remove its teleport. */
+    public static final int ACTION_PASSABLE = 1931;
+
+    public static final int ACTION_UNTELE = 1932;
+
+    /** pickKind of a loc picked as teleport start. */
+    public static final int PICK_TELE = 3;
 
     public static final String[] NUDGE_NAMES = {"north", "east", "south", "west"};
 
@@ -112,15 +136,15 @@ public final class RspsDev {
     }
 
     public static boolean isDevAction(int action) {
-        return action >= ACTION_TAG_LOC && action <= ACTION_SMALL_TILE;
+        return action >= ACTION_TAG_LOC && action <= ACTION_UNTELE;
     }
 
     public static boolean isNpcAction(int action) {
-        return (action >= ACTION_NPC_REMOVE && action <= ACTION_NPC_TAG) || action == ACTION_INFO_NPC || (action >= ACTION_NUDGE_NPC && action <= ACTION_NUDGE_NPC + 3);
+        return (action >= ACTION_NPC_REMOVE && action <= ACTION_NPC_TAG) || action == ACTION_INFO_NPC || action == ACTION_NPC_RENAME || action == ACTION_NPC_RADIUS || (action >= ACTION_NUDGE_NPC && action <= ACTION_NUDGE_NPC + 3);
     }
 
     public static boolean isLocAction(int action) {
-        return action == ACTION_TAG_LOC || action == ACTION_REMOVE_LOC || action == ACTION_ROTATE_LOC || action == ACTION_PICK_LOC || action == ACTION_INFO_LOC || (action >= ACTION_NUDGE_LOC && action <= ACTION_NUDGE_LOC + 3);
+        return action == ACTION_TAG_LOC || action == ACTION_REMOVE_LOC || action == ACTION_ROTATE_LOC || action == ACTION_PICK_LOC || action == ACTION_INFO_LOC || action == ACTION_HANG_BANNER || action == ACTION_HANG_SMALL || action == ACTION_TELE_FROM || action == ACTION_PASSABLE || action == ACTION_UNTELE || (action >= ACTION_NUDGE_LOC && action <= ACTION_NUDGE_LOC + 3);
     }
 
     /** A loc or tile action at world tile x,z,level (locId -1 for a bare tile). */
@@ -154,6 +178,27 @@ public final class RspsDev {
                 break;
             case ACTION_SMALL_TILE:
                 send("devplace " + at + " " + SMALL_78);
+                break;
+            case ACTION_HANG_BANNER:
+                send("devhang " + at + " " + locId + " " + BANNER_78);
+                break;
+            case ACTION_HANG_SMALL:
+                send("devhang " + at + " " + locId + " " + SMALL_78);
+                break;
+            case ACTION_TELE_FROM:
+                pick(PICK_TELE, locId, x, z, level, locName);
+                break;
+            case ACTION_LINK_TELE:
+                if (pickKind == PICK_TELE) {
+                    send("devtele " + pickX + " " + pickZ + " " + pickLevel + " " + pickId + " " + at);
+                    pickKind = 0;
+                }
+                break;
+            case ACTION_PASSABLE:
+                send("devpassable " + at + " " + locId);
+                break;
+            case ACTION_UNTELE:
+                send("devuntele " + at + " " + locId);
                 break;
             case ACTION_MOVE_HERE:
             case ACTION_COPY_HERE:
@@ -202,6 +247,12 @@ public final class RspsDev {
             case ACTION_INFO_NPC:
                 send("devnpcinfo " + target);
                 break;
+            case ACTION_NPC_RENAME:
+                send("devnpcname " + target);
+                break;
+            case ACTION_NPC_RADIUS:
+                send("devnpcradius " + target);
+                break;
             default:
                 if (action >= ACTION_NUDGE_NPC && action <= ACTION_NUDGE_NPC + 3) {
                     int d = action - ACTION_NUDGE_NPC;
@@ -218,7 +269,7 @@ public final class RspsDev {
         pickZ = z;
         pickLevel = level;
         pickName = name == null ? String.valueOf(id) : name;
-        debugconsole.addline("Picked " + pickName + " (" + id + ") - right-click the ground: Move/Copy here");
+        debugconsole.addline("Picked " + pickName + " (" + id + ") - right-click the ground: " + (kind == PICK_TELE ? "Link teleport here" : "Move/Copy here"));
     }
 
     /** Sends [command] to the server as a client cheat. */
