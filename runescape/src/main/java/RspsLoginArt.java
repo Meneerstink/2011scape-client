@@ -69,7 +69,7 @@ final class RspsLoginArt {
 
     /**
      * A state of the Log In button: the button face (x, y, w, h inside {@code art}) lit, darkened or greyed;
-     * the ornaments and the panel around it stay as they are. Hover lifts the purple and the silver text,
+     * the ornaments and the panel around it stay as they are. Hover lifts the gold and the lettering,
      * pressed darkens (and is drawn a pixel lower), disabled drains the colour while a login runs.
      */
     static BufferedImage buttonState(BufferedImage art, int x, int y, int w, int h, State state) {
@@ -103,7 +103,7 @@ final class RspsLoginArt {
         return out;
     }
 
-    /** Link hover: the silver lettering and underline take the panel's lilac glow; dark pixels stay. */
+    /** Link hover: the ivory lettering and underline take a warm gold glow; dark pixels stay. */
     static BufferedImage linkHover(BufferedImage art) {
         BufferedImage out = copy(art);
         for (int py = 0; py < out.getHeight(); py++) {
@@ -114,17 +114,17 @@ final class RspsLoginArt {
                 double lum = 0.299 * r + 0.587 * g + 0.114 * b;
                 double t = Math.max(0, Math.min(1, (lum - 55) / 120.0)) * 0.8;
                 double k = Math.min(1.25, lum / 200.0 + 0.1);
-                r = (int) (r + (232 * k - r) * t);
-                g = (int) (g + (178 * k - g) * t);
-                b = (int) (b + (255 * k - b) * t);
+                r = (int) (r + (255 * k - r) * t);
+                g = (int) (g + (221 * k - g) * t);
+                b = (int) (b + (112 * k - b) * t);
                 out.setRGB(px, py, a << 24 | clamp(r) << 16 | clamp(g) << 8 | clamp(b));
             }
         }
         return out;
     }
 
-    /** Near-black with the scenery's violet, at most this opaque: the shade reads as the panel's shadow. */
-    private static final int SHADE_RGB = 0x07030C;
+    /** Neutral near-black shade behind the panel on very wide monitors. */
+    private static final int SHADE_RGB = 0x101218;
     private static final double SHADE_ALPHA = 0.88;
 
     /**

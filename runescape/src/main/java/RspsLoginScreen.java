@@ -21,8 +21,8 @@ import java.io.InputStream;
  * (script 2944 -> 2945 -> LOGIN_REQUEST), Recover Password (47), Create Account (61) and the status/error
  * boxes (8, 9). Nothing of the networking or authentication changes. This class only
  * <ul>
- *   <li>draws the background, the logo and the login panel ({@code /login78/*.png}, from
- *       {@code tools/login-screen}) with {@link RspsLoginLayout}, before the interface;</li>
+ *   <li>draws the Deadman landscape and the approved transparent flag/panel art
+ *       ({@code /login78/*.png}) with {@link RspsLoginLayout}, before the interface;</li>
  *   <li>hides the interface's 2011 decoration (frames, labels baked into the new panel, Facebook login) via
  *       {@link #hides};</li>
  *   <li>moves the working components onto the panel's fields, button and links via {@link #adjust}, so the
@@ -96,16 +96,16 @@ public final class RspsLoginScreen {
         }
     }
 
-    /** Typed text: near-white with a hint of the panel's lilac, like the reference's labels. */
-    static final int TEXT_COLOUR = 0xF1EAFB;
+    /** Typed text matches the foreground's ivory lettering. */
+    static final int TEXT_COLOUR = 0xF7F0E4;
 
-    private static final int FOCUS_OUTER = 0x70A64DFF;
-    private static final int FOCUS_INNER = 0xFFC98BFF;
-    private static final int STATUS_FILL = 0xEC0C0812;
-    private static final int STATUS_EDGE = 0xFF8E3FE0;
-    private static final int STATUS_EDGE_DARK = 0xFF2A1840;
-    private static final int STATUS_BUTTON_FILL = 0xFF4A1C84;
-    private static final int STATUS_BUTTON_HOVER = 0xFF6A2DBA;
+    private static final int FOCUS_OUTER = 0x70FF2DA7;
+    private static final int FOCUS_INNER = 0xFFFF75CD;
+    private static final int STATUS_FILL = 0xEC121318;
+    private static final int STATUS_EDGE = 0xFFFFD65B;
+    private static final int STATUS_EDGE_DARK = 0xFF33333B;
+    private static final int STATUS_BUTTON_FILL = 0xFF9B681A;
+    private static final int STATUS_BUTTON_HOVER = 0xFFCC9230;
 
     /** Rebuild the scaled sprites only once the viewport has been steady this long (window drag-resizes). */
     private static final long SETTLE_MS = 150;
@@ -657,8 +657,14 @@ public final class RspsLoginScreen {
 
     private static void load() {
         background = read("background");
-        logo = read("logo");
-        panel = read("panel");
+        BufferedImage foreground = read("foreground");
+        if (foreground != null && foreground.getWidth() == RspsLoginLayout.REF_W
+            && foreground.getHeight() == RspsLoginLayout.REF_H) {
+            logo = foreground.getSubimage(RspsLoginLayout.LOGO_X, RspsLoginLayout.LOGO_Y,
+                RspsLoginLayout.LOGO_W, RspsLoginLayout.LOGO_H);
+            panel = foreground.getSubimage(RspsLoginLayout.PANEL_X, RspsLoginLayout.PANEL_Y,
+                RspsLoginLayout.PANEL_W, RspsLoginLayout.PANEL_H);
+        }
         log("art loaded: background " + (background != null) + ", logo " + (logo != null) + ", panel " + (panel != null));
         if (panel == null) {
             return;

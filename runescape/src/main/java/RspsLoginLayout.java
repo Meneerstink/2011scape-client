@@ -2,22 +2,20 @@
  * Layout of the RSPS "78" login screen for one viewport size. Pure arithmetic, no client state, so it is
  * checked by {@code RspsLoginLayoutRegressionTest} at every aspect ratio.
  *
- * All artwork is measured in the pixels of the approved reference screenshot
- * ({@code tools/login-screen/reference_login.png}, 1672 x 941). Three layers come from it
- * ({@code tools/login-screen/extract_layers.py}): the background, the logo and the login panel; placed back
- * at their reference positions they reproduce the reference pixel for pixel.
+ * Artwork is measured in the 1672 x 941 approved Deadman login composition. The landscape is a separate
+ * background; the hanging flag and login panel are cropped from the transparent foreground at load time.
  *
  * <ul>
  *   <li>Background: cover - scaled to fill the viewport with its aspect ratio kept, centred, the overflow
  *       cropped (only scenery at the sides or top/bottom ever leaves the screen).</li>
- *   <li>Logo and panel ("the group", reference y 0..897): at most as large as in the reference relative to the
+ *   <li>Flag and panel ("the group", reference y 10..903): at most as large as in the reference relative to the
  *       viewport height, and never larger than the background. Up to 16:9 that is exactly the background's
  *       scale and position, so the group sits where the reference has it and the background behind it never
  *       shows. On wider screens the background is cropped top and bottom, the group keeps the full viewport
  *       height instead. The group is never cropped: it is also limited to the viewport width.</li>
  *   <li>Compact (fixed mode 765 x 503 and other small viewports): its own fit - the panel larger (readable
- *       fields and buttons), the logo smaller above it, still overlapping the panel's top edge by the
- *       reference's 40 pixels.</li>
+ *       fields and buttons), the flag smaller above it, still overlapping the panel's top edge by the
+ *       reference's 27 pixels.</li>
  * </ul>
  */
 public final class RspsLoginLayout {
@@ -27,11 +25,11 @@ public final class RspsLoginLayout {
     public static final double REF_CENTRE_X = REF_W / 2.0;
     public static final double REF_CENTRE_Y = REF_H / 2.0;
 
-    /** Logo layer: origin and size in the reference. */
-    public static final int LOGO_X = 562, LOGO_Y = 0, LOGO_W = 548, LOGO_H = 385;
+    /** Hanging flag layer: origin and size in the reference. */
+    public static final int LOGO_X = 600, LOGO_Y = 10, LOGO_W = 472, LOGO_H = 525;
 
     /** Panel layer (frame, ornaments, fields, button, links): origin and size in the reference. */
-    public static final int PANEL_X = 604, PANEL_Y = 345, PANEL_W = 465, PANEL_H = 552;
+    public static final int PANEL_X = 607, PANEL_Y = 508, PANEL_W = 458, PANEL_H = 395;
 
     /** The logo's lowest row lies this far below the panel layer's top (ornament band). */
     public static final int LOGO_PANEL_OVERLAP = LOGO_Y + LOGO_H - PANEL_Y;
@@ -40,14 +38,14 @@ public final class RspsLoginLayout {
     public static final int GROUP_H = PANEL_Y + PANEL_H - LOGO_Y;
 
     /** Reference rectangles {x0, y0, x1, y1} (x1/y1 exclusive) of the parts the client interface drives. */
-    public static final int[] BODY = {633, 387, 1041, 864};
-    public static final int[] USERNAME = {672, 497, 1001, 541};
-    public static final int[] PASSWORD = {672, 580, 1001, 624};
-    public static final int[] BUTTON = {672, 641, 999, 706};
+    public static final int[] BODY = {630, 535, 1042, 880};
+    public static final int[] USERNAME = {667, 568, 1002, 612};
+    public static final int[] PASSWORD = {667, 649, 1002, 694};
+    public static final int[] BUTTON = {665, 711, 1005, 770};
     /** The button with its side ornaments and glow: what the hover/pressed/disabled states redraw. */
-    public static final int[] BUTTON_ART = {660, 631, 1011, 716};
-    public static final int[] RECOVER = {752, 729, 918, 760};
-    public static final int[] CREATE = {764, 810, 907, 841};
+    public static final int[] BUTTON_ART = {658, 705, 1011, 777};
+    public static final int[] RECOVER = {752, 789, 921, 822};
+    public static final int[] CREATE = {755, 828, 917, 861};
 
     /** Width of the user/lock icon area at the left of each field; typed text starts after it. */
     public static final int FIELD_TEXT_INSET = 44;
@@ -129,11 +127,10 @@ public final class RspsLoginLayout {
     }
 
     /**
-     * Reference area under the panel whose pixels the screenshot does not have (filled from its surroundings in
-     * {@code extract_layers.py}). Wider than 16:9 the group is smaller than the background, so this area shows
-     * around the panel; {@link #shade()} then darkens it softly.
+     * Reference area behind the panel. On a wide screen the panel is smaller than the scenery's cover scale;
+     * {@link #shade()} keeps the panel legible against the landscape.
      */
-    public static final int[] HIDDEN_PANEL_AREA = {604, 345, 1068, 916};
+    public static final int[] HIDDEN_PANEL_AREA = {607, 508, 1065, 903};
 
     /** True when the panel is smaller than the background's panel and the filled area would show. */
     public boolean needsShade() {

@@ -27,9 +27,13 @@ public final class RspsLoginLayoutRegressionTest {
         if (out != null) {
             out.mkdirs();
             bg = read("background");
-            logo = read("logo");
-            panel = read("panel");
+            BufferedImage foreground = read("foreground");
             check(bg.getWidth() == RspsLoginLayout.REF_W && bg.getHeight() == RspsLoginLayout.REF_H, "background size");
+            check(foreground.getWidth() == RspsLoginLayout.REF_W && foreground.getHeight() == RspsLoginLayout.REF_H, "foreground size");
+            logo = foreground.getSubimage(RspsLoginLayout.LOGO_X, RspsLoginLayout.LOGO_Y,
+                RspsLoginLayout.LOGO_W, RspsLoginLayout.LOGO_H);
+            panel = foreground.getSubimage(RspsLoginLayout.PANEL_X, RspsLoginLayout.PANEL_Y,
+                RspsLoginLayout.PANEL_W, RspsLoginLayout.PANEL_H);
             check(logo.getWidth() == RspsLoginLayout.LOGO_W && logo.getHeight() == RspsLoginLayout.LOGO_H, "logo size");
             check(panel.getWidth() == RspsLoginLayout.PANEL_W && panel.getHeight() == RspsLoginLayout.PANEL_H, "panel size");
         }
