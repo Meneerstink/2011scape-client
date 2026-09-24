@@ -111,14 +111,14 @@ public final class RspsLoginScreen {
     private static final long SETTLE_MS = 150;
 
     private static boolean loadTried;
-    private static BufferedImage background, logo, panel;
+    private static BufferedImage background, approved, logo, panel;
     private static BufferedImage buttonHover, buttonPressed, buttonDisabled, recoverHover, createHover;
 
     private static Toolkit builtFor;
     private static RspsLoginLayout built;
     private static RspsLoginLayout pending;
     private static long pendingSince;
-    private static Sprite bgSprite, logoSprite, panelSprite, shadeSprite;
+    private static Sprite bgSprite, logoSprite, panelSprite;
     private static Sprite buttonHoverSprite, buttonPressedSprite, buttonDisabledSprite, recoverHoverSprite, createHoverSprite;
 
     private RspsLoginScreen() {
@@ -516,21 +516,17 @@ public final class RspsLoginScreen {
         boolean exact = wanted.sameAs(l);
         if (exact) {
             bgSprite.render(originX + l.bgX, originY + l.bgY);
-            if (shadeSprite != null) {
-                int[] s = l.shade();
-                shadeSprite.render(originX + s[0], originY + s[1]);
+            if (!l.referenceBackdrop()) {
+                logoSprite.render(originX + l.logoX(), originY + l.logoY());
+                panelSprite.render(originX + l.panelX(), originY + l.panelY());
             }
-            logoSprite.render(originX + l.logoX(), originY + l.logoY());
-            panelSprite.render(originX + l.panelX(), originY + l.panelY());
         } else {
             // Mid-resize: stretch the last build until the new size has settled.
             bgSprite.render(originX + wanted.bgX, originY + wanted.bgY, wanted.bgW, wanted.bgH);
-            if (shadeSprite != null && wanted.needsShade()) {
-                int[] s = wanted.shade();
-                shadeSprite.render(originX + s[0], originY + s[1], s[2], s[3]);
+            if (!built.referenceBackdrop()) {
+                logoSprite.render(originX + wanted.logoX(), originY + wanted.logoY(), wanted.logoW(), wanted.logoH());
+                panelSprite.render(originX + wanted.panelX(), originY + wanted.panelY(), wanted.panelW(), wanted.panelH());
             }
-            logoSprite.render(originX + wanted.logoX(), originY + wanted.logoY(), wanted.logoW(), wanted.logoH());
-            panelSprite.render(originX + wanted.panelX(), originY + wanted.panelY(), wanted.panelW(), wanted.panelH());
             l = wanted;
         }
 
@@ -607,7 +603,8 @@ public final class RspsLoginScreen {
     // ------------------------------------------------------------------ sprites
 
     private static void build(Toolkit t, RspsLoginLayout l) {
-        Sprite bg = sprite(t, RspsLoginArt.scale(background, l.bgW, l.bgH), l.bgW, l.bgH);
+        BufferedImage backdrop = l.referenceBackdrop() ? approved : background;
+        Sprite bg = sprite(t, RspsLoginArt.scale(backdrop, l.bgW, l.bgH), l.bgW, l.bgH);
         Sprite lg = sprite(t, RspsLoginArt.scale(logo, l.logoW(), l.logoH()), l.logoW(), l.logoH());
         Sprite pn = sprite(t, RspsLoginArt.scale(panel, l.panelW(), l.panelH()), l.panelW(), l.panelH());
         log("build " + l.width + "x" + l.height + (l.compact ? " compact" : "") + ": background " + (bg != null) + ", logo " + (lg != null) + ", panel " + (pn != null));
@@ -617,8 +614,6 @@ public final class RspsLoginScreen {
         bgSprite = bg;
         logoSprite = lg;
         panelSprite = pn;
-        int[] shade = l.shade();
-        shadeSprite = l.needsShade() ? sprite(t, l.shadePixels(), shade[2], shade[3]) : null;
         int[] art = l.panelRect(RspsLoginLayout.BUTTON_ART);
         buttonHoverSprite = sprite(t, RspsLoginArt.scale(buttonHover, art[2], art[3]), art[2], art[3]);
         buttonPressedSprite = sprite(t, RspsLoginArt.scale(buttonPressed, art[2], art[3]), art[2], art[3]);
@@ -643,7 +638,7 @@ public final class RspsLoginScreen {
     }
 
     private static void release() {
-        bgSprite = logoSprite = panelSprite = shadeSprite = null;
+        bgSprite = logoSprite = panelSprite = null;
         buttonHoverSprite = buttonPressedSprite = buttonDisabledSprite = recoverHoverSprite = createHoverSprite = null;
         built = null;
         pending = null;
@@ -657,7 +652,9 @@ public final class RspsLoginScreen {
 
     private static void load() {
         background = read("background");
-        BufferedImage foreground = read("foreground");
+        approved = read("approved");
+        BufferedImage matte = read("mask");
+        BufferedImage foreground = RspsLoginArt.approvedForeground(approved, matte);
         if (foreground != null && foreground.getWidth() == RspsLoginLayout.REF_W
             && foreground.getHeight() == RspsLoginLayout.REF_H) {
             logo = foreground.getSubimage(RspsLoginLayout.LOGO_X, RspsLoginLayout.LOGO_Y,
@@ -691,19 +688,19 @@ public final class RspsLoginScreen {
         }
     }
 
-    /** Offscreen check: the three layers composed by {@link RspsLoginLayout} with Java2D, for previews. */
-    static BufferedImage compose(RspsLoginLayout l, BufferedImage bg, BufferedImage lg, BufferedImage pn) {
+    /** Offscreen check: the approved image or the independently scaled layers, for previews. */
+    static BufferedImage compose(RspsLoginLayout l, BufferedImage bg, BufferedImage approved,
+                                 BufferedImage lg, BufferedImage pn) {
         BufferedImage out = new BufferedImage(l.width, l.height, BufferedImage.TYPE_INT_ARGB_PRE);
         Graphics2D g = out.createGraphics();
         g.setComposite(AlphaComposite.SrcOver);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-        draw(g, RspsLoginArt.scale(bg, l.bgW, l.bgH), l.bgX, l.bgY, l.bgW, l.bgH);
-        if (l.needsShade()) {
-            int[] s = l.shade();
-            draw(g, l.shadePixels(), s[0], s[1], s[2], s[3]);
+        draw(g, RspsLoginArt.scale(l.referenceBackdrop() ? approved : bg, l.bgW, l.bgH),
+            l.bgX, l.bgY, l.bgW, l.bgH);
+        if (!l.referenceBackdrop()) {
+            draw(g, RspsLoginArt.scale(lg, l.logoW(), l.logoH()), l.logoX(), l.logoY(), l.logoW(), l.logoH());
+            draw(g, RspsLoginArt.scale(pn, l.panelW(), l.panelH()), l.panelX(), l.panelY(), l.panelW(), l.panelH());
         }
-        draw(g, RspsLoginArt.scale(lg, l.logoW(), l.logoH()), l.logoX(), l.logoY(), l.logoW(), l.logoH());
-        draw(g, RspsLoginArt.scale(pn, l.panelW(), l.panelH()), l.panelX(), l.panelY(), l.panelW(), l.panelH());
         g.dispose();
         return out;
     }

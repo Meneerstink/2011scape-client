@@ -26,6 +26,25 @@ final class RspsLoginArt {
         return out;
     }
 
+    /** Keep the approved screenshot's actual foreground pixels; the generated matte supplies alpha only. */
+    static BufferedImage approvedForeground(BufferedImage approved, BufferedImage matte) {
+        if (approved == null || matte == null || approved.getWidth() != matte.getWidth()
+            || approved.getHeight() != matte.getHeight()) {
+            return null;
+        }
+        int w = approved.getWidth(), h = approved.getHeight();
+        BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB_PRE);
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int a = matte.getRGB(x, y) >>> 24;
+                // Remove the matte's faint exterior haze; keep antialiasing at the object edge.
+                a = a <= 48 ? 0 : a >= 224 ? 255 : (a - 48) * 255 / 176;
+                out.setRGB(x, y, a << 24 | (approved.getRGB(x, y) & 0xFFFFFF));
+            }
+        }
+        return out;
+    }
+
     /** {@code src} (premultiplied) resampled to w x h, as straight ARGB pixels. */
     static int[] scale(BufferedImage src, int w, int h) {
         if (src == null || w <= 0 || h <= 0) {
@@ -118,29 +137,6 @@ final class RspsLoginArt {
                 g = (int) (g + (221 * k - g) * t);
                 b = (int) (b + (112 * k - b) * t);
                 out.setRGB(px, py, a << 24 | clamp(r) << 16 | clamp(g) << 8 | clamp(b));
-            }
-        }
-        return out;
-    }
-
-    /** Neutral near-black shade behind the panel on very wide monitors. */
-    private static final int SHADE_RGB = 0x101218;
-    private static final double SHADE_ALPHA = 0.88;
-
-    /**
-     * The shade behind the panel (see {@link RspsLoginLayout#needsShade}): {@code w x h}, full strength inside
-     * the rectangle (ix0, iy0)-(ix1, iy1) and fading out smoothly over {@code feather} pixels around it.
-     */
-    static int[] shade(int w, int h, int ix0, int iy0, int ix1, int iy1, int feather) {
-        int[] out = new int[w * h];
-        double f = Math.max(1, feather);
-        for (int y = 0; y < h; y++) {
-            int dy = y < iy0 ? iy0 - y : (y >= iy1 ? y - iy1 + 1 : 0);
-            for (int x = 0; x < w; x++) {
-                int dx = x < ix0 ? ix0 - x : (x >= ix1 ? x - ix1 + 1 : 0);
-                double t = Math.min(1, Math.sqrt(dx * dx + dy * dy) / f);
-                double a = SHADE_ALPHA * (1 - t * t * (3 - 2 * t));
-                out[y * w + x] = (int) Math.round(a * 255) << 24 | SHADE_RGB;
             }
         }
         return out;

@@ -126,47 +126,9 @@ public final class RspsLoginLayout {
         return !compact && Math.abs(logoScale - bgScale) < 1e-9;
     }
 
-    /**
-     * Reference area behind the panel. On a wide screen the panel is smaller than the scenery's cover scale;
-     * {@link #shade()} keeps the panel legible against the landscape.
-     */
-    public static final int[] HIDDEN_PANEL_AREA = {607, 508, 1065, 903};
-
-    /** True when the panel is smaller than the background's panel and the filled area would show. */
-    public boolean needsShade() {
-        return !compact && panelScale < bgScale * 0.995;
-    }
-
-    /**
-     * Screen rectangle {x, y, w, h} of the shade: the hidden area in background space plus a soft edge of
-     * {@link #shadeFeather()} on every side, clipped to the viewport.
-     */
-    public int[] shade() {
-        int f = shadeFeather();
-        int x0 = (int) Math.floor(bgX + HIDDEN_PANEL_AREA[0] * bgScale) - f;
-        int y0 = (int) Math.floor(bgY + HIDDEN_PANEL_AREA[1] * bgScale) - f;
-        int x1 = (int) Math.ceil(bgX + HIDDEN_PANEL_AREA[2] * bgScale) + f;
-        int y1 = (int) Math.ceil(bgY + HIDDEN_PANEL_AREA[3] * bgScale) + f;
-        x0 = Math.max(0, x0);
-        y0 = Math.max(0, y0);
-        x1 = Math.min(width, x1);
-        y1 = Math.min(height, y1);
-        return new int[] {x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0)};
-    }
-
-    public int shadeFeather() {
-        return (int) Math.round(56 * bgScale);
-    }
-
-    /** The shade's pixels (straight ARGB, {@code shade()[2] x shade()[3]}). */
-    public int[] shadePixels() {
-        int[] r = shade();
-        int f = shadeFeather();
-        int ix0 = (int) Math.floor(bgX + HIDDEN_PANEL_AREA[0] * bgScale) - r[0];
-        int iy0 = (int) Math.floor(bgY + HIDDEN_PANEL_AREA[1] * bgScale) - r[1];
-        int ix1 = (int) Math.ceil(bgX + HIDDEN_PANEL_AREA[2] * bgScale) - r[0];
-        int iy1 = (int) Math.ceil(bgY + HIDDEN_PANEL_AREA[3] * bgScale) - r[1];
-        return RspsLoginArt.shade(r[2], r[3], ix0, iy0, ix1, iy1, f);
+    /** When both layers have the same fit, draw the exact approved screenshot as one backdrop. */
+    public boolean referenceBackdrop() {
+        return !compact && Math.abs(panelScale - bgScale) <= bgScale * 0.002;
     }
 
     public int logoX() {

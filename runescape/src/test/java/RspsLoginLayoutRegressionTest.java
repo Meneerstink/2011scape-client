@@ -5,6 +5,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.InputStream;
+import java.util.Arrays;
 
 /**
  * The 78 login screen layout at every supported viewport: fixed mode, common windows, 4:3, 5:4, 16:9, 16:10,
@@ -17,18 +18,22 @@ public final class RspsLoginLayoutRegressionTest {
 
     private static final int[][] VIEWPORTS = {
         {765, 503}, {800, 600}, {1024, 768}, {1280, 1024}, {1280, 720}, {1366, 768}, {1600, 900},
+        {1672, 941},
         {1920, 1080}, {1680, 1050}, {1920, 1200}, {2560, 1440}, {2560, 1600}, {2560, 1080}, {3440, 1440},
         {3840, 2160}, {5120, 1440}, {800, 1000}, {1000, 560}, {640, 480},
     };
 
     public static void main(String[] args) throws Exception {
         File out = args.length > 0 ? new File(args[0]) : null;
-        BufferedImage bg = null, logo = null, panel = null;
+        BufferedImage bg = null, approved = null, logo = null, panel = null;
         if (out != null) {
             out.mkdirs();
             bg = read("background");
-            BufferedImage foreground = read("foreground");
+            approved = read("approved");
+            BufferedImage foreground = RspsLoginArt.approvedForeground(approved, read("mask"));
             check(bg.getWidth() == RspsLoginLayout.REF_W && bg.getHeight() == RspsLoginLayout.REF_H, "background size");
+            check(approved.getWidth() == RspsLoginLayout.REF_W && approved.getHeight() == RspsLoginLayout.REF_H, "approved size");
+            check(foreground != null, "foreground matte matches approved image");
             check(foreground.getWidth() == RspsLoginLayout.REF_W && foreground.getHeight() == RspsLoginLayout.REF_H, "foreground size");
             logo = foreground.getSubimage(RspsLoginLayout.LOGO_X, RspsLoginLayout.LOGO_Y,
                 RspsLoginLayout.LOGO_W, RspsLoginLayout.LOGO_H);
@@ -72,7 +77,12 @@ public final class RspsLoginLayoutRegressionTest {
                 user[2], user[3], button[2], button[3]);
 
             if (out != null) {
-                BufferedImage img = RspsLoginScreen.compose(l, bg, logo, panel);
+                BufferedImage img = RspsLoginScreen.compose(l, bg, approved, logo, panel);
+                if (w == RspsLoginLayout.REF_W && h == RspsLoginLayout.REF_H) {
+                    check(l.referenceBackdrop(), "approved size uses the exact approved backdrop");
+                    check(Arrays.equals(img.getRGB(0, 0, w, h, null, 0, w),
+                        approved.getRGB(0, 0, w, h, null, 0, w)), "approved pixels preserved at reference size");
+                }
                 ImageIO.write(img, "png", new File(out, "login_" + at + ".png"));
                 Graphics2D g = img.createGraphics();
                 g.setStroke(new BasicStroke(1));
