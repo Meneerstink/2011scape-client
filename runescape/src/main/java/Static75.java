@@ -27,8 +27,10 @@ public final class Static75 {
     public static void method6239() {
         ClientOptions.instance.update(1, ClientOptions.instance.animateBackgroundDefault);
         ClientOptions.instance.update(1, ClientOptions.instance.animateBackground);
-        ClientOptions.instance.update(1, ClientOptions.instance.removeRoofs);
-        ClientOptions.instance.update(1, ClientOptions.instance.removeRoofsOverride);
+        // RSPS owner 2026-09-25/26: roofs are selectively hidden (2) on every preset - visible from outside, gone once you
+        // walk in; the original preset hid every roof, so the Royal Hall lost its roof, towers and upper floor on low/mid.
+        ClientOptions.instance.update(2, ClientOptions.instance.removeRoofs);
+        ClientOptions.instance.update(2, ClientOptions.instance.removeRoofsOverride);
         ClientOptions.instance.update(1, ClientOptions.instance.groundDecor);
         ClientOptions.instance.update(1, ClientOptions.instance.groundBlending);
         ClientOptions.instance.update(0, ClientOptions.instance.idleAnimations);

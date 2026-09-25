@@ -8,6 +8,12 @@ public final class RspsGraphicsProfile {
     public static final int VERSION = 5;
     private static final AtomicBoolean restoreRequested = new AtomicBoolean();
 
+    /**
+     * Owner 2026-09-26: a selectively hidden roof disappears only when the player walks in under it, never because it
+     * stands between the camera and the player (Static276).
+     */
+    public static final boolean ROOFS_HIDE_ONLY_UNDER_PLAYER = true;
+
     private RspsGraphicsProfile() { }
 
     public static void apply(ClientOptions options) {

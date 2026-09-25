@@ -67,6 +67,12 @@ public final class Static276 {
         if ((Static280.tileFlags[Camera.renderingLevel][local92 >> 9][local95 >> 9] & 0x4) != 0) {
             Static409.method5656(local95 >> 9, Static334.activeTiles, 0, local92 >> 9, false);
         }
+        // RSPS owner 2026-09-26: "the roof only need to dissappear when entering the building". The original client also
+        // hid a roof whenever one lay on the line from the camera to the player, so turning the camera outside a building
+        // took its roof away; that camera test below is switched off.
+        if (RspsGraphicsProfile.ROOFS_HIDE_ONLY_UNDER_PLAYER) {
+            return;
+        }
         if (Camera.pitch >= 2560) {
             return;
         }
