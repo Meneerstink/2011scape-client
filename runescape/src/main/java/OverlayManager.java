@@ -387,7 +387,7 @@ public final class OverlayManager {
                         if (damageType == null) {
                             entity.hitmarkEndTimes[j] = -1;
                         } else {
-                            @Pc(1274) int midY = entity.getY() / 2;
+                            @Pc(1274) int midY = OldStyleHitsplatDisplay.anchorHeight(entity.getY());
                             Static716.method9350(entity, screenHeight >> 1, midY, screenWidth >> 1);
 
                             if (hitmarkpos[0] > -1) {

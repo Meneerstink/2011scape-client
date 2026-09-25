@@ -13,7 +13,18 @@ public final class OldStyleHitsplatDisplay {
     /** Extra pixels between two stacked splats so the larger splats never touch. */
     private static final int STACK_GAP = 2;
 
+    /**
+     * Height on the target the hitsplats are anchored to, as a percentage of its model height. The 667 client uses 50 % (the neck
+     * area once the cache y offset is added); the owner asked on 2026-09-25 for 5 % lower, on the chest.
+     */
+    public static final int ANCHOR_HEIGHT_PERCENT = 45;
+
     private OldStyleHitsplatDisplay() {
+    }
+
+    /** Height above the ground the hitsplats of an entity [entityHeight] tall are drawn at ({@link #ANCHOR_HEIGHT_PERCENT}). */
+    public static int anchorHeight(int entityHeight) {
+        return entityHeight * ANCHOR_HEIGHT_PERCENT / 100;
     }
 
     /** Compatibility hook; the server now publishes real 1:1 hit damage. */

@@ -139,7 +139,8 @@ public abstract class Model {
             }
         }
         this.method7499(0, new int[0], 0, 0, 0, 0, arg8);
-        this.method7497(local83, arg11, arg0, true, null, 0, arg9, local81, local81.base, 65535, arg8);
+        // RSPS: the flags index the action's base; an imported OSRS attack blended with a 667 walk needs them per walk base.
+        this.method7497(local83, com.jagex.BlendFlagMapper.map(arg11, local47, local81.base), arg0, true, null, 0, arg9, local81, local81.base, 65535, arg8);
         this.wa();
         this.method7494();
     }
