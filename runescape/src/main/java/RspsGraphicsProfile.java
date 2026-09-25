@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Local preset version; deliberately independent of the server's preference packet version. */
 public final class RspsGraphicsProfile {
     public static final String NAME = "MID";
-    public static final int VERSION = 4;
+    public static final int VERSION = 5;
     private static final AtomicBoolean restoreRequested = new AtomicBoolean();
 
     private RspsGraphicsProfile() { }
@@ -16,8 +16,10 @@ public final class RspsGraphicsProfile {
         options.bloom.setSafeValue(0);
         options.brightness.setSafeValue(3);
         options.buildArea.setSafeValue(0);
-        options.removeRoofs.setSafeValue(1); // Always hidden, rather than selectively hidden (2).
-        options.removeRoofsOverride.setSafeValue(1);
+        // Owner 2026-09-25 (Royal Hall roof): selectively hidden (2), as in RuneScape - roofs show from outside and vanish
+        // when the player walks in under them. Version 5 changed this from always hidden (1).
+        options.removeRoofs.setSafeValue(2);
+        options.removeRoofsOverride.setSafeValue(2);
         options.orthographic.setSafeValue(0);
         options.spotShadows.setSafeValue(0);
         options.hardShadows.setSafeValue(0);

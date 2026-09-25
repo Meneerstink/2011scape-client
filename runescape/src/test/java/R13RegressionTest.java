@@ -34,8 +34,8 @@ public final class R13RegressionTest {
         custom.update(2, custom.antialiasingQuality);
         custom.update(2, custom.hardShadows);
         custom.update(1, custom.brightness);
-        custom.update(2, custom.removeRoofs);
-        custom.update(2, custom.removeRoofsOverride);
+        custom.update(1, custom.removeRoofs);
+        custom.update(1, custom.removeRoofsOverride);
         custom.update(2, custom.particles);
         custom.update(31, custom.soundVolume);
         custom.update(23, custom.musicVolume);
@@ -171,7 +171,7 @@ public final class R13RegressionTest {
     private static void profile(ClientOptions options) {
         check(options.idleAnimations.getValue() == 0, "Few idle animations (verified in-game label)");
         check(options.antialiasingMode.getValue() == 0 && options.antialiasingQuality.getValue() == 0, "AA off");
-        check(options.removeRoofs.getValue() == 1 && options.removeRoofsOverride.getValue() == 1, "Roofs always hidden");
+        check(options.removeRoofs.getValue() == 2 && options.removeRoofsOverride.getValue() == 2, "Roofs selectively hidden");
         check(options.hardShadows.getValue() == 0 && options.spotShadows.getValue() == 0, "Expensive shadows off");
         check(options.skydetail.getValue() == 1 && options.bloom.getValue() == 0, "Original skybox default retained; bloom off");
         check(options.groundDecor.getValue() == 0 && options.textures.getValue() == 1, "Optional scenery disabled");

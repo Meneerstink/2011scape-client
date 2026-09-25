@@ -26,8 +26,8 @@ public final class GraphicsDisplayRegressionTest {
             "flickeringEffects", "maxScreenSize", "screenSizeDefault", "toolkitDefault", "bloom", "buildArea"};
         // customCursors (index 14) defaults to Off (0) per owner requirement, not the deobfuscated
         // client's own default of On (1).
-        int[] mid = {3,1,0,0,0,0,0,1,0,4,0,0,0,0,0,1,1,0,1,1,0,0};
-        int[] values = {1,2,1,1,1,2,2,2,1,2,1,2,2,1,1,0,0,1,2,0,1,1};
+        int[] mid = {3,2,0,0,0,0,0,1,0,4,0,0,0,0,0,1,1,0,1,1,0,0};
+        int[] values = {1,1,1,1,1,2,2,2,1,2,1,2,2,1,1,0,0,1,2,0,1,1};
         for (int i = 0; i < names.length; i++) {
             check(option(fresh, names[i]).value == mid[i], "MID " + names[i]);
             ClientOptions options = read(fresh.encodeLocal());
