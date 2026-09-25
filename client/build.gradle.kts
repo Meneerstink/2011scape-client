@@ -23,6 +23,12 @@ application {
     applicationDefaultJvmArgs = listOf("-Xmx1024m", "-Dsun.java2d.noddraw=true")
 }
 
+// K-01: dev mode (debug console, client QA commands) only with -Prsps.dev=true, which the owner's Start-RSPS.ps1 passes;
+// the same switch as :runescape:run, so both launchers start the owner's client the same way.
+tasks.named<JavaExec>("run") {
+    systemProperty("rsps.dev", providers.gradleProperty("rsps.dev").getOrElse("false"))
+}
+
 // Configure the JAR task to include dependencies
 tasks.named<Jar>("jar") {
     from(sourceSets.main.get().output)
