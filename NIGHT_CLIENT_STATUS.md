@@ -42,20 +42,19 @@ Owner live acceptance:
 
 ### Old-style hitsplat display
 
-- Hitsplat damage and soak text now use the pre-Constitution visual scale (`200` renders as `20`).
-- Positive values below ten remain visible as `1`; zero and negative sentinels are preserved.
+- Hitsplat damage and soak text are shown 1:1: the server publishes real hit damage, so `OldStyleHitsplatDisplay.value` is an identity hook (`200` renders as `200`, `9` as `9`); zero and negative sentinels are preserved. (Corrected: an earlier version of this note described a /10 visual scale that the code no longer applies.)
 - Scaling exists only at the final `OverlayManager` text-formatting boundary. Packet decode, stored hit amounts, HP, XP and combat calculations are unchanged.
-- HP and Prayer interface reads now use the same visible scale (`990` renders as `99`); all other skills remain unchanged.
+- HP and Prayer interface reads are also 1:1 (`99` renders as `99`); all other skills remain unchanged.
 - The stat conversion is limited to the client-script display read. Stored levels, drain, restoration and server mechanics remain unchanged.
 - Regression task: `:runescape:oldStyleHitsplatRegression` — 14 boundary and isolation checks.
 
 Owner live acceptance:
 
-1. Hit an NPC and receive damage: visible hitsplats must show one tenth of the server-side revision-667 value.
+1. Hit an NPC and receive damage: visible hitsplats must show the server-side damage value unchanged (1:1).
 2. Confirm small positive hits never become a false zero/miss.
 3. Confirm damage, remaining HP, XP drops and kill timing are unchanged.
 4. Confirm soak/absorb text uses the same visual scale.
-5. Confirm HP and Prayer orbs show `99`, not `990`, at their 990 raw maximum.
+5. Confirm HP and Prayer orbs show the server value unchanged (`99` at 99).
 6. Confirm HP/Prayer drain and restoration still use the original server timing and values.
 
 ## Next batch

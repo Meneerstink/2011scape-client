@@ -1,4 +1,5 @@
 import com.jagex.Client;
+import com.jagex.ClientConfig;
 import com.jagex.ClientProt;
 import com.jagex.LoginProt;
 import com.jagex.core.constants.LoginResponseCode;
@@ -946,7 +947,8 @@ public final class client extends GameShell {
             if (type == KeyLog.TYPE_HELD || type == KeyLog.TYPE_TYPED) {
                 @Pc(118) char keyChar = log.getKeyChar();
 
-                if (MainLogicManager.isNotLoading() && (keyChar == '`' || keyChar == '§' || keyChar == '²')) {
+                // K-01: the debug console only opens in dev mode (-Drsps.dev=true); for players the key is typed normally.
+                if (ClientConfig.DEV_MODE && MainLogicManager.isNotLoading() && (keyChar == '`' || keyChar == '§' || keyChar == '²')) {
                     if (debugconsole.isOpen()) {
                         debugconsole.close();
                     } else {
@@ -1062,8 +1064,8 @@ public final class client extends GameShell {
             // server are two independent processes on fixed ports (game.yml
             // game-port=50015, file-server.properties port=50016), not one
             // world-derived port pair as the classic formula above assumes.
-            // Remote players: launch with -Drsps.host=<server ip>; default stays local.
-            String rspsHost = System.getProperty("rsps.host", "127.0.0.1");
+            // Remote players: launch with -Drsps.host=<server ip>; default stays local (ClientConfig.HOST).
+            String rspsHost = ClientConfig.HOST;
             ConnectionInfo.game.address = rspsHost;
             ConnectionInfo.game.defaultPort = 50015;
             ConnectionInfo.game.alternatePort = 50015;

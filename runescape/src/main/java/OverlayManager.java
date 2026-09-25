@@ -284,7 +284,8 @@ public final class OverlayManager {
                             y -= 2;
                         }
 
-                        if (player.prayerIcon != -1) {
+                        // K-05: same bounds check as the npc branch above; prayerIcon is a signed server byte.
+                        if (player.prayerIcon >= 0 && Sprites.headiconsPrayer != null && player.prayerIcon < Sprites.headiconsPrayer.length && Sprites.headiconsPrayer[player.prayerIcon] != null) {
                             @Pc(496) Sprite headicon = Sprites.headiconsPrayer[player.prayerIcon];
                             y -= headicon.getHeight();
 

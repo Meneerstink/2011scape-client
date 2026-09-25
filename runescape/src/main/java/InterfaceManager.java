@@ -1,4 +1,5 @@
 import com.jagex.Client;
+import com.jagex.ClientConfig;
 import com.jagex.ClientProt;
 import com.jagex.FullscreenMode;
 import com.jagex.core.constants.ComponentClientCode;
@@ -1698,7 +1699,7 @@ public final class InterfaceManager {
                                         int y = local1388[2];
                                         int x = local1388[1];
 
-                                        if (KeyboardMonitor.instance.isPressed(82) && Client.staffModLevel > 0) {
+                                        if (KeyboardMonitor.instance.isPressed(82) && Client.staffModLevel >= ClientConfig.TELEPORT_MIN_STAFF_LEVEL) { // K-05: admins only
                                             Static624.teleport(level, y, x);
                                             continue;
                                         }

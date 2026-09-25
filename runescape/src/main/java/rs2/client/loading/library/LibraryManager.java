@@ -105,6 +105,11 @@ public final class LibraryManager {
                     return -1;
                 }
 
+                // K-03: never write or load a native whose SHA-256 differs from its pin (see NativeLibraryPins).
+                if (!NativeLibraryPins.verify(fileName, data)) {
+                    return -1;
+                }
+
                 @Pc(80) boolean same = true;
                 @Pc(84) byte[] old = Files.read(file);
                 if (old != null && old.length == data.length) {

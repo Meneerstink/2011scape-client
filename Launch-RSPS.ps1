@@ -1,7 +1,9 @@
 [CmdletBinding()]
 param(
     [switch]$Launch,
-    [switch]$SkipClient
+    [switch]$SkipClient,
+    # Start the client as a player would (LIVE: no debug console / dev commands). Default is the owner's dev mode.
+    [switch]$Live
 )
 
 Set-StrictMode -Version Latest
@@ -42,6 +44,8 @@ foreach ($target in $Targets) {
 }
 
 $clientWrapper = Join-Path $ClientRoot 'gradlew.bat'
+# K-01: the client is LIVE unless -Drsps.dev=true; this owner launcher turns dev mode on (use -Live to test as a player).
+$ClientArguments = if ($Live) { ':runescape:run --no-daemon' } else { ':runescape:run --no-daemon -Prsps.dev=true' }
 if (-not (Test-Path -LiteralPath $clientWrapper)) {
     throw "Missing client Gradle wrapper: $clientWrapper"
 }
@@ -52,7 +56,7 @@ if (-not $Launch) {
         Write-Host "$($target.Name): $($target.Root) / $($target.Arguments) / port $($target.Port)"
     }
     if (-not $SkipClient) {
-        Write-Host "client: $ClientRoot / :runescape:run --no-daemon"
+        Write-Host "client: $ClientRoot / $ClientArguments"
     }
     Write-Host 'Run .\Launch-RSPS.ps1 -Launch to start in order.'
     exit 0
@@ -77,6 +81,6 @@ foreach ($target in $Targets) {
 if (-not $SkipClient) {
     $out = Join-Path $LogRoot "client-$stamp.out.log"
     $err = Join-Path $LogRoot "client-$stamp.err.log"
-    Start-Process -FilePath $clientWrapper -ArgumentList ':runescape:run --no-daemon' -WorkingDirectory $ClientRoot -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err
+    Start-Process -FilePath $clientWrapper -ArgumentList $ClientArguments -WorkingDirectory $ClientRoot -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err
     Write-Host 'Client start requested.'
 }

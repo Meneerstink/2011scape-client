@@ -24,6 +24,9 @@ application {
 
 tasks.run.configure {
     args = listOf("1", "1000", "local", "live", "english", "game0")
+    // K-01/K-02: the debug console and client-side QA commands (zoom, ortho, ...) only exist with -Drsps.dev=true.
+    // Players get LIVE by default; Launch-RSPS.ps1 passes -Prsps.dev=true for the owner's local workflow.
+    systemProperty("rsps.dev", providers.gradleProperty("rsps.dev").getOrElse("false"))
 }
 
 val r13Regression by tasks.registering(JavaExec::class) {

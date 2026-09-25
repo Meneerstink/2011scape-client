@@ -1,4 +1,5 @@
 import com.jagex.Client;
+import com.jagex.ClientConfig;
 import com.jagex.ClientProt;
 import com.jagex.core.constants.MainLogicStep;
 import com.jagex.core.io.ConnectionInfo;
@@ -618,7 +619,8 @@ public final class MainLogicManager {
 
         Static443.method5981();
         if (Static611.mouseWheelRotation != 0) {
-            boolean staffPlaneShortcut = Client.staffModLevel > 0
+            // K-05: same admin threshold as the Ctrl+Shift+wheel plane teleport below, so a moderator just zooms.
+            boolean staffPlaneShortcut = Client.staffModLevel >= ClientConfig.TELEPORT_MIN_STAFF_LEVEL
                 && KeyboardMonitor.instance.isPressed(82)
                 && KeyboardMonitor.instance.isPressed(81);
             if (CameraZoomController.applyWheelRotation(
@@ -663,7 +665,7 @@ public final class MainLogicManager {
                                             if (InterfaceManager.dragSource != null) {
                                                 Static603.method7899();
                                             }
-                                            if (Client.staffModLevel > 0 && KeyboardMonitor.instance.isPressed(82) && KeyboardMonitor.instance.isPressed(81) && Static611.mouseWheelRotation != 0) {
+                                            if (Client.staffModLevel >= ClientConfig.TELEPORT_MIN_STAFF_LEVEL && KeyboardMonitor.instance.isPressed(82) && KeyboardMonitor.instance.isPressed(81) && Static611.mouseWheelRotation != 0) {
                                                 @Pc(541) int local541 = PlayerEntity.self.level - Static611.mouseWheelRotation;
                                                 if (local541 < 0) {
                                                     local541 = 0;

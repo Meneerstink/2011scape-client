@@ -1,6 +1,7 @@
 package com.jagex.graphics;
 
 import com.jagex.core.io.Packet;
+import com.jagex.core.util.DecodeFailures;
 import com.jagex.graphics.particles.ModelParticleEffector;
 import com.jagex.graphics.particles.ModelParticleEmitter;
 import com.jagex.js5.js5;
@@ -16,7 +17,30 @@ public final class Mesh {
     @OriginalMember(owner = "client!dp", name = "a", descriptor = "(IIILclient!sb;)Lclient!dv;")
     public static Mesh load(@OriginalArg(0) int id, @OriginalArg(3) js5 js5) {
         @Pc(9) byte[] data = js5.getfile(0, id);
-        return data == null ? null : new Mesh(data);
+        if (data == null) {
+            return null;
+        }
+        // K-04: a corrupt (e.g. badly imported OSRS) model must not crash the render loop; use an invisible fallback.
+        try {
+            return new Mesh(data);
+        } catch (RuntimeException failure) {
+            DecodeFailures.report("model", id, failure);
+            return fallback();
+        }
+    }
+
+    /**
+     * K-04: an (effectively) invisible stand-in for a model that failed to decode: one sub-pixel triangle, built the
+     * same way as the programmatic shadow meshes (ShadowList), so every caller that expects a non-null, renderable mesh
+     * keeps working.
+     */
+    public static Mesh fallback() {
+        Mesh mesh = new Mesh(3, 1, 0);
+        int a = mesh.addVertex(0, 0, 0);
+        int b = mesh.addVertex(0, 0, 1);
+        int c = mesh.addVertex(1, 0, 0);
+        mesh.addFace(a, c, b, (short) 0, (short) -1, (byte) 0, (byte) 0, (byte) -1);
+        return mesh;
     }
 
     @OriginalMember(owner = "client!dv", name = "k", descriptor = "[I")

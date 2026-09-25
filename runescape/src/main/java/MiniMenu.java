@@ -1,4 +1,5 @@
 import com.jagex.Client;
+import com.jagex.ClientConfig;
 import com.jagex.ClientProt;
 import com.jagex.IndexedImage;
 import com.jagex.PickableEntity;
@@ -1352,7 +1353,8 @@ public final class MiniMenu {
         }
 
         if (action == MiniMenuAction.WALK) {
-            if (Client.staffModLevel > 0 && KeyboardMonitor.instance.isPressed(SimpleKeyboardMonitor.KEY_CODE_CONTROL) && KeyboardMonitor.instance.isPressed(SimpleKeyboardMonitor.KEY_CODE_SHIFT)) {
+            // K-05: Ctrl+Shift teleport only for admins (the server rejects `tele` below ADMIN_POWER); a moderator keeps the normal click.
+            if (Client.staffModLevel >= ClientConfig.TELEPORT_MIN_STAFF_LEVEL && KeyboardMonitor.instance.isPressed(SimpleKeyboardMonitor.KEY_CODE_CONTROL) && KeyboardMonitor.instance.isPressed(SimpleKeyboardMonitor.KEY_CODE_SHIFT)) {
                 Static624.teleport(PlayerEntity.self.level, WorldMap.areaBaseZ + v3, WorldMap.areaBaseX + v2);
             } else {
                 @Pc(147) ClientMessage message = Static32.moveMessage(v2, v3, v1);
@@ -1460,7 +1462,8 @@ public final class MiniMenu {
         }
 
         if (action == MiniMenuAction.FACE_SQUARE) {
-            if (Client.staffModLevel > 0 && KeyboardMonitor.instance.isPressed(SimpleKeyboardMonitor.KEY_CODE_CONTROL) && KeyboardMonitor.instance.isPressed(SimpleKeyboardMonitor.KEY_CODE_SHIFT)) {
+            // K-05: Ctrl+Shift teleport only for admins (the server rejects `tele` below ADMIN_POWER); a moderator keeps the normal click.
+            if (Client.staffModLevel >= ClientConfig.TELEPORT_MIN_STAFF_LEVEL && KeyboardMonitor.instance.isPressed(SimpleKeyboardMonitor.KEY_CODE_CONTROL) && KeyboardMonitor.instance.isPressed(SimpleKeyboardMonitor.KEY_CODE_SHIFT)) {
                 Static624.teleport(PlayerEntity.self.level, WorldMap.areaBaseZ + v3, WorldMap.areaBaseX + v2);
             } else {
                 Static481.crossDuration = 0;

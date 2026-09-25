@@ -4,6 +4,7 @@ import com.jagex.AnimFrameset;
 import com.jagex.core.constants.ModeGame;
 import com.jagex.core.datastruct.ref.ReferenceCache;
 import com.jagex.core.io.Packet;
+import com.jagex.core.util.DecodeFailures;
 import com.jagex.js5.js5;
 import org.openrs2.deob.annotation.OriginalArg;
 import org.openrs2.deob.annotation.OriginalClass;
@@ -79,7 +80,14 @@ public final class SeqTypeList {
         type = new SeqType();
         type.id = id;
         if (data != null) {
-            type.decode(new Packet(data));
+            // K-04: a corrupt seq record falls back to the default (empty) seq, same as an unknown id.
+            try {
+                type.decode(new Packet(data));
+            } catch (RuntimeException failure) {
+                DecodeFailures.report("seq", id, failure);
+                type = new SeqType();
+                type.id = id;
+            }
         }
         type.postDecode();
 

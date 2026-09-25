@@ -1,3 +1,4 @@
+import com.jagex.ClientConfig;
 import com.jagex.graphics.ToolkitType;
 import org.openrs2.deob.annotation.OriginalArg;
 import org.openrs2.deob.annotation.OriginalClass;
@@ -23,7 +24,8 @@ public final class OrthographicOption extends Option {
 
     @OriginalMember(owner = "client!dja", name = "c", descriptor = "(B)Z")
     public boolean canMod() {
-        return true;
+        // K-02: the orthographic (top-down) camera is a dev-only tool.
+        return ClientConfig.DEV_MODE;
     }
 
     @OriginalMember(owner = "client!dja", name = "a", descriptor = "(B)V")
@@ -43,6 +45,11 @@ public final class OrthographicOption extends Option {
         if (super.value < 0 || super.value > 3) {
             super.value = this.getDefaultValue();
         }
+        // K-02: outside dev mode ortho is always off, also when a preferences file (e.g. written by a dev session on
+        // the same machine) still holds another value; validate() runs after every decode and update().
+        if (!ClientConfig.DEV_MODE) {
+            super.value = 0;
+        }
     }
 
     @OriginalMember(owner = "client!dja", name = "b", descriptor = "(B)Z")
@@ -53,6 +60,9 @@ public final class OrthographicOption extends Option {
     @OriginalMember(owner = "client!dja", name = "a", descriptor = "(IB)I")
     @Override
     public int canSet(@OriginalArg(0) int value) {
+        if (!ClientConfig.DEV_MODE && value != 0) {
+            return 3;
+        }
         if (ToolkitType.is3d(value)) {
             if (super.options.toolkit.isActive() && !isSoftware(super.options.toolkit.getValue())) {
                 return 3;

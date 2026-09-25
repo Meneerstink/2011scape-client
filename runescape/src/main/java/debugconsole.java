@@ -2,11 +2,11 @@ import com.jagex.core.constants.MainLogicStep;
 import com.jagex.graphics.Fonts;
 import com.jagex.graphics.Renderer;
 import com.jagex.Client;
+import com.jagex.ClientConfig;
 import com.jagex.ClientProt;
 import com.jagex.core.io.ConnectionInfo;
 import com.jagex.game.runetek6.client.GameShell;
 import com.jagex.sign.SignLink;
-import com.jagex.core.constants.ModeWhere;
 import com.jagex.core.io.Files;
 import com.jagex.core.stringtools.general.Cp1252;
 import com.jagex.core.stringtools.general.StringTools;
@@ -221,6 +221,17 @@ public final class debugconsole {
                 addline("Heap: " + GameShell.maxmemory + "MB");
                 return;
             }
+            if (command.equalsIgnoreCase("shiftclick")) {
+                // Player QoL (listed by 'commands'), so it stays outside the dev-only block below.
+                if (MiniMenu.shiftClick) {
+                    addline("Shift-click disabled.");
+                    MiniMenu.shiftClick = false;
+                    return;
+                }
+                addline("Shift-click ENABLED!");
+                MiniMenu.shiftClick = true;
+                return;
+            }
             if (command.equalsIgnoreCase("getcamerapos")) {
                 addline("Pos: " + PlayerEntity.self.level + "," + ((Camera.x >> 9) + WorldMap.areaBaseX >> 6) + "," + ((Camera.z >> 9) + WorldMap.areaBaseZ >> 6) + "," + ((Camera.x >> 9) + WorldMap.areaBaseX & 0x3F) + "," + ((Camera.z >> 9) + WorldMap.areaBaseZ & 0x3F) + " Height: " + (Static102.averageHeight(PlayerEntity.self.level, Camera.x, Camera.z) - Camera.y));
                 addline("Look: " + PlayerEntity.self.level + "," + (Camera.lookX + WorldMap.areaBaseX >> 6) + "," + (WorldMap.areaBaseZ + Camera.lookZ >> 6) + "," + (WorldMap.areaBaseX + Camera.lookX & 0x3F) + "," + (WorldMap.areaBaseZ + Camera.lookZ & 0x3F) + " Height: " + (Static102.averageHeight(PlayerEntity.self.level, Camera.lookX, Camera.lookZ) - Camera.lookY));
@@ -231,7 +242,9 @@ public final class debugconsole {
             return;
         }
 
-        if (ModeWhere.LIVE != Client.modeWhere || Client.staffModLevel >= 2) {
+        // K-01: client-side QA commands (errortest, nonpcs, fps, setoutput, runscript, heapdump, zoom, ortho, ...) only
+        // exist in dev mode (-Drsps.dev=true). Player builds are LIVE: the server-command forwarding below stays.
+        if (ClientConfig.DEV_MODE) {
             if (command.equalsIgnoreCase("errortest")) {
                 throw new RuntimeException();
             }
@@ -505,16 +518,6 @@ public final class debugconsole {
                     }
                     Animator.forceTweening = false;
                     addline("Forced tweening disabled.");
-                    return;
-                }
-                if (command.equalsIgnoreCase("shiftclick")) {
-                    if (MiniMenu.shiftClick) {
-                        addline("Shift-click disabled.");
-                        MiniMenu.shiftClick = false;
-                        return;
-                    }
-                    addline("Shift-click ENABLED!");
-                    MiniMenu.shiftClick = true;
                     return;
                 }
                 if (command.equalsIgnoreCase("getcgcoord")) {
@@ -884,9 +887,12 @@ public final class debugconsole {
                 }
 
                 if (command.startsWith("zoom ")) {
-                    @Pc(2748) short zoom = (short) StringTools.parseDecimal(command.substring("zoom ".length()));
+                    // K-02: same 150-660 clamp as the mouse wheel (CameraZoomController); parse as int so that e.g.
+                    // "zoom 70000" cannot wrap around through the short cast.
+                    @Pc(2748) int zoom = StringTools.parseDecimal(command.substring("zoom ".length()));
                     if (zoom > 0) {
-                        Camera.zoom = zoom;
+                        Camera.zoom = (short) Math.max(CameraZoomController.MIN_ZOOM, Math.min(CameraZoomController.MAX_ZOOM, zoom));
+                        addline("zoom=" + Camera.zoom);
                     }
                     return;
                 }
@@ -904,23 +910,31 @@ public final class debugconsole {
                     return;
                 }
 
-                if (MainLogicManager.step == MainLogicStep.STEP_GAME_SCREEN) {
-                    @Pc(2836) ClientMessage local2836 = ClientMessage.create(ClientProt.CLIENT_CHEAT, ServerConnection.GAME.isaac);
-                    local2836.bitPacket.p1(command.length() + 3);
-                    local2836.bitPacket.p1(automatic ? 1 : 0);
-                    local2836.bitPacket.p1(retainText ? 1 : 0);
-                    local2836.bitPacket.pjstr(command);
-                    ServerConnection.GAME.send(local2836);
-                }
-
-                if (command.startsWith("fps ") && Client.modeWhere != ModeWhere.LIVE) {
-                    GameShell.setspeed(StringTools.parseDecimal(command.substring(4)));
-                    return;
-                }
             } catch (@Pc(2894) Exception ignored) {
                 addline(LocalisedText.DEBUG_CONSOLE_ERROR.localise(Client.language));
                 return;
             }
+        }
+
+        // Server commands (the chatbox "::" path reaches this through CS2 DOCHEAT, Ctrl+Shift tele too) are forwarded
+        // for everyone; the server checks the rights of every command.
+        try {
+            if (MainLogicManager.step == MainLogicStep.STEP_GAME_SCREEN) {
+                @Pc(2836) ClientMessage local2836 = ClientMessage.create(ClientProt.CLIENT_CHEAT, ServerConnection.GAME.isaac);
+                local2836.bitPacket.p1(command.length() + 3);
+                local2836.bitPacket.p1(automatic ? 1 : 0);
+                local2836.bitPacket.p1(retainText ? 1 : 0);
+                local2836.bitPacket.pjstr(command);
+                ServerConnection.GAME.send(local2836);
+            }
+
+            if (command.startsWith("fps ") && ClientConfig.DEV_MODE) {
+                GameShell.setspeed(StringTools.parseDecimal(command.substring(4)));
+                return;
+            }
+        } catch (@Pc(2895) Exception ignored) {
+            addline(LocalisedText.DEBUG_CONSOLE_ERROR.localise(Client.language));
+            return;
         }
 
         if (MainLogicManager.step != MainLogicStep.STEP_GAME_SCREEN) {
@@ -936,7 +950,8 @@ public final class debugconsole {
 
     @OriginalMember(owner = "client!oga", name = "a", descriptor = "(I)V")
     public static void open() {
-        if (!MainLogicManager.isNotLoading()) {
+        // K-01: no debug console outside dev mode (-Drsps.dev=true).
+        if (!ClientConfig.DEV_MODE || !MainLogicManager.isNotLoading()) {
             return;
         }
 
