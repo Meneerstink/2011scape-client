@@ -13,12 +13,20 @@ public final class RspsTextures {
     /** Resolution for the high-resolution textures; OpenGL accepts 128..1024 (GlToolkit.setTextureSize). */
     public static final int HIGH_RES = 512;
 
+    /** Deadman emblem plate textures, tiers 1..6 (DeadmanEmblemTool / materials ids), painted at 256. */
+    public static final int EMBLEM_FIRST = 1410;
+    public static final int EMBLEM_LAST = 1415;
+    public static final int EMBLEM_RES = 256;
+
     private RspsTextures() {
     }
 
     public static int hardwareSize(int textureId, int defaultSize) {
         if (textureId == BANNER_78) {
             return Math.max(defaultSize, HIGH_RES);
+        }
+        if (textureId >= EMBLEM_FIRST && textureId <= EMBLEM_LAST) {
+            return Math.max(defaultSize, EMBLEM_RES);
         }
         return defaultSize;
     }

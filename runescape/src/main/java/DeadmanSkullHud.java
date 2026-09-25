@@ -3,6 +3,9 @@ import com.jagex.graphics.FontMetrics;
 import com.jagex.graphics.Fonts;
 import com.jagex.core.util.TimeUtils;
 import com.jagex.graphics.Sprite;
+import com.jagex.graphics.Toolkit;
+import com.jagex.game.runetek6.config.objtype.ObjNumMode;
+import com.jagex.game.runetek6.config.objtype.ObjTypeList;
 
 import java.awt.Rectangle;
 
@@ -47,6 +50,20 @@ final class DeadmanSkullHud {
     private static final int TEXT_ORANGE = 0xFFFF981F;
     private static final int TEXT_WHITE = 0xFFFFFFFF;
     private static final int TEXT_GREEN = 0xFF00FF00;
+    private static final int TEXT_GREY = 0xFFC8C0B4;
+
+    /** Deadman emblem items 23864..23869 (server DeadmanEmblem.FIRST_EMBLEM). */
+    private static final int FIRST_EMBLEM = 23864;
+    /** Emblem row: the item icon drawn at 2/3 size (36 x 32 -> 24 x 21), the tier beside it, value and next tier below. */
+    private static final int EMBLEM_ICON_W = 24;
+    private static final int EMBLEM_ICON_H = 21;
+    private static final int SMALL_FONT_HEIGHT = 11;
+    /** Tier colours: dark iron, then deepening crimson, then aged gold. */
+    private static final int[] TIER_COLOURS = {0xFFB4ACA0, 0xFFD2323C, 0xFFE8303A, 0xFFFF3C3C, 0xFFFFB84A, 0xFFFFD86A};
+    /** Upgrade notification: the tier text flashes white for this long after the tier rises. */
+    private static final long FLASH_MS = 3000L;
+    private static int lastTier;
+    private static long flashUntil;
     private static final int TEXT_SHADOW = 0xFF000000;
 
     private static final int ICON_GAP = 3;
@@ -188,7 +205,25 @@ final class DeadmanSkullHud {
         String timerField = componentText(TIMER_TEXT);
         int timerSeparator = timerField.indexOf('|');
         String time = (timerSeparator < 0 ? timerField : timerField.substring(0, timerSeparator)).trim();
-        String grace = timerSeparator < 0 ? "" : timerField.substring(timerSeparator + 1).trim();
+        // Optional third field (owner 2026-09-25): the carried Deadman emblem, "tier:points:nextPoints".
+        int emblemSeparator = timerSeparator < 0 ? -1 : timerField.indexOf('|', timerSeparator + 1);
+        String grace = timerSeparator < 0 ? "" : (emblemSeparator < 0 ? timerField.substring(timerSeparator + 1) : timerField.substring(timerSeparator + 1, emblemSeparator)).trim();
+        String[] emblem = emblemSeparator < 0 ? null : timerField.substring(emblemSeparator + 1).trim().split(":");
+        int tier = 0;
+        if (emblem != null && emblem.length == 3) {
+            try {
+                tier = Integer.parseInt(emblem[0]);
+            } catch (NumberFormatException ignored) {
+                tier = 0;
+            }
+        }
+        if (tier < 1 || tier > TIER_COLOURS.length) {
+            tier = 0;
+        }
+        if (tier > lastTier && lastTier > 0) {
+            flashUntil = System.currentTimeMillis() + FLASH_MS;
+        }
+        lastTier = tier;
         boolean guarded = label.equalsIgnoreCase("Guarded");
 
         Sprite icon = stateIcon(guarded);
@@ -207,7 +242,8 @@ final class DeadmanSkullHud {
         int zoneHeight = LABEL_BASELINE + (bracket.length() > 0 ? LINE_HEIGHT : 0);
         int timerHeight = time.length() == 0 ? 0 : TIMER_GAP + Math.max(skullHeight, FONT_HEIGHT);
         int graceHeight = grace.length() == 0 ? 0 : TIMER_GAP + FONT_HEIGHT;
-        int totalHeight = zoneHeight + timerHeight + graceHeight;
+        int emblemHeight = tier == 0 ? 0 : TIMER_GAP + Math.max(EMBLEM_ICON_H, FONT_HEIGHT) + SMALL_FONT_HEIGHT;
+        int totalHeight = zoneHeight + timerHeight + graceHeight + emblemHeight;
 
         int cx;
         int y;
@@ -267,6 +303,43 @@ final class DeadmanSkullHud {
         if (grace.length() > 0) {
             int graceBaseline = y + zoneHeight + timerHeight + TIMER_GAP + FONT_HEIGHT - 1;
             font.renderCentre("Protected " + grace, cx, graceBaseline, TEXT_GREEN, TEXT_SHADOW);
+        }
+
+        // Emblem row: [icon] T3, then "200 > 360" (points now, points at the next tier) or "1,150 MAX".
+        if (tier > 0) {
+            int rowY = y + zoneHeight + timerHeight + graceHeight + TIMER_GAP;
+            int rowHeight = Math.max(EMBLEM_ICON_H, FONT_HEIGHT);
+            String tierText = "T" + tier;
+            int tierWidth = textWidth(tierText);
+            int rowWidth = EMBLEM_ICON_W + ICON_GAP + tierWidth;
+            int rowX = cx - rowWidth / 2;
+            Sprite emblemSprite = emblemIcon(tier);
+            if (emblemSprite != null) {
+                emblemSprite.render(rowX, rowY, EMBLEM_ICON_W, EMBLEM_ICON_H);
+            }
+            boolean flash = System.currentTimeMillis() < flashUntil && (System.currentTimeMillis() / 250L) % 2L == 0L;
+            int colour = flash ? TEXT_WHITE : TIER_COLOURS[tier - 1];
+            font.renderCentre(tierText, rowX + EMBLEM_ICON_W + ICON_GAP + tierWidth / 2, rowY + (rowHeight + FONT_HEIGHT) / 2 - 1, colour, TEXT_SHADOW);
+            String value = emblem[2].equals("0") ? formatPoints(emblem[1]) + " MAX" : formatPoints(emblem[1]) + " > " + formatPoints(emblem[2]);
+            Font small = Fonts.p11 != null ? Fonts.p11 : font;
+            small.renderCentre(value, cx, rowY + rowHeight + SMALL_FONT_HEIGHT - 1, TEXT_GREY, TEXT_SHADOW);
+        }
+    }
+
+    /** The emblem's own inventory icon (null until the client has rendered it once; the text still shows). */
+    private static Sprite emblemIcon(int tier) {
+        try {
+            return ObjTypeList.instance == null ? null : ObjTypeList.instance.getCachedSprite(null, Toolkit.active, ObjNumMode.SHOWCOUNT_NEVER, FIRST_EMBLEM + tier - 1, 1, 1, 0xFF000000);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static String formatPoints(String points) {
+        try {
+            return String.format(java.util.Locale.US, "%,d", Integer.parseInt(points));
+        } catch (NumberFormatException ignored) {
+            return points;
         }
     }
 
