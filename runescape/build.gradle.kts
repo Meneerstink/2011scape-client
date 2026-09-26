@@ -5,6 +5,8 @@ plugins {
 dependencies {
     implementation(files("lib/stub.jar"))
     implementation(libs.openrs2.deob.annotations)
+    // Mansion soundtrack (MansionMusic): MP3 decoding.
+    implementation("javazoom:jlayer:1.0.1")
 }
 
 java {
