@@ -27,6 +27,12 @@ public final class MansionMusic {
     /** Upper floor with its balconies. */
     private static final int UPPER_MIN_X = 3154, UPPER_MAX_X = 3175, UPPER_MIN_Z = 3482, UPPER_MAX_Z = 3501;
 
+    /**
+     * The Skilling Basement under the mansion (AfkBasementMapTool room, level 0): the same soundtrack instead of the Grand
+     * Exchange track that kept playing down there (owner 2026-09-27).
+     */
+    private static final int BASEMENT_MIN_X = 2964, BASEMENT_MAX_X = 2987, BASEMENT_MIN_Z = 6102, BASEMENT_MAX_Z = 6119;
+
     /** Fade speeds in gain per second: about 2.5 s in, 5 s out. */
     private static final double FADE_IN = 0.4, FADE_OUT = 0.2;
 
@@ -45,7 +51,8 @@ public final class MansionMusic {
 
     public static boolean contains(int x, int z, int level) {
         if (level == 0) {
-            return x >= GROUND_MIN_X && x <= GROUND_MAX_X && z >= GROUND_MIN_Z && z <= GROUND_MAX_Z;
+            return x >= GROUND_MIN_X && x <= GROUND_MAX_X && z >= GROUND_MIN_Z && z <= GROUND_MAX_Z
+                || x >= BASEMENT_MIN_X && x <= BASEMENT_MAX_X && z >= BASEMENT_MIN_Z && z <= BASEMENT_MAX_Z;
         }
         if (level == 1) {
             return x >= UPPER_MIN_X && x <= UPPER_MAX_X && z >= UPPER_MIN_Z && z <= UPPER_MAX_Z;

@@ -514,14 +514,18 @@ public final class WorldMap {
             @Pc(77) int[] coord = new int[3];
             @Pc(79) int relativeX = -1;
             @Pc(81) int relativeY = -1;
-            if (area.projectDisplay(coord, PlayerEntity.self.level, (PlayerEntity.self.x >> 9) + areaBaseX, areaBaseZ + (PlayerEntity.self.z >> 9))) {
+            // Owner 2026-09-27 (foto www.png): upstairs (the mansion's second floor) the surface map has no chunk for that
+            // level, so the player's own floor falls back to the ground-floor projection of the same tile.
+            @Pc(83) int playerX = (PlayerEntity.self.x >> 9) + areaBaseX;
+            @Pc(84) int playerZ = areaBaseZ + (PlayerEntity.self.z >> 9);
+            if (area.projectDisplay(coord, PlayerEntity.self.level, playerX, playerZ) || area.projectDisplay(coord, 0, playerX, playerZ)) {
                 relativeX = coord[1] - areaX;
                 relativeY = coord[2] - areaZ;
             }
 
             if (!mapOverride && relativeX >= 0 && relativeX < areaWidth && relativeY >= 0 && relativeY < areaHeight) {
-                relativeY += (int) (Math.random() * 10.0D) - 5;
-                relativeX += (int) (Math.random() * 10.0D) - 5;
+                // No random offset: the map opens exactly on the player (it jittered up to 5 tiles each way, and the
+                // "You are here" cross is drawn at that centre - owner 2026-09-27: "we are not centered").
                 displayX = relativeX;
                 displayZ = relativeY;
             } else if (mapX != -1 && mapZ != -1) {

@@ -560,10 +560,14 @@ public final class Minimap {
         @Pc(15) int mapZ = (Static501.mapLength - 104) / 2;
         @Pc(17) boolean hasMsi = true;
 
+        // Owner 2026-09-27 (foto balc.png): upstairs the minimap was black outside the building. The floor below is drawn
+        // first (as seen from itself) and the player's own floor over it, so the ground around shows and the upper floor
+        // still covers what lies under it.
+        @Pc(18) int lowestLevel = mapLevel > 0 ? mapLevel - 1 : mapLevel;
         for (@Pc(19) int x = mapX; x < mapX + 104; x++) {
             for (@Pc(22) int z = mapZ; z < mapZ + 104; z++) {
-                for (@Pc(25) int level = mapLevel; level <= 3; level++) {
-                    if (Static696.isTileVisibleFrom(z, mapLevel, x, level)) {
+                for (@Pc(25) int level = lowestLevel; level <= 3; level++) {
+                    if (Static696.isTileVisibleFrom(z, level < mapLevel ? level : mapLevel, x, level)) {
                         @Pc(37) int actualLevel = level;
                         if (Static441.isBridgeAt(z, x)) {
                             actualLevel = level - 1;
@@ -623,10 +627,11 @@ public final class Minimap {
                 toolkit.KA(0, 0, (anInt3302 * 4) + local214, local216 + (anInt3302 * 4));
                 toolkit.GA(0xFF000000);
 
-                for (@Pc(278) int level = mapLevel; level <= 3; level++) {
+                for (@Pc(278) int level = lowestLevel; level <= 3; level++) {
+                    @Pc(279) int viewLevel = level < mapLevel ? level : mapLevel;
                     for (@Pc(281) int offsetX = 0; offsetX <= anInt3302; offsetX++) {
                         for (@Pc(284) int offsetZ = 0; offsetZ <= anInt3302; offsetZ++) {
-                            visibility[offsetX][offsetZ] = Static696.isTileVisibleFrom(offsetZ + z1, mapLevel, x1 + offsetX, level);
+                            visibility[offsetX][offsetZ] = Static696.isTileVisibleFrom(offsetZ + z1, viewLevel, x1 + offsetX, level);
                         }
                     }
 
@@ -637,7 +642,7 @@ public final class Minimap {
                             for (@Pc(331) int offsetZ = -4; offsetZ < anInt3302; offsetZ++) {
                                 @Pc(336) int tileX = offsetX + x;
                                 @Pc(340) int tileZ = offsetZ + z;
-                                if (mapX <= tileX && tileZ >= mapZ && Static696.isTileVisibleFrom(tileZ, mapLevel, tileX, level)) {
+                                if (mapX <= tileX && tileZ >= mapZ && Static696.isTileVisibleFrom(tileZ, viewLevel, tileX, level)) {
                                     @Pc(365) int actualLevel = level;
                                     if (Static441.isBridgeAt(tileZ, tileX)) {
                                         actualLevel = level - 1;
