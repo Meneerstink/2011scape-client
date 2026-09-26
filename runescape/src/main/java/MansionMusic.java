@@ -34,6 +34,9 @@ public final class MansionMusic {
     private static volatile double fade;
     private static volatile boolean running;
 
+    /** No audio device or no track: stay silent for this session instead of retrying every cycle. */
+    private static volatile boolean failed;
+
     /** The MIDI track that was playing when the player walked in; restored once the mansion music has faded out. */
     private static int savedMidi = -1;
 
@@ -80,7 +83,7 @@ public final class MansionMusic {
     }
 
     private static synchronized void start() {
-        if (running) {
+        if (running || failed) {
             return;
         }
         running = true;
@@ -103,6 +106,7 @@ public final class MansionMusic {
             while (true) {
                 InputStream resource = MansionMusic.class.getResourceAsStream("/music/mansion.mp3");
                 if (resource == null) {
+                    failed = true;
                     return;
                 }
                 Bitstream bitstream = new Bitstream(new BufferedInputStream(resource, 64 * 1024));
@@ -159,6 +163,7 @@ public final class MansionMusic {
             }
         } catch (Throwable ignored) {
             // No audio device or a broken file: stay silent.
+            failed = true;
         } finally {
             if (line != null) {
                 line.close();
