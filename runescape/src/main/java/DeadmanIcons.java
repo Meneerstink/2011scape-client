@@ -1,3 +1,5 @@
+import com.jagex.IndexedImage;
+import com.jagex.js5.js5;
 import com.jagex.graphics.Sprite;
 import com.jagex.graphics.Toolkit;
 
@@ -57,6 +59,14 @@ final class DeadmanIcons {
     private static Sprite exclamationSprite;
     private static Sprite multiSprite;
     private static Sprite singleSprite;
+
+    /**
+     * The gravestone timer icon: OSRS sprite 2507 ("mod_icons_interface" 21, drawn by OSRS gravestone_hud_init), imported
+     * into the cache as sprite 8249 by the server's DeathsOfficeInterfaceImportTool.
+     */
+    static final int GRAVE_ICON_SPRITE = 8249;
+    private static Sprite graveSprite;
+    private static Toolkit graveBuiltFor;
 
     /** Decoded image: width, height, ARGB pixels (alpha is 0 or 255). */
     private static final class Image {
@@ -227,6 +237,27 @@ final class DeadmanIcons {
         int tier = pkIcon >= FIRST_TIER_ID && pkIcon <= LAST_TIER_ID ? pkIcon - FIRST_TIER_ID : BRONZE_TIER;
         int count = Math.max(0, Math.min(keys, MAX_KEYS));
         return headSkulls[tier][count];
+    }
+
+    /** The gravestone timer icon, or null until the sprite archive can deliver it (retried until it can). */
+    static Sprite grave() {
+        Toolkit toolkit = Toolkit.active;
+        if (toolkit == null) {
+            return null;
+        }
+        if (graveSprite == null || graveBuiltFor != toolkit) {
+            graveSprite = null;
+            try {
+                IndexedImage image = IndexedImage.loadFirst(js5.SPRITES, GRAVE_ICON_SPRITE);
+                if (image != null) {
+                    graveSprite = toolkit.createSprite(image, true);
+                    graveBuiltFor = toolkit;
+                }
+            } catch (RuntimeException e) {
+                graveSprite = null;
+            }
+        }
+        return graveSprite;
     }
 
     /** The Deadman / Wilderness zone icon (OSRS sprite 1046). */

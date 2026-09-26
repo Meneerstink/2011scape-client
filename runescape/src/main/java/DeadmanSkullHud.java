@@ -208,7 +208,10 @@ final class DeadmanSkullHud {
         // Optional third field (owner 2026-09-25): the carried Deadman emblem, "tier:points:nextPoints".
         int emblemSeparator = timerSeparator < 0 ? -1 : timerField.indexOf('|', timerSeparator + 1);
         String grace = timerSeparator < 0 ? "" : (emblemSeparator < 0 ? timerField.substring(timerSeparator + 1) : timerField.substring(timerSeparator + 1, emblemSeparator)).trim();
-        String[] emblem = emblemSeparator < 0 ? null : timerField.substring(emblemSeparator + 1).trim().split(":");
+        // Optional fourth field (2026-09-26): the gravestone timer "m:ss" (OSRS gravestone_hud_write).
+        int graveSeparator = emblemSeparator < 0 ? -1 : timerField.indexOf('|', emblemSeparator + 1);
+        String graveTime = graveSeparator < 0 ? "" : timerField.substring(graveSeparator + 1).trim();
+        String[] emblem = emblemSeparator < 0 ? null : (graveSeparator < 0 ? timerField.substring(emblemSeparator + 1) : timerField.substring(emblemSeparator + 1, graveSeparator)).trim().split(":");
         int tier = 0;
         if (emblem != null && emblem.length == 3) {
             try {
@@ -243,7 +246,10 @@ final class DeadmanSkullHud {
         int timerHeight = time.length() == 0 ? 0 : TIMER_GAP + Math.max(skullHeight, FONT_HEIGHT);
         int graceHeight = grace.length() == 0 ? 0 : TIMER_GAP + FONT_HEIGHT;
         int emblemHeight = tier == 0 ? 0 : TIMER_GAP + Math.max(EMBLEM_ICON_H, FONT_HEIGHT) + SMALL_FONT_HEIGHT;
-        int totalHeight = zoneHeight + timerHeight + graceHeight + emblemHeight;
+        Sprite grave = graveTime.length() == 0 ? null : DeadmanIcons.grave();
+        int graveIconHeight = grave == null ? 0 : grave.getHeight();
+        int graveHeight = graveTime.length() == 0 ? 0 : TIMER_GAP + Math.max(graveIconHeight, FONT_HEIGHT);
+        int totalHeight = zoneHeight + timerHeight + graceHeight + emblemHeight + graveHeight;
 
         int cx;
         int y;
@@ -324,6 +330,35 @@ final class DeadmanSkullHud {
             Font small = Fonts.p11 != null ? Fonts.p11 : font;
             small.renderCentre(value, cx, rowY + rowHeight + SMALL_FONT_HEIGHT - 1, TEXT_GREY, TEXT_SHADOW);
         }
+
+        // Gravestone row: [grave icon] m:ss, the OSRS gravestone timer (gravestone_hud_init / gravestone_hud_write).
+        if (graveTime.length() > 0) {
+            int rowY = y + zoneHeight + timerHeight + graceHeight + emblemHeight + TIMER_GAP;
+            int rowHeight = Math.max(graveIconHeight, FONT_HEIGHT);
+            int iconW = grave == null ? 0 : grave.getWidth();
+            int timeWidth = textWidth(graveTime);
+            int rowWidth = iconW + (iconW > 0 ? ICON_GAP : 0) + timeWidth;
+            int rowX = cx - rowWidth / 2;
+            if (grave != null) {
+                grave.render(rowX, rowY + (rowHeight - graveIconHeight) / 2);
+            }
+            int textX = rowX + iconW + (iconW > 0 ? ICON_GAP : 0);
+            font.renderCentre(graveTime, textX + timeWidth / 2, rowY + (rowHeight + FONT_HEIGHT) / 2 - 1, graveColour(), TEXT_SHADOW);
+        }
+    }
+
+    /**
+     * The OSRS gravestone timer colour (clientscript tob_hud_nameflasher): it pulses from red to white and back every
+     * 90 client cycles (1.8 seconds).
+     */
+    private static int graveColour() {
+        long cycle = (System.currentTimeMillis() / 20L) % 90L;
+        if (cycle > 45) {
+            cycle = 90 - cycle;
+        }
+        int level = (int) (Math.sqrt(cycle * 255.0) * 255.0 / Math.sqrt(11475.0));
+        level = Math.max(0, Math.min(255, level));
+        return 0xFF0000 | (level << 8) | level;
     }
 
     /** The emblem's own inventory icon (null until the client has rendered it once; the text still shows). */
