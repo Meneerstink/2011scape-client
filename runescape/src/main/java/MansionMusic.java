@@ -72,6 +72,9 @@ public final class MansionMusic {
                     savedMidi = SongManager.playing;
                     SoundManager.playMidiSong(-1, 255, 0);
                 }
+            } else if (SongManager.playing != -1) {
+                // The server sent a newer track after the player walked out (e.g. Death's Office): keep it.
+                savedMidi = -1;
             } else if (savedMidi != -1 && fade <= 0.02) {
                 int song = savedMidi;
                 savedMidi = -1;
