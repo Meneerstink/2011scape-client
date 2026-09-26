@@ -21,7 +21,12 @@ import java.io.InputStream;
  *       {@code pk_keys_0} is frame 8 without its key rows (the bare skull).</li>
  *   <li>{@link #TIER_PALETTES}: the bone shades and eye colours of headicons_pk frames 28..32,
  *       verified pixel-identical to the owner reference "exact colors". The head skull is the
- *       key-design skull with exactly these colours substituted shade for shade.</li>
+ *       key-design skull with exactly these colours substituted shade for shade. These are the
+ *       YELLOW-EYED skulls of a really skulled player (OSRS Deadman: Annihilation).</li>
+ *   <li>{@link #PLAIN_TIER_PALETTES}: the same tiers from headicons_pk frames 21..25 - identical
+ *       bone shades, eyes in the outline colour 0x000001 (colour histogram of the OSRS frames,
+ *       2026-09-26: the yellow/orange pixels of 21..25 are only the coin bars). Every player shows
+ *       one of these; the yellow-eyed one only while really skulled.</li>
  *   <li>{@code hud_skull} (1046), {@code hud_nocircle} (1047), {@code hud_exclamation} (1239),
  *       {@code hud_multi} (442 frame 0): the Deadman zone HUD icons.</li>
  * </ul>
@@ -34,6 +39,12 @@ final class DeadmanIcons {
     static final int FIRST_TIER_ID = 8;
     static final int LAST_TIER_ID = 12;
     static final int MAX_KEYS = 5;
+
+    /**
+     * Server skull ids 24..28 are the yellow-eyed tiers 8..12 (the server adds this bit; on the
+     * wire it travels as bit 7 of the pk-icon byte, see PlayerEntity).
+     */
+    static final int SKULLED_FLAG = 16;
 
     /** The key-design skull's own colours: mid, shadow, highlight, eye bright, eye dark. */
     private static final int[] BASE_PALETTE = { 0xA9AE9E, 0x868E72, 0xC4C7CA, 0xDB2F2C, 0x5B100D };
@@ -50,10 +61,20 @@ final class DeadmanIcons {
         { 0x9D5544, 0x61342A, 0xB86E5D, 0xFFC90E, 0xFF810E },
     };
 
+    /** Index 0..4 as above, headicons_pk frames 25, 24, 23, 22, 21: dark eyes (not skulled). */
+    private static final int[][] PLAIN_TIER_PALETTES = {
+        { 0xE63335, 0xA01F18, 0xFC475B, 0x000001, 0x000001 },
+        { 0x5C83BB, 0x3E4A48, 0x6091EF, 0x000001, 0x000001 },
+        { 0x40922D, 0x2D5816, 0x45AB47, 0x000001, 0x000001 },
+        { 0xA9AE9E, 0x868E72, 0xC4C7CA, 0x000001, 0x000001 },
+        { 0x9D5544, 0x61342A, 0xB86E5D, 0x000001, 0x000001 },
+    };
+
     private static final int BRONZE_TIER = LAST_TIER_ID - FIRST_TIER_ID;
 
     private static Toolkit builtFor;
     private static Sprite[][] headSkulls;
+    private static Sprite[][] plainHeadSkulls;
     private static Sprite skullSprite;
     private static Sprite guardedSprite;
     private static Sprite exclamationSprite;
@@ -196,6 +217,7 @@ final class DeadmanIcons {
         builtFor = toolkit;
 
         headSkulls = new Sprite[TIER_PALETTES.length][MAX_KEYS + 1];
+        plainHeadSkulls = new Sprite[PLAIN_TIER_PALETTES.length][MAX_KEYS + 1];
         for (int keys = 0; keys <= MAX_KEYS; keys++) {
             Image base = loadPng("pk_keys_" + keys);
             if (base == null) {
@@ -204,6 +226,7 @@ final class DeadmanIcons {
             base = trimBottom(base);
             for (int tier = 0; tier < TIER_PALETTES.length; tier++) {
                 headSkulls[tier][keys] = sprite(toolkit, recolour(base, TIER_PALETTES[tier]));
+                plainHeadSkulls[tier][keys] = sprite(toolkit, recolour(base, PLAIN_TIER_PALETTES[tier]));
             }
         }
 
@@ -222,21 +245,22 @@ final class DeadmanIcons {
     }
 
     /**
-     * The head-icon skull for a server skull id and loot key count, or null when not skulled.
+     * The head-icon skull for a server skull id and loot key count, or null when there is none.
      * Ids outside the tier range (the cache's default skull frames) resolve to the bronze tier, so
-     * the default skull can never appear.
+     * the default skull can never appear. {@code skulled} picks the yellow-eyed variant.
      */
-    static Sprite headSkull(int pkIcon, int keys) {
+    static Sprite headSkull(int pkIcon, int keys, boolean skulled) {
         if (pkIcon < 0) {
             return null;
         }
         ensure();
-        if (headSkulls == null) {
+        Sprite[][] set = skulled ? headSkulls : plainHeadSkulls;
+        if (set == null) {
             return null;
         }
         int tier = pkIcon >= FIRST_TIER_ID && pkIcon <= LAST_TIER_ID ? pkIcon - FIRST_TIER_ID : BRONZE_TIER;
         int count = Math.max(0, Math.min(keys, MAX_KEYS));
-        return headSkulls[tier][count];
+        return set[tier][count];
     }
 
     /** The gravestone timer icon, or null until the sprite archive can deliver it (retried until it can). */
@@ -293,6 +317,7 @@ final class DeadmanIcons {
     static void reset() {
         builtFor = null;
         headSkulls = null;
+        plainHeadSkulls = null;
         skullSprite = null;
         guardedSprite = null;
         exclamationSprite = null;

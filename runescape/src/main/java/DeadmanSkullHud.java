@@ -187,7 +187,7 @@ final class DeadmanSkullHud {
     private static Sprite ownSkull() {
         PlayerEntity self = PlayerEntity.self;
         int pkIcon = self == null || self.pkIcon < 0 ? DeadmanIcons.LAST_TIER_ID : self.pkIcon;
-        return Sprites.deadmanSkull(pkIcon, 0);
+        return Sprites.deadmanSkull(pkIcon, 0, self != null && self.pkSkulled);
     }
 
     private static void drawAll(Component zone, int baseX, int baseY) {

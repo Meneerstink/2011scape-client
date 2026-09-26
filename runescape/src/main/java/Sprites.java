@@ -77,8 +77,8 @@ public final class Sprites {
      * null when not skulled. Always one of the five tier skulls ({@link DeadmanIcons#headSkull});
      * the cache's own headicons_pk frames are never drawn.
      */
-    public static Sprite deadmanSkull(int pkIcon, int keys) {
-        return DeadmanIcons.headSkull(pkIcon, keys);
+    public static Sprite deadmanSkull(int pkIcon, int keys, boolean skulled) {
+        return DeadmanIcons.headSkull(pkIcon, keys, skulled);
     }
 
     @OriginalMember(owner = "client!pj", name = "a", descriptor = "[Lclient!st;")

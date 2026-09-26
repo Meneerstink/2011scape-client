@@ -225,6 +225,9 @@ public final class PlayerEntity extends PathingEntity {
      */
     public int pkKeys = 0;
 
+    /** RSPS Deadman: the player is really skulled - the head skull shows its yellow-eyed variant. */
+    public boolean pkSkulled = false;
+
     @OriginalMember(owner = "client!ca", name = "Dd", descriptor = "B")
     public byte gender = 0;
 
@@ -621,11 +624,15 @@ public final class PlayerEntity extends PathingEntity {
         super.z += (this.getSize() - sizeBefore) << 8;
         this.titleKey = packet.g1b();
         this.pkIcon = packet.g1b();
-        // RSPS Deadman: high bits carry the loot-key count, low nibble the skull icon id.
+        // RSPS Deadman: bits 4-6 carry the loot-key count, bit 7 marks a real skull (the yellow-eyed
+        // variant, owner 2026-09-26), the low nibble is the skull icon id; -1 is no icon.
         this.pkKeys = 0;
-        if (this.pkIcon >= 16) {
-            this.pkKeys = this.pkIcon >> 4;
-            this.pkIcon &= 0xF;
+        this.pkSkulled = false;
+        if (this.pkIcon != -1) {
+            int raw = this.pkIcon & 0xFF;
+            this.pkSkulled = (raw & 0x80) != 0;
+            this.pkKeys = (raw >> 4) & 0x7;
+            this.pkIcon = raw & 0xF;
         }
         this.prayerIcon = packet.g1b();
         this.hideOnMap = packet.g1b() == 1;
