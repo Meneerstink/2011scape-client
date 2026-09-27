@@ -121,6 +121,13 @@ public class Animator {
         } else {
             if (this.animation == null || animationId != this.animation.id) {
                 this.animation = seqTL.list(animationId);
+                // Breach audit 2026-09-27 (F10): a missing sequence, or one without frames, crashed the client with a
+                // NullPointerException on frames.length; it now plays nothing.
+                if (this.animation == null || this.animation.frames == null || this.animation.frames.length == 0) {
+                    this.animation = null;
+                    this.resetSequences();
+                    return;
+                }
             } else if (this.animation.replayMode == SeqReplayMode.STOP) {
                 return;
             }
@@ -155,7 +162,7 @@ public class Animator {
     @OriginalMember(owner = "client!gu", name = "b", descriptor = "(BI)V")
     public final void reset(@OriginalArg(1) int delay) {
         this.currentFrame = 0;
-        this.nextFrame = this.animation.frames.length <= 1 ? -1 : 1;
+        this.nextFrame = this.animation == null || this.animation.frames.length <= 1 ? -1 : 1;
         this.frameOffset = 0;
         this.finished = false;
         this.delay = delay;

@@ -118,7 +118,15 @@ public final class AudioRenderer {
                                 packet = sound.packet;
                             }
 
-                            @Pc(422) SoundStream stream = sound.stream = SoundStream.create(packet, sound.rate, volume, calculatedRange);
+                            @Pc(422) SoundStream stream = packet == null ? null : SoundStream.create(packet, sound.rate, volume, calculatedRange);
+                            // Breach audit 2026-09-27 (F10): an empty sample (SoundStream.create returns null) threw a
+                            // NullPointerException here every frame; the cue is dropped instead.
+                            if (stream == null) {
+                                AvTrace.log("sound dropped: empty sample id=" + sound.id + " type=" + sound.type);
+                                sound.delay = -99999;
+                                continue;
+                            }
+                            sound.stream = stream;
                             stream.setLoops(sound.loops - 1);
                             SoundManager.activeStreams.addFirst(stream);
                         }

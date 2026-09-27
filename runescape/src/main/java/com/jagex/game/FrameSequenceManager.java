@@ -41,10 +41,19 @@ public final class FrameSequenceManager {
             if (this.aClass2_Sub2_Sub18_1 == null) {
                 return false;
             }
+            // Breach audit 2026-09-27 (F10): a sequence naming a frame its frameset does not have crashed the model code with
+            // a NullPointerException / ArrayIndexOutOfBounds; such a frame is simply not drawn.
+            if (!hasFrame(this.aClass2_Sub2_Sub18_1, this.anInt6448)) {
+                this.aClass2_Sub2_Sub18_1 = null;
+                return false;
+            }
             if (arg1.tweened && arg2 != -1 && arg4.length > arg2) {
                 this.anInt6450 = arg4[arg2];
                 this.aClass2_Sub2_Sub18_2 = arg0.getFrameset(this.anInt6450 >> 16);
                 this.anInt6450 &= 0xFFFF;
+                if (this.aClass2_Sub2_Sub18_2 != null && !hasFrame(this.aClass2_Sub2_Sub18_2, this.anInt6450)) {
+                    this.aClass2_Sub2_Sub18_2 = null;
+                }
             }
             if (arg1.rotateNormals) {
                 this.anInt6452 |= 0x200;
@@ -73,6 +82,10 @@ public final class FrameSequenceManager {
             this.anInt6452 |= 0x20;
             return true;
         }
+    }
+
+    private static boolean hasFrame(AnimFrameset frameset, int frame) {
+        return frameset.frames != null && frame >= 0 && frame < frameset.frames.length && frameset.frames[frame] != null;
     }
 
     @OriginalMember(owner = "client!nfa", name = "a", descriptor = "(B)V")
