@@ -12,8 +12,19 @@ import org.openrs2.deob.annotation.Pc;
 
 public final class AudioRenderer {
 
+    private static int lastTracedOptions = -1;
+
     @OriginalMember(owner = "client!bd", name = "c", descriptor = "(I)V")
     public static void render() {
+        // RSPS breach conformance trace: the volume options every sound decision depends on, logged whenever they change.
+        if (AvTrace.ENABLED && ClientOptions.instance != null) {
+            int options = (ClientOptions.instance.soundVolume.getValue() << 16) | (ClientOptions.instance.backgroundSoundVolume.getValue() << 8) | ClientOptions.instance.musicVolume.getValue();
+            if (options != lastTracedOptions) {
+                lastTracedOptions = options;
+                AvTrace.log("sound options: soundEffects=" + ClientOptions.instance.soundVolume.getValue() + " areaSounds(background)=" + ClientOptions.instance.backgroundSoundVolume.getValue()
+                    + " music=" + ClientOptions.instance.musicVolume.getValue());
+            }
+        }
         for (@Pc(7) int i = 0; i < SoundManager.count; i++) {
             @Pc(13) Sound sound = SoundManager.sounds[i];
             @Pc(15) boolean stopped = false;
@@ -73,6 +84,7 @@ public final class AudioRenderer {
                                 @Pc(251) int minRange = Math.abs(x) + Math.abs(y) - 512;
 
                                 if (soundRange < minRange) {
+                                    AvTrace.log("sound not played: out of range id=" + sound.id + " distance=" + (minRange >> 9) + " radius=" + (soundRange >> 9) + " coord=" + sound.coord);
                                     sound.delay = -99999;
                                     continue;
                                 }
@@ -107,7 +119,17 @@ public final class AudioRenderer {
                                 }
                             } else {
                                 volume = 0;
+                                if (!sound.avTraced) {
+                                    sound.avTraced = true;
+                                    AvTrace.log("sound not played: other level id=" + sound.id + " soundLevel=" + level + " playerLevel=" + PlayerEntity.self.level);
+                                }
                             }
+                        }
+
+                        if (volume <= 0 && !sound.avTraced) {
+                            sound.avTraced = true;
+                            AvTrace.log("sound not played: volume 0 id=" + sound.id + " positional=" + (sound.coord != 0) + " soundOption=" + ClientOptions.instance.soundVolume.getValue()
+                                + " backgroundOption=" + ClientOptions.instance.backgroundSoundVolume.getValue() + " cueVolume=" + sound.volume);
                         }
 
                         if (volume > 0) {
@@ -127,6 +149,7 @@ public final class AudioRenderer {
                                 continue;
                             }
                             sound.stream = stream;
+                            AvTrace.log("sound played id=" + sound.id + " type=" + sound.type + " positional=" + (sound.coord != 0) + " volume=" + volume + " coord=" + sound.coord);
                             stream.setLoops(sound.loops - 1);
                             SoundManager.activeStreams.addFirst(stream);
                         }

@@ -39,6 +39,9 @@ public final class Sound {
     @OriginalMember(owner = "client!eka", name = "k", descriptor = "I")
     public final int coord;
 
+    /** RSPS breach conformance trace: the reason this sound was not played has already been logged once. */
+    public boolean avTraced;
+
     @OriginalMember(owner = "client!eka", name = "b", descriptor = "I")
     public final int loops;
 

@@ -498,6 +498,9 @@ public final class SoundManager {
     public static void playSynthSoundArea(@OriginalArg(3) int id, @OriginalArg(4) int loops, @OriginalArg(1) int delay, @OriginalArg(0) int volume, @OriginalArg(5) int rate, @OriginalArg(6) int coord) {
         if (ClientOptions.instance.soundVolume.getValue() != 0 && loops != 0 && count < 50 && id != -1) {
             sounds[count++] = new Sound((byte) SoundType.SYNTH, id, loops, delay, volume, rate, coord, null);
+            AvTrace.log("area synth queued id=" + id + " loops=" + loops + " delay=" + delay + " volume=" + volume + " coord=" + coord + " queue=" + count);
+        } else {
+            AvTrace.log("area synth dropped id=" + id + " soundVolumeOption=" + ClientOptions.instance.soundVolume.getValue() + " loops=" + loops + " queue=" + count);
         }
     }
 
@@ -505,6 +508,9 @@ public final class SoundManager {
     public static void playVorbisSoundArea(@OriginalArg(7) int id, @OriginalArg(0) int loops, @OriginalArg(1) int delay, @OriginalArg(6) int volume, @OriginalArg(5) int rate, @OriginalArg(2) int coord) {
         if (ClientOptions.instance.soundVolume.getValue() != 0 && loops != 0 && count < 50 && id != -1) {
             sounds[count++] = new Sound((byte) SoundType.VORBIS, id, loops, delay, volume, rate, coord, null);
+            AvTrace.log("area vorbis queued id=" + id + " loops=" + loops + " coord=" + coord + " queue=" + count);
+        } else {
+            AvTrace.log("area vorbis dropped id=" + id + " soundVolumeOption=" + ClientOptions.instance.soundVolume.getValue() + " loops=" + loops + " queue=" + count);
         }
     }
 

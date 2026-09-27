@@ -6678,7 +6678,9 @@ public final class ScriptRunner {
 
             if (opcode == DETAIL_SOUNDVOL) {
                 int previousVolume = ClientOptions.instance.soundVolume.getValue();
-                ClientOptions.instance.update(intStack[--intStackPointer], ClientOptions.instance.soundVolume);
+                int requestedVolume = intStack[--intStackPointer];
+                AvTrace.log("sound options: script sets soundEffects " + previousVolume + " -> " + requestedVolume);
+                ClientOptions.instance.update(requestedVolume, ClientOptions.instance.soundVolume);
                 if (previousVolume != ClientOptions.instance.soundVolume.getValue()) {
                     SoundManager.stopOneShotSounds(SoundType.SYNTH);
                     SoundManager.stopOneShotSounds(SoundType.VORBIS);
@@ -6713,7 +6715,9 @@ public final class ScriptRunner {
 
             if (opcode == DETAIL_BGSOUNDVOL) {
                 int previousVolume = ClientOptions.instance.backgroundSoundVolume.getValue();
-                ClientOptions.instance.update(intStack[--intStackPointer], ClientOptions.instance.backgroundSoundVolume);
+                int requestedBackground = intStack[--intStackPointer];
+                AvTrace.log("sound options: script sets areaSounds " + previousVolume + " -> " + requestedBackground);
+                ClientOptions.instance.update(requestedBackground, ClientOptions.instance.backgroundSoundVolume);
                 if (previousVolume != ClientOptions.instance.backgroundSoundVolume.getValue()) {
                     SoundManager.restartPositionedStreams();
                 }
