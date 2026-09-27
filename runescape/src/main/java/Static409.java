@@ -31,7 +31,7 @@ public final class Static409 {
                 @Pc(108) int local108 = Static98.anIntArray176[local58] >> 16 & 0xFF;
                 local58 = local58 + 1 & 0xFFF;
                 @Pc(116) boolean local116 = false;
-                if ((Static280.tileFlags[Camera.renderingLevel][local78][local100] & 0x4) == 0) {
+                if ((Static280.tileFlags[Camera.renderingLevel][local78][local100] & 0x4) == 0 && !RspsGraphicsProfile.belongsToBuildingBelow(local78, local100)) {
                     local116 = true;
                 }
                 @Pc(133) boolean local133 = false;
