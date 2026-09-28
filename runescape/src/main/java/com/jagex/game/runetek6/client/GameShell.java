@@ -577,6 +577,9 @@ public abstract class GameShell extends Applet implements Runnable, FocusListene
         }
     }
 
+    /** RSPS debug toolkit: a frame (logic + draw) slower than this is reported as a client freeze. */
+    private static final long FREEZE_MS = 400L;
+
     @OriginalMember(owner = "client!kh", name = "run", descriptor = "()V")
     @Override
     public final void run() {
@@ -639,11 +642,21 @@ public abstract class GameShell extends Applet implements Runnable, FocusListene
             while (killtime == 0L || SystemTimer.safetime() < killtime) {
                 scheduledTicks = tickScheduler.scheduleDelayed(logicUpdateInterval);
 
+                // RSPS debug toolkit: a logic + draw pass that takes over FREEZE_MS is a visible freeze (stutter, hang) -
+                // reported with how long the logic and the drawing each took, so graphics hangs can be told from logic hangs.
+                @Pc(213) long logicStart = System.nanoTime();
                 for (@Pc(213) int tick = 0; tick < scheduledTicks; tick++) {
                     this.tick0();
                 }
 
+                @Pc(213) long drawStart = System.nanoTime();
                 this.draw0();
+                @Pc(213) long end = System.nanoTime();
+                if (com.jagex.core.util.RspsTrace.ENABLED && (end - logicStart) / 1_000_000L > FREEZE_MS) {
+                    com.jagex.core.util.RspsTrace.problemOnce("freeze:" + (end / 5_000_000_000L),
+                        "client froze " + ((end - logicStart) / 1_000_000L) + " ms (logic " + ((drawStart - logicStart) / 1_000_000L)
+                            + " ms over " + scheduledTicks + " tick(s), drawing " + ((end - drawStart) / 1_000_000L) + " ms)");
+                }
                 waitForEvents(signLink, canvas);
             }
         } catch (@Pc(254) ThreadDeath death) {
