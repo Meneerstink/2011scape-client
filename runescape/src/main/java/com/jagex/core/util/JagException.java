@@ -91,6 +91,8 @@ public final class JagException extends RuntimeException {
 
     @OriginalMember(owner = "client!hi", name = "a", descriptor = "(Ljava/lang/Throwable;Ljava/lang/String;I)V")
     public static void sendTrace(@OriginalArg(0) Throwable cause, @OriginalArg(1) String message) {
+        // RSPS debug toolkit: every reported client error also lands in C:/RSPS/bugs/client-crashes-<date>.log.
+        RspsBugLog.write("client error" + (message != null ? " " + message : ""), cause instanceof JagException && cause.getCause() != null ? cause.getCause() : cause);
         try {
             @Pc(12) String trace = "";
             if (cause != null) {

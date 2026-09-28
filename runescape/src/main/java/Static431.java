@@ -23,7 +23,7 @@ public final class Static431 {
     public static void method5827(@OriginalArg(0) SeqType arg0, @OriginalArg(1) int arg1, @OriginalArg(2) Entity arg2) {
         if (SoundManager.count >= 50 || (arg0 == null || arg0.soundInfo == null || arg0.soundInfo.length <= arg1 || arg0.soundInfo[arg1] == null)) {
             if (SoundManager.count >= 50 && arg0 != null && arg0.soundInfo != null && arg0.soundInfo.length > arg1 && arg0.soundInfo[arg1] != null) {
-                AvTrace.log("frame sound dropped: queue full seq=" + arg0.id + " frame=" + arg1);
+                AvTrace.log("PROBLEM frame sound dropped: queue full seq=" + arg0.id + " frame=" + arg1);
             }
             return;
         }
@@ -60,7 +60,7 @@ public final class Static431 {
                 }
                 SoundManager.playVorbisSound(local55, local61, 0, local134, local80, false);
             } else {
-                AvTrace.log("frame sound ignored: radius 0 on another entity seq=" + arg0.id + " frame=" + arg1 + " id=" + local55);
+                AvTrace.log("PROBLEM frame sound ignored: radius 0 on another entity seq=" + arg0.id + " frame=" + arg1 + " id=" + local55);
             }
         } else if (arg2 == PlayerEntity.self ? ClientOptions.instance.soundVolume.getValue() != 0 : ClientOptions.instance.backgroundSoundVolume.getValue() != 0) {
             // The local player's own cues are queued with coord 0, which AudioRenderer mixes on the
@@ -72,7 +72,7 @@ public final class Static431 {
             SoundManager.sounds[SoundManager.count++] = new Sound((byte) (arg0.vorbisSound ? 2 : 1), local55, local61, 0, local134, local80, local212, arg2);
             AvTrace.log("frame sound queued seq=" + arg0.id + " frame=" + arg1 + " id=" + local55 + " radius=" + local93 + " self=" + (arg2 == PlayerEntity.self) + " coord=" + local212);
         } else if (local93 != 0) {
-            AvTrace.log("frame sound dropped: background option 0 seq=" + arg0.id + " frame=" + arg1 + " id=" + local55);
+            AvTrace.log("PROBLEM frame sound dropped: background option 0 seq=" + arg0.id + " frame=" + arg1 + " id=" + local55);
         }
     }
 }

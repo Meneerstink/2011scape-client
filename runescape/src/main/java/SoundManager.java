@@ -490,7 +490,7 @@ public final class SoundManager {
             sounds[count++] = new Sound((byte) SoundType.SYNTH, id, loops, delay, volume, rate, 0, null);
             AvTrace.log("synth queued id=" + id + " loops=" + loops + " delay=" + delay + " volume=" + volume + " rate=" + rate + " queue=" + count);
         } else {
-            AvTrace.log("synth dropped id=" + id + " soundVolumeOption=" + ClientOptions.instance.soundVolume.getValue() + " loops=" + loops + " queue=" + count);
+            AvTrace.log("PROBLEM synth dropped id=" + id + " soundVolumeOption=" + ClientOptions.instance.soundVolume.getValue() + " loops=" + loops + " queue=" + count);
         }
     }
 
@@ -500,7 +500,7 @@ public final class SoundManager {
             sounds[count++] = new Sound((byte) SoundType.SYNTH, id, loops, delay, volume, rate, coord, null);
             AvTrace.log("area synth queued id=" + id + " loops=" + loops + " delay=" + delay + " volume=" + volume + " coord=" + coord + " queue=" + count);
         } else {
-            AvTrace.log("area synth dropped id=" + id + " soundVolumeOption=" + ClientOptions.instance.soundVolume.getValue() + " loops=" + loops + " queue=" + count);
+            AvTrace.log("PROBLEM area synth dropped id=" + id + " soundVolumeOption=" + ClientOptions.instance.soundVolume.getValue() + " loops=" + loops + " queue=" + count);
         }
     }
 

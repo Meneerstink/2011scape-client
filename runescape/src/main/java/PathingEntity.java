@@ -73,7 +73,21 @@ public abstract class PathingEntity extends PositionEntity {
                 override = false;
             }
 
-            if (entity.actionAnimations == null || entity.actionAnimations[i] == -1 || SeqTypeList.instance.list(animations[i]).priority >= SeqTypeList.instance.list(entity.actionAnimations[i]).priority) {
+            @Pc(76) boolean accepted = entity.actionAnimations == null || entity.actionAnimations[i] == -1 || SeqTypeList.instance.list(animations[i]).priority >= SeqTypeList.instance.list(entity.actionAnimations[i]).priority;
+            if (AvTrace.ENABLED && animations[i] != -1) {
+                // Owner 2026-09-28 (sound issues): an animation refused here never plays its frame sounds either.
+                @Pc(76) SeqType traced = SeqTypeList.instance.list(animations[i]);
+                @Pc(76) String who = (entity instanceof PlayerEntity ? "player" : "npc") + (entity == PlayerEntity.self ? "(self)" : "")
+                    + (entity instanceof NPCEntity && ((NPCEntity) entity).type != null ? " npcType=" + ((NPCEntity) entity).type.id : "");
+                @Pc(76) boolean hasSounds = traced != null && traced.soundInfo != null;
+                if (accepted) {
+                    AvTrace.log("seq recv " + who + " id=" + animations[i] + " delay=" + delay + " frameSounds=" + hasSounds);
+                } else {
+                    AvTrace.log("PROBLEM seq ignored " + who + " id=" + animations[i] + " reason=lower priority than current " + entity.actionAnimations[i]
+                        + " frameSounds=" + hasSounds + (hasSounds ? " (its frame sounds are lost)" : ""));
+                }
+            }
+            if (accepted) {
                 entity.actionAnimations = animations;
                 entity.actionAnimator.setDelay(delay);
 
@@ -772,7 +786,7 @@ public abstract class PathingEntity extends PositionEntity {
                     @Pc(57) int replayMode = seqType.replayMode;
 
                     if (replayMode == SeqReplayMode.STOP) {
-                        AvTrace.log("spotanim ignored " + traceWho + " slot=" + index + " id=" + id + " reason=same-id replayMode STOP");
+                        AvTrace.log("PROBLEM spotanim ignored " + traceWho + " slot=" + index + " id=" + id + " reason=same-id replayMode STOP");
                         return;
                     } else if (replayMode == SeqReplayMode.RESTART_LOOP) {
                         spotAnim.animator.restartLoop();
@@ -789,7 +803,7 @@ public abstract class PathingEntity extends PositionEntity {
                     @Pc(109) SeqType currSeqType = SeqTypeList.instance.list(currType.seq);
 
                     if (newSeqType.priority < currSeqType.priority) {
-                        AvTrace.log("spotanim ignored " + traceWho + " slot=" + index + " id=" + id + " reason=lower seq priority than current " + currentId);
+                        AvTrace.log("PROBLEM spotanim ignored " + traceWho + " slot=" + index + " id=" + id + " reason=lower seq priority than current " + currentId);
                         return;
                     }
                 }

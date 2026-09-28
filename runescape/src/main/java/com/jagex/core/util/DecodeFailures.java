@@ -23,5 +23,6 @@ public final class DecodeFailures {
             }
         }
         System.out.println("[decode] " + kind + " " + id + " is corrupt, using fallback: " + failure);
+        RspsBugLog.write("cache record failed to decode: " + kind + " " + id + " (shown with a fallback)", failure);
     }
 }

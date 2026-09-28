@@ -8,7 +8,8 @@ import java.io.File;
  */
 public final class AvTrace {
 
-    public static final boolean ENABLED = new File("C:/RSPS/avtrace.on").exists();
+    /** On with C:/RSPS/avtrace.on or the debug toolkit's all-traces file C:/RSPS/trace.on (the server's `traces` command writes it). */
+    public static final boolean ENABLED = new File("C:/RSPS/avtrace.on").exists() || new File("C:/RSPS/trace.on").exists();
 
     private AvTrace() {
     }

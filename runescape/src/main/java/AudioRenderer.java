@@ -38,7 +38,7 @@ public final class AudioRenderer {
 
                 if (sound.delay < (sound.isVorbis() ? -1500 : -10)) {
                     stopped = true;
-                    AvTrace.log("sound expired without playing id=" + sound.id + " type=" + sound.type + " synthLoaded=" + (sound.synth != null) + " coord=" + sound.coord);
+                    AvTrace.log("PROBLEM sound expired without playing id=" + sound.id + " type=" + sound.type + " synthLoaded=" + (sound.synth != null) + " coord=" + sound.coord);
                 } else {
                     if (sound.type == SoundType.SYNTH && sound.synth == null) {
                         sound.synth = SynthSound.get(js5.SYNTH_SOUNDS, sound.id, 0);
@@ -84,7 +84,7 @@ public final class AudioRenderer {
                                 @Pc(251) int minRange = Math.abs(x) + Math.abs(y) - 512;
 
                                 if (soundRange < minRange) {
-                                    AvTrace.log("sound not played: out of range id=" + sound.id + " distance=" + (minRange >> 9) + " radius=" + (soundRange >> 9) + " coord=" + sound.coord);
+                                    AvTrace.log("PROBLEM sound not played: out of range id=" + sound.id + " distance=" + (minRange >> 9) + " radius=" + (soundRange >> 9) + " coord=" + sound.coord);
                                     sound.delay = -99999;
                                     continue;
                                 }
@@ -121,14 +121,14 @@ public final class AudioRenderer {
                                 volume = 0;
                                 if (!sound.avTraced) {
                                     sound.avTraced = true;
-                                    AvTrace.log("sound not played: other level id=" + sound.id + " soundLevel=" + level + " playerLevel=" + PlayerEntity.self.level);
+                                    AvTrace.log("PROBLEM sound not played: other level id=" + sound.id + " soundLevel=" + level + " playerLevel=" + PlayerEntity.self.level);
                                 }
                             }
                         }
 
                         if (volume <= 0 && !sound.avTraced) {
                             sound.avTraced = true;
-                            AvTrace.log("sound not played: volume 0 id=" + sound.id + " positional=" + (sound.coord != 0) + " soundOption=" + ClientOptions.instance.soundVolume.getValue()
+                            AvTrace.log("PROBLEM sound not played: volume 0 id=" + sound.id + " positional=" + (sound.coord != 0) + " soundOption=" + ClientOptions.instance.soundVolume.getValue()
                                 + " backgroundOption=" + ClientOptions.instance.backgroundSoundVolume.getValue() + " cueVolume=" + sound.volume);
                         }
 
@@ -144,7 +144,7 @@ public final class AudioRenderer {
                             // Breach audit 2026-09-27 (F10): an empty sample (SoundStream.create returns null) threw a
                             // NullPointerException here every frame; the cue is dropped instead.
                             if (stream == null) {
-                                AvTrace.log("sound dropped: empty sample id=" + sound.id + " type=" + sound.type);
+                                AvTrace.log("PROBLEM sound dropped: empty sample id=" + sound.id + " type=" + sound.type);
                                 sound.delay = -99999;
                                 continue;
                             }
