@@ -347,13 +347,26 @@ public final class js5 {
         return data;
     }
 
+    /**
+     * RSPS debug toolkit: a lookup of a group/file this archive does not have (a model, sprite, seq, sound ... id the cache does
+     * not contain) is a PROBLEM line once per id, naming the archive; the lookup itself still fails as before. Always true.
+     */
+    private boolean reportInvalid(int groupId, int fileId) {
+        if (com.jagex.core.util.RspsTrace.ENABLED) {
+            int archive = this.provider instanceof Js5ResourceProvider ? ((Js5ResourceProvider) this.provider).archiveId : -1;
+            com.jagex.core.util.RspsTrace.problemOnce("js5:" + archive + ':' + groupId + ':' + fileId,
+                "js5 missing id: archive=" + archive + " group=" + groupId + (fileId >= 0 ? " file=" + fileId : "") + " (not in this cache - the thing using it shows nothing)");
+        }
+        return true;
+    }
+
     @OriginalMember(owner = "client!sb", name = "a", descriptor = "(IIB)Z")
     public boolean isValidFile(@OriginalArg(0) int fileId, @OriginalArg(1) int groupId) {
         if (!this.indexReady()) {
             return false;
         } else if (groupId >= 0 && fileId >= 0 && groupId < this.index.fileLimits.length && fileId < this.index.fileLimits[groupId]) {
             return true;
-        } else if (REPORT_INVALID_IDS) {
+        } else if (reportInvalid(groupId, fileId) && REPORT_INVALID_IDS) {
             throw new IllegalArgumentException(groupId + "," + fileId);
         } else {
             return false;
@@ -662,7 +675,7 @@ public final class js5 {
             return false;
         } else if (groupId >= 0 && groupId < this.index.fileLimits.length && this.index.fileLimits[groupId] != 0) {
             return true;
-        } else if (REPORT_INVALID_IDS) {
+        } else if (reportInvalid(groupId, -1) && REPORT_INVALID_IDS) {
             throw new IllegalArgumentException(Integer.toString(groupId));
         } else {
             return false;
