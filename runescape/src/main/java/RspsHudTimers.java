@@ -42,8 +42,17 @@ final class RspsHudTimers {
     static final String ID = "timers";
 
     /** Panel height for this frame; 0 = nothing to show. */
+    private static boolean showVengeance() {
+        return vengeanceActive && RspsHudConfig.timerVengeance;
+    }
+
+    private static boolean show(long end, boolean on) {
+        return on && running(end);
+    }
+
     static int height() {
-        int lines = (vengeanceActive ? 1 : 0) + (running(vengeanceCooldownEnd) ? 1 : 0) + (running(teleblockEnd) ? 1 : 0) + (running(frozenEnd) ? 1 : 0);
+        int lines = (showVengeance() ? 1 : 0) + (show(vengeanceCooldownEnd, RspsHudConfig.timerVengeanceCooldown) ? 1 : 0)
+            + (show(teleblockEnd, RspsHudConfig.timerTeleblock) ? 1 : 0) + (show(frozenEnd, RspsHudConfig.timerFrozen) ? 1 : 0);
         return lines == 0 ? 0 : lines * LINE + 6;
     }
 
@@ -52,14 +61,20 @@ final class RspsHudTimers {
         Font font = RspsHud.font();
         int baseline = y + LINE;
         int right = x + RspsHud.PANEL_WIDTH - 4;
-        if (vengeanceActive) {
+        if (showVengeance()) {
             font.render("Vengeance", x + 4, baseline, RspsHud.SHADOW, NORMAL);
             font.renderRight("ACTIVE", right, baseline, ACTIVE, RspsHud.SHADOW);
             baseline += LINE;
         }
-        baseline = line(font, "Vengeance CD", vengeanceCooldownEnd, x, right, baseline);
-        baseline = line(font, "Teleblock", teleblockEnd, x, right, baseline);
-        line(font, "Frozen", frozenEnd, x, right, baseline);
+        if (RspsHudConfig.timerVengeanceCooldown) {
+            baseline = line(font, "Vengeance CD", vengeanceCooldownEnd, x, right, baseline);
+        }
+        if (RspsHudConfig.timerTeleblock) {
+            baseline = line(font, "Teleblock", teleblockEnd, x, right, baseline);
+        }
+        if (RspsHudConfig.timerFrozen) {
+            line(font, "Frozen", frozenEnd, x, right, baseline);
+        }
     }
 
     private static int line(Font font, String label, long end, int x, int right, int baseline) {

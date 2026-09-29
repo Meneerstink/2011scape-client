@@ -1746,7 +1746,7 @@ public final class ServerConnectionReader {
 
                 if (Static87.updateZoneLevel == level && zoneX >= Static626.updateZoneX && zoneX < Static626.updateZoneX + 8 && zoneZ >= Static270.updateZoneZ && zoneZ < Static270.updateZoneZ + 8) {
                     stack.unlink();
-                    RspsHudGroundItems.markDirty();
+                    RspsHudGroundItems.markTile(stack.key);
 
                     if (zoneX >= 0 && zoneZ >= 0 && zoneX < Static720.mapWidth && zoneZ < Static501.mapLength) {
                         Static468.updateObjCount(Static87.updateZoneLevel, zoneX, zoneZ);
@@ -2497,7 +2497,7 @@ public final class ServerConnectionReader {
             @Pc(52) int newCount = bitPacket.g2();
 
             if (Static497.objStacks != null) {
-                RspsHudGroundItems.markDirty();
+                RspsHudGroundItems.markTile(Static87.updateZoneLevel, x, z);
                 @Pc(69) ObjStack stack = (ObjStack) Static497.objStacks.get((Static87.updateZoneLevel << 28) | (z << 14) | x);
 
                 if (stack != null) {
@@ -2775,7 +2775,7 @@ public final class ServerConnectionReader {
 
             @Pc(1389) ObjStack stack = (ObjStack) Static497.objStacks.get((Static87.updateZoneLevel << 28) | (z << 14) | x);
             if (stack != null) {
-                RspsHudGroundItems.markDirty();
+                RspsHudGroundItems.markTile(Static87.updateZoneLevel, x, z);
                 for (@Pc(1399) ObjStackEntry entry = (ObjStackEntry) stack.objs.first(); entry != null; entry = (ObjStackEntry) stack.objs.next()) {
                     if (entry.id == (objId & 0x7FFF)) {
                         entry.unlink();

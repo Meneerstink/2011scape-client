@@ -53,8 +53,8 @@ final class RspsHudBoosts {
                 rows++;
             }
         }
-        decayLine = anyBoost && decayEnd > 0L;
-        restoreLine = anyDrain && restoreEnd > 0L;
+        decayLine = RspsHudConfig.boostTimers && anyBoost && decayEnd > 0L;
+        restoreLine = RspsHudConfig.boostTimers && anyDrain && restoreEnd > 0L;
         if (rows == 0) {
             return 0;
         }

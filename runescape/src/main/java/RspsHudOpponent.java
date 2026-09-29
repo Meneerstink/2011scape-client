@@ -105,6 +105,14 @@ final class RspsHudOpponent {
         int percent;
         if (maximum > 0) {
             percent = (int) Math.round(100.0 * Math.min(current, maximum) / maximum);
+            if (!RspsHudConfig.opponentExact) {
+                if (percent == 0 && current > 0) {
+                    percent = 1;
+                } else if (percent == 100 && current < maximum) {
+                    percent = 99;
+                }
+                return percent + "%";
+            }
             if (percent == 0 && current > 0) {
                 percent = 1;
             } else if (percent == 100 && current < maximum) {

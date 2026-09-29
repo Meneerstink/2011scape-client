@@ -15,6 +15,17 @@ final class RspsHudConfig {
     static boolean despawn = true;
     static boolean value = true;
     static boolean timers = true;
+    /** Boosts: the "Boost drop" / "Stat restore" lines. */
+    static boolean boostTimers = true;
+    /** Opponent: exact npc life points (cur / max); off = the percentage only. */
+    static boolean opponentExact = true;
+    /** Timers & Buffs: each line on its own. */
+    static boolean timerVengeance = true;
+    static boolean timerVengeanceCooldown = true;
+    static boolean timerTeleblock = true;
+    static boolean timerFrozen = true;
+    /** Ground Items: stacks worth less than this are not labelled (highlighted ones always are). */
+    static long hideUnder = 0L;
 
     /** Value tiers low / medium / high / insane, in gp of the whole stack. */
     static long[] tiers = {20_000L, 100_000L, 1_000_000L, 10_000_000L};
@@ -24,6 +35,9 @@ final class RspsHudConfig {
 
     private static final List<Pattern> highlighted = new ArrayList<Pattern>();
     private static final List<Pattern> hidden = new ArrayList<Pattern>();
+    /** The same lists as typed (lower case), for the 78 Plugins panel. */
+    static final List<String> highlightedNames = new ArrayList<String>();
+    static final List<String> hiddenNames = new ArrayList<String>();
 
     private RspsHudConfig() {
     }
@@ -39,6 +53,12 @@ final class RspsHudConfig {
             despawn = flags.charAt(4) == '1';
             value = flags.charAt(5) == '1';
             timers = flags.charAt(6) == '1';
+            boostTimers = flag(flags, 7);
+            opponentExact = flag(flags, 8);
+            timerVengeance = flag(flags, 9);
+            timerVengeanceCooldown = flag(flags, 10);
+            timerTeleblock = flag(flags, 11);
+            timerFrozen = flag(flags, 12);
             String[] tierText = parts[1].split(",");
             for (int i = 0; i < tiers.length && i < tierText.length; i++) {
                 tiers[i] = Long.parseLong(tierText[i]);
@@ -47,18 +67,27 @@ final class RspsHudConfig {
             for (int i = 0; i < colours.length && i < colourText.length; i++) {
                 colours[i] = 0xFF000000 | Integer.parseInt(colourText[i], 16);
             }
+            hideUnder = parts.length > 3 ? Long.parseLong(parts[3]) : 0L;
             return;
         }
         List<Pattern> list = kind.equals("hl") ? highlighted : hidden;
+        List<String> names = kind.equals("hl") ? highlightedNames : hiddenNames;
         if (rest.equals("clear")) {
             list.clear();
+            names.clear();
         } else if (rest.startsWith("add|")) {
             for (String name : rest.substring(4).split(",")) {
                 if (name.length() > 0) {
                     list.add(wildcard(name));
+                    names.add(name);
                 }
             }
         }
+    }
+
+    /** A switch the server may not send yet (an older push): on. */
+    private static boolean flag(String flags, int index) {
+        return index >= flags.length() || flags.charAt(index) == '1';
     }
 
     /** RuneLite WildcardMatcher: '*' matches anything, the rest literally, case-insensitive, whole name. */

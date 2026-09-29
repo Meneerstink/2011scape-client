@@ -47,6 +47,9 @@ final class RspsHud {
                 RspsHudGroundItems.update(rest);
             } else if (kind.equals("open")) {
                 RspsHudSettings.open();
+                if (rest.length() > 0) {
+                    RspsHudSettings.view = rest;
+                }
             } else if (kind.equals("close")) {
                 RspsHudSettings.close();
             }

@@ -23,6 +23,7 @@ public final class RspsHudRegressionTest {
         groundItems();
         layout();
         settingsPanel();
+        crowdedGround();
         System.out.println("RSPS HUD regression checks passed: " + assertions);
     }
 
@@ -255,30 +256,161 @@ public final class RspsHudRegressionTest {
     }
 
     private static void settingsPanel() {
-        RspsHud.handle("cfg|1011111|20000,100000,1000000,10000000|ffffff,66b2ff,99ff99,ff9600,ff66b2,aa00ff");
+        String all = "1011111111111";
+        String tiers = "|20000,100000,1000000,10000000|ffffff,66b2ff,99ff99,ff9600,ff66b2,aa00ff";
+        RspsHud.handle("cfg|" + all + tiers + "|0");
         RspsHud.handle("open");
-        check(RspsHudSettings.isOpen(), "open payload (hud command) opens the panel");
+        check(RspsHudSettings.isOpen() && RspsHudSettings.MAIN.equals(RspsHudSettings.view), "open payload (hud command) opens the main view");
         RspsHudSettings.layoutForTest(100, 100);
-        int firstRow = 100 + 20 + 2;
-        check(RspsHudSettings.click(150, firstRow + 5, MouseLog.TYPE_PRESS_LEFT), "a click on a row is taken");
-        check(!RspsHudConfig.boosts && "hud boosts off".equals(RspsHudSettings.lastSent), "row 1 switches Boosts off and saves it: " + RspsHudSettings.lastSent);
-        RspsHudSettings.click(150, firstRow + 17 + 5, MouseLog.TYPE_PRESS_LEFT);
-        check(RspsHudConfig.boostsAll && "hud boosts all".equals(RspsHudSettings.lastSent), "row 2: all five stats");
-        RspsHudSettings.click(150, firstRow + 3 * 17 + 5, MouseLog.TYPE_PRESS_LEFT);
-        check(!RspsHudConfig.groundItems && "hud grounditems off".equals(RspsHudSettings.lastSent), "row 4: Ground Items off");
-        RspsHudSettings.click(150, firstRow + 6 * 17 + 5, MouseLog.TYPE_PRESS_LEFT);
-        check(!RspsHudConfig.timers && "hud timers off".equals(RspsHudSettings.lastSent), "row 7: Timers & Buffs off");
-        RspsHudSettings.click(150, firstRow + 6 * 17 + 5, MouseLog.TYPE_PRESS_LEFT);
-        check(RspsHudConfig.timers && "hud timers on".equals(RspsHudSettings.lastSent), "and on again");
+        int right = 100 + RspsHudSettings.WIDTH;
+        int row0 = 100 + RspsHudSettings.TITLE + 2 + 5;
+        int step = RspsHudSettings.ROW;
+
+        // Main view: the switch toggles the plugin, ">" opens its settings.
+        check(RspsHudSettings.click(130, row0, MouseLog.TYPE_PRESS_LEFT), "a click on a plugin row is taken");
+        check(!RspsHudConfig.boosts && "hud set boosts off".equals(RspsHudSettings.lastSent), "the switch turns Boosts off and saves it: " + RspsHudSettings.lastSent);
+        RspsHudSettings.click(130, row0, MouseLog.TYPE_PRESS_LEFT);
+        check(RspsHudConfig.boosts && "hud set boosts on".equals(RspsHudSettings.lastSent), "and on again");
+        RspsHudSettings.click(130, row0 + 3 * step, MouseLog.TYPE_PRESS_LEFT);
+        check(!RspsHudConfig.timers && "hud set timers off".equals(RspsHudSettings.lastSent), "Timers & Buffs off");
+        RspsHudSettings.click(130, row0 + 3 * step, MouseLog.TYPE_PRESS_LEFT);
+
+        // Boosts settings.
+        RspsHudSettings.click(right - 8, row0, MouseLog.TYPE_PRESS_LEFT);
+        check(RspsHudSettings.BOOSTS.equals(RspsHudSettings.view), "> opens the Boosts settings");
+        RspsHudSettings.click(130, row0, MouseLog.TYPE_PRESS_LEFT);
+        check(RspsHudConfig.boostsAll && "hud set boostsall on".equals(RspsHudSettings.lastSent), "all five stats on");
+        RspsHudSettings.click(130, row0 + step, MouseLog.TYPE_PRESS_LEFT);
+        check(!RspsHudConfig.boostTimers && "hud set boosttimers off".equals(RspsHudSettings.lastSent), "next-change timers off");
+        RspsHudSettings.click(106, 110, MouseLog.TYPE_PRESS_LEFT);
+        check(RspsHudSettings.MAIN.equals(RspsHudSettings.view), "< goes back to the plugin list");
+
+        // Opponent settings.
+        RspsHudSettings.click(right - 8, row0 + step, MouseLog.TYPE_PRESS_LEFT);
+        RspsHudSettings.click(130, row0, MouseLog.TYPE_PRESS_LEFT);
+        check(!RspsHudConfig.opponentExact && "hud set oppexact off".equals(RspsHudSettings.lastSent), "Opponent: percentage only");
+        RspsHudSettings.click(106, 110, MouseLog.TYPE_PRESS_LEFT);
+
+        // Ground Items settings: values open the game's input box through the server, lists add / clear / remove.
+        RspsHud.handle("hl|clear");
+        RspsHud.handle("hl|add|dragon*,shark");
+        RspsHud.handle("hide|clear");
+        RspsHudSettings.click(right - 8, row0 + 2 * step, MouseLog.TYPE_PRESS_LEFT);
+        check(RspsHudSettings.GROUND.equals(RspsHudSettings.view), "> opens the Ground Items settings");
+        RspsHudSettings.click(130, row0, MouseLog.TYPE_PRESS_LEFT);
+        check(!RspsHudConfig.value && "hud set value off".equals(RspsHudSettings.lastSent), "values off");
+        RspsHudSettings.click(130, row0 + 2 * step, MouseLog.TYPE_PRESS_LEFT);
+        check("hud edit hideunder".equals(RspsHudSettings.lastSent), "hide-under value opens the input box: " + RspsHudSettings.lastSent);
+        RspsHudSettings.click(130, row0 + 4 * step, MouseLog.TYPE_PRESS_LEFT);
+        check("hud edit tier low".equals(RspsHudSettings.lastSent), "the low value opens the input box");
+        RspsHudSettings.click(right - 8, row0 + 4 * step, MouseLog.TYPE_PRESS_LEFT);
+        check("hud edit colour low".equals(RspsHudSettings.lastSent), "the low colour swatch opens the colour box");
+        RspsHudSettings.click(130, row0 + 8 * step, MouseLog.TYPE_PRESS_LEFT);
+        check("hud edit colour highlight".equals(RspsHudSettings.lastSent), "highlight colour");
+        RspsHudSettings.click(right - 10, row0 + 9 * step, MouseLog.TYPE_PRESS_LEFT);
+        check("hud edit highlight".equals(RspsHudSettings.lastSent), "Add on the highlighted list: " + RspsHudSettings.lastSent);
+        RspsHudSettings.click(right - RspsHudSettings.ADD_ZONE - 20, row0 + 9 * step, MouseLog.TYPE_PRESS_LEFT);
+        check("hud clear highlight".equals(RspsHudSettings.lastSent), "Clear on the highlighted list");
+        RspsHudSettings.click(right - 8, row0 + 10 * step, MouseLog.TYPE_PRESS_LEFT);
+        check("hud remove highlight dragon*".equals(RspsHudSettings.lastSent), "x removes one entry: " + RspsHudSettings.lastSent);
+        RspsHudSettings.click(right - 10, row0 + 12 * step, MouseLog.TYPE_PRESS_LEFT);
+        check("hud edit hide".equals(RspsHudSettings.lastSent), "Add on the hidden list (below the 2 highlighted entries): " + RspsHudSettings.lastSent);
+        RspsHudSettings.click(106, 110, MouseLog.TYPE_PRESS_LEFT);
+
+        // Timers & Buffs settings: every line on its own.
+        RspsHudSettings.click(right - 8, row0 + 3 * step, MouseLog.TYPE_PRESS_LEFT);
+        RspsHudSettings.click(130, row0 + 2 * step, MouseLog.TYPE_PRESS_LEFT);
+        check(!RspsHudConfig.timerTeleblock && "hud set tteleblock off".equals(RspsHudSettings.lastSent), "Teleblock line off");
+
         check(RspsHudSettings.click(150, 110, MouseLog.TYPE_PRESS_RIGHT), "a right-click on the panel does not reach the game");
         check(!RspsHudSettings.click(20, 20, MouseLog.TYPE_PRESS_LEFT), "a click beside the panel reaches the game");
-        check(RspsHudSettings.click(100 + 196 - 8, 110, MouseLog.TYPE_PRESS_LEFT) && !RspsHudSettings.isOpen(), "the x closes the panel");
-        check(!RspsHudSettings.click(150, firstRow + 5, MouseLog.TYPE_PRESS_LEFT), "a closed panel takes no clicks");
+        check(RspsHudSettings.click(right - 5, 110, MouseLog.TYPE_PRESS_LEFT) && !RspsHudSettings.isOpen(), "the x closes the panel");
+        check(!RspsHudSettings.click(150, row0, MouseLog.TYPE_PRESS_LEFT), "a closed panel takes no clicks");
         RspsHud.handle("open");
         RspsHud.handle("close");
         check(!RspsHudSettings.isOpen(), "close payload");
-        RspsHud.handle("cfg|1011111|20000,100000,1000000,10000000|ffffff,66b2ff,99ff99,ff9600,ff66b2,aa00ff");
-        check(RspsHudConfig.boosts && !RspsHudConfig.boostsAll && RspsHudConfig.groundItems, "the server push is the final word");
+
+        // The server push is the final word, including the newer switches and the hide-under value.
+        RspsHud.handle("cfg|1011111101101" + tiers + "|5000");
+        check(RspsHudConfig.boosts && !RspsHudConfig.boostsAll && RspsHudConfig.boostTimers && !RspsHudConfig.opponentExact, "push: switches 1-9");
+        check(RspsHudConfig.timerVengeance && RspsHudConfig.timerVengeanceCooldown && !RspsHudConfig.timerTeleblock && RspsHudConfig.timerFrozen, "push: timer lines");
+        check(RspsHudConfig.hideUnder == 5000L, "push: hide under");
+        RspsHud.handle("cfg|1011111" + tiers);
+        check(RspsHudConfig.timerTeleblock && RspsHudConfig.opponentExact && RspsHudConfig.hideUnder == 0L, "an older 7-switch push leaves the newer ones on");
+
+        // Hide under: small stacks go, highlighted ones stay.
+        Static497.objStacks.clear();
+        RspsHud.reset();
+        RspsHud.handle("cfg|" + all + tiers + "|1000");
+        RspsHud.handle("hl|clear");
+        RspsHud.handle("hide|clear");
+        stack(0, 3300, 3300, new int[][]{{385, 1}, {385, 1}, {995, 150}, {536, 1}});
+        RspsHud.handle("gi|0,3300,3300,385,50,800;0,3300,3300,995,90,1;0,3300,3300,536,90,900");
+        RspsHud.handle("hl|add|dragon bones");
+        RspsHudGroundItems.rebuild(NAMES);
+        String labels = joined(RspsHudGroundItems.describe());
+        check(labels.contains("Shark x2") && !labels.contains("Coins") && labels.contains("Dragon bones"), "hide under 1000: sharks (1.6K) and highlighted bones (900) stay, coins (150) go: " + labels);
+        Static497.objStacks.clear();
+        RspsHud.reset();
+        RspsHud.handle("cfg|" + all + tiers + "|0");
+        RspsHud.handle("hl|clear");
+        RspsHud.handle("hide|clear");
+    }
+
+    /** 100 players with drops everywhere: 600 stacks of 5 items; the label rebuild (only on a change) must stay cheap. */
+    private static void crowdedGround() {
+        Static497.objStacks.clear();
+        RspsHud.reset();
+        StringBuilder gi = new StringBuilder();
+        int[] ids = {4151, 995, 385, 536, 385};
+        for (int i = 0; i < 600; i++) {
+            int x = 3000 + i % 30;
+            int z = 3000 + i / 30;
+            stack(0, x, z, new int[][]{{4151, 1}, {995, 1000 + i}, {385, 1}, {536, 1}, {385, 1}});
+            for (int id : new int[]{4151, 995, 385, 536}) {
+                if (gi.length() > 0) {
+                    gi.append(';');
+                }
+                gi.append("0,").append(x).append(',').append(z).append(',').append(id).append(",150,").append(id == 995 ? 1 : 1000);
+            }
+        }
+        long parseStart = System.nanoTime();
+        RspsHud.handle("gi|" + gi);
+        long parseNanos = System.nanoTime() - parseStart;
+        RspsHudGroundItems.rebuild(NAMES);
+        long best = Long.MAX_VALUE;
+        for (int run = 0; run < 5; run++) {
+            RspsHudGroundItems.markDirty();
+            long start = System.nanoTime();
+            RspsHudGroundItems.rebuild(NAMES);
+            best = Math.min(best, System.nanoTime() - start);
+        }
+        int labels = RspsHudGroundItems.describe().size();
+        System.out.println("crowded ground: 600 stacks / 3000 items -> " + labels + " labels, rebuild " + best / 1000 + " us, parse " + parseNanos / 1000 + " us");
+        check(labels == 2400, "600 stacks x 4 item kinds (sharks grouped) = 2400 labels: " + labels);
+        check(best < 30_000_000L, "label rebuild for 3000 ground items under 30 ms: " + best / 1_000_000.0 + " ms");
+
+        // One pickup in that crowd (OBJ_DEL empties a tile) and one new drop: only those two tiles are rebuilt.
+        long pickedKey = (3000L << 14) | 3000L;
+        ((ObjStack) Static497.objStacks.get(pickedKey)).unlink();
+        RspsHudGroundItems.markTile(pickedKey);
+        stack(0, 3100, 3100, new int[][]{{4151, 1}});
+        RspsHudGroundItems.markTile(0, 3100, 3100);
+        long start = System.nanoTime();
+        RspsHudGroundItems.rebuild(NAMES);
+        long tileNanos = System.nanoTime() - start;
+        List<String> after = RspsHudGroundItems.describe();
+        System.out.println("crowded ground: one pickup + one drop rebuilt in " + tileNanos / 1000 + " us");
+        check(after.size() == 2400 - 4 + 1, "pickup removed its 4 labels, the drop added 1: " + after.size());
+        check(!joined(after).contains("0,3000,3000 "), "no ghost label on the picked-up tile");
+        check(!RspsHudGroundItems.hasServerEntry(0, 3000, 3000, 4151), "the picked-up tile's server entries went with it");
+        check(tileNanos < 2_000_000L, "a single tile change costs well under 2 ms: " + tileNanos / 1000 + " us");
+        RspsHud.handle("gi|0,3100,3100,4151,150,2400000");
+        check(RspsHudGroundItems.isDirty(), "a server entry marks only its tile");
+        RspsHudGroundItems.rebuild(NAMES);
+        check(joined(RspsHudGroundItems.describe()).contains("0,3100,3100 0 Abyssal whip (2.4M)"), "the new drop got its value");
+        Static497.objStacks.clear();
+        RspsHud.reset();
     }
 
     private static String joined(List<String> list) {
