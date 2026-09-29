@@ -14,19 +14,6 @@ public final class RspsGraphicsProfile {
      */
     public static final boolean ROOFS_HIDE_ONLY_UNDER_PLAYER = true;
 
-    /**
-     * RSPS map tile flag 0x20 on the level above the player: "part of the building below" (the Royal Hall's balconies and
-     * upper doorways, RoyalHallMapTool.BELOW_BUILDING). Owner 2026-09-27: from inside the hall no balcony may show through
-     * the upper doorways, yet a player on or under a balcony is outside and keeps the roof. Such a tile has no roof flag of
-     * its own; the roof flood (Static409) only runs on over it once it started from a player inside.
-     */
-    public static final int BELOW_BUILDING = 0x20;
-
-    public static boolean belongsToBuildingBelow(int x, int z) {
-        int level = Camera.renderingLevel + 1;
-        return level <= 3 && (Static280.tileFlags[level][x][z] & BELOW_BUILDING) != 0;
-    }
-
     private RspsGraphicsProfile() { }
 
     public static void apply(ClientOptions options) {
