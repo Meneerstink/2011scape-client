@@ -166,6 +166,7 @@ public final class Static684 {
 
                 if (x < 0 || z < 0 || x >= Static720.mapWidth || z >= Static501.mapLength) {
                     stack.unlink();
+                    RspsHudGroundItems.markDirty();
                 }
             }
         }

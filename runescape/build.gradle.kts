@@ -31,6 +31,16 @@ tasks.run.configure {
     systemProperty("rsps.dev", providers.gradleProperty("rsps.dev").getOrElse("false"))
 }
 
+val rspsHudRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks the RSPS information overlays (payloads, values, settings, ground item labels) without a server or display."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("RspsHudRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
 val r13Regression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks graphics preferences and renderer fallback without a game server or display."

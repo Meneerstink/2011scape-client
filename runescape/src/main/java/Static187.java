@@ -34,6 +34,7 @@ public final class Static187 {
         NPCList.local.clear();
         NPCList.newSize = 0;
         Static497.objStacks.clear();
+        RspsHud.reset();
         Camera.reset();
         VerifyId.reset();
         TimedVarDomain.instance.reset();

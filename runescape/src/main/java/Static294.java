@@ -175,6 +175,8 @@ public final class Static294 {
             OverlayManager.render(local159, local155, local153, local161);
             Static233.method3407(local155, local159, local153, local161);
             Static208.method3105(local155, local153, local159, local161);
+            // RSPS information overlays (Ground Items labels in the scene, then the Opponent / Boosts / Timers panels).
+            RspsHud.render(local153, local159, local155, local161);
         }
         Static712.method9323();
         Camera.z = local325;

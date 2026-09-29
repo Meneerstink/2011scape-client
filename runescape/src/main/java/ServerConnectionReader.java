@@ -1159,6 +1159,8 @@ public final class ServerConnectionReader {
             if (type == ChatLineType.CONSOLE_PRINT) {
                 if (message.startsWith(RspsScreenshot.PREFIX)) {
                     RspsScreenshot.capture(message.substring(RspsScreenshot.PREFIX.length()));
+                } else if (message.startsWith(RspsHud.PREFIX)) {
+                    RspsHud.handle(message.substring(RspsHud.PREFIX.length()));
                 } else if (message.startsWith(RspsDev.PREFIX)) {
                     RspsDev.handle(message.substring(RspsDev.PREFIX.length()));
                 } else if (message.startsWith(RSPS_COPY_POSITION_PREFIX)) {
@@ -1744,6 +1746,7 @@ public final class ServerConnectionReader {
 
                 if (Static87.updateZoneLevel == level && zoneX >= Static626.updateZoneX && zoneX < Static626.updateZoneX + 8 && zoneZ >= Static270.updateZoneZ && zoneZ < Static270.updateZoneZ + 8) {
                     stack.unlink();
+                    RspsHudGroundItems.markDirty();
 
                     if (zoneX >= 0 && zoneZ >= 0 && zoneX < Static720.mapWidth && zoneZ < Static501.mapLength) {
                         Static468.updateObjCount(Static87.updateZoneLevel, zoneX, zoneZ);
@@ -2494,6 +2497,7 @@ public final class ServerConnectionReader {
             @Pc(52) int newCount = bitPacket.g2();
 
             if (Static497.objStacks != null) {
+                RspsHudGroundItems.markDirty();
                 @Pc(69) ObjStack stack = (ObjStack) Static497.objStacks.get((Static87.updateZoneLevel << 28) | (z << 14) | x);
 
                 if (stack != null) {
@@ -2637,6 +2641,9 @@ public final class ServerConnectionReader {
 
             if (AreaMode.isOutOfBounds(Static117.areaMode) || zoneX >= 0 && zoneZ >= 0 && Static720.mapWidth > zoneX && Static501.mapLength > zoneZ) {
                 Static553.changeLocation(zoneX, zoneZ, Static87.updateZoneLevel, shape, rotation, layer, id);
+                AvTrace.log("loc add id=" + id + " zone=" + zoneX + "," + zoneZ + " level=" + Static87.updateZoneLevel + " shape=" + shape + " rot=" + rotation);
+            } else {
+                AvTrace.log("loc add ignored (outside map) id=" + id + " zone=" + zoneX + "," + zoneZ);
             }
         } else if (prot == ZoneProt.MAP_PROJANIM_HALFSQ) {
             @Pc(15) int coord = bitPacket.g1();
@@ -2768,6 +2775,7 @@ public final class ServerConnectionReader {
 
             @Pc(1389) ObjStack stack = (ObjStack) Static497.objStacks.get((Static87.updateZoneLevel << 28) | (z << 14) | x);
             if (stack != null) {
+                RspsHudGroundItems.markDirty();
                 for (@Pc(1399) ObjStackEntry entry = (ObjStackEntry) stack.objs.first(); entry != null; entry = (ObjStackEntry) stack.objs.next()) {
                     if (entry.id == (objId & 0x7FFF)) {
                         entry.unlink();
@@ -2837,6 +2845,9 @@ public final class ServerConnectionReader {
 
             if (AreaMode.isOutOfBounds(Static117.areaMode) || zoneX >= 0 && zoneZ >= 0 && zoneX < Static720.mapWidth && zoneZ < Static501.mapLength) {
                 Static553.changeLocation(zoneX, zoneZ, Static87.updateZoneLevel, shape, rotation, layer, -1);
+                AvTrace.log("loc del zone=" + zoneX + "," + zoneZ + " level=" + Static87.updateZoneLevel + " shape=" + shape + " rot=" + rotation + " layer=" + layer);
+            } else {
+                AvTrace.log("loc del ignored (outside map) zone=" + zoneX + "," + zoneZ);
             }
         } else if (ZoneProt.OBJ_ADD == prot) {
             @Pc(15) int coord = bitPacket.g1_alt2();

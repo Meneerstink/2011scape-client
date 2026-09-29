@@ -988,6 +988,7 @@ public final class LoginManager {
         Static346.spotAnimations.clear();
         TextCoordList.textCoords.clear();
         Static497.objStacks.clear();
+        RspsHud.reset();
         Static159.changes = new Deque();
         Static227.customisations = new Deque();
         TimedVarDomain.instance.reset();
