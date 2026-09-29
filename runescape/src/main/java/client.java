@@ -959,6 +959,8 @@ public final class client extends GameShell {
                     Static671.anInt10026++;
                 }
             } else if (type == 0 && Static216.keyPressCount < 75) {
+                // RSPS Ground Items: a double tap of the hotkey hides every label (RuneLite).
+                RspsHudGroundItems.keyPressed(log.getKeyCode(), log.getTime());
                 Static591.AN_KEYBOARD_EVENT_ARRAY_2[Static216.keyPressCount] = log;
                 Static216.keyPressCount++;
             }
@@ -987,6 +989,8 @@ public final class client extends GameShell {
         }
 
         RspsOverlayLayout.tick();
+        // The 78 Plugins sidebar's changes go to the server on this (the game) thread.
+        RspsHud.tickInput();
 
         if (debugconsole.isOpen()) {
             Static668.method8703();

@@ -127,12 +127,8 @@ final class RspsOverlayLayout {
         return entry != null && visible(entry) && x >= entry.x && y >= entry.y && x < entry.x + entry.width && y < entry.y + entry.height;
     }
 
-    /** The panel under (x, y); the settings panel (drawn over the others) wins. */
+    /** The panel under (x, y). */
     private static Entry at(int x, int y) {
-        Entry settings = drawn.get(RspsHudSettings.ID);
-        if (contains(settings, x, y)) {
-            return settings;
-        }
         for (Entry entry : drawn.values()) {
             if (contains(entry, x, y)) {
                 return entry;
@@ -157,12 +153,12 @@ final class RspsOverlayLayout {
         int x = log.getX();
         int y = log.getY();
         int type = log.getType();
-        if (!altHeld()) {
-            // Without Alt only the settings panel reacts to clicks (its checkboxes); every other panel lets clicks through.
-            return RspsHudSettings.click(x, y, type);
-        }
-        if (RspsHudSettings.altButtonClick(x, y, type)) {
+        // Ground Items hotkey (RuneLite, Alt by default): hotkey + click on an item's [-] / [+] box hides / highlights it.
+        if (type == MouseLog.TYPE_PRESS_LEFT && RspsHudConfig.enabled("grounditems") && RspsHudGroundItems.hotkeyHeld() && RspsHudGroundItems.boxClick(x, y)) {
             return true;
+        }
+        if (!altHeld()) {
+            return false;
         }
         Entry entry = at(x, y);
         if (entry == null) {

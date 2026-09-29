@@ -2,10 +2,14 @@ import com.jagex.graphics.Font;
 import com.jagex.graphics.Toolkit;
 
 /**
- * Opponent Information: name, combat level and health of the local player's active opponent. The server decides who
- * that is (its combat target, or the faced pawn after a manual cast) and sends the health every time it changes -
- * damage, food, brews, regeneration, death - so nothing is guessed from hitsplats. Players get the hit-mask ratio as a
- * percentage; NPCs also get exact current/max life points, as RuneLite shows for monsters.
+ * Opponent Information (RuneLite OpponentInfoPlugin / OpponentInfoOverlay): name, combat level and health of the local
+ * player's opponent. The server decides who that is (its combat target, or the faced pawn after a manual cast), keeps the
+ * last one for RuneLite's 5 seconds after the fight ends, and sends the health every time it changes - damage, food,
+ * brews, regeneration, death - so nothing is guessed from hitsplats.
+ *
+ * Settings: "Display style" hitpoints (exact when known - monsters; players only have the hit-mask ratio) / percentage /
+ * both; "Show opponent health overlay"; "Show opponents in menu" (a "*" before the name on the Attack option of an npc
+ * that is your opponent or is attacking you, RuneLite's marker).
  */
 final class RspsHudOpponent {
 
@@ -44,6 +48,17 @@ final class RspsHudOpponent {
         active = false;
     }
 
+    /** RuneLite: marks the Attack option of an npc that is the opponent or is attacking the local player. */
+    static String menuTarget(NPCEntity entity, String option, String target) {
+        if (!RspsHudConfig.enabled("opponent") || !RspsHudConfig.bool("opponent.showOpponentsInMenu") || option == null || !option.equalsIgnoreCase("Attack")) {
+            return target;
+        }
+        boolean opponent = active && npc && index == entity.slot;
+        boolean attackingMe = entity.target == PlayerList.activePlayerSlot + 32768;
+        return opponent || attackingMe ? "*" + target : target;
+    }
+
+
     static final String ID = "opponent";
 
     private static final int HEIGHT = 4 + 14 + 3 + BAR_HEIGHT + 4;
@@ -53,7 +68,7 @@ final class RspsHudOpponent {
 
     /** Panel height for this frame; 0 = no opponent (or not in view). Resolves the name and level for {@link #draw}. */
     static int height() {
-        if (!active) {
+        if (!active || !RspsHudConfig.bool("opponent.showOpponentHealthOverlay")) {
             return 0;
         }
         name = null;
@@ -85,9 +100,9 @@ final class RspsHudOpponent {
         int nameWidth = RspsHud.width(RspsHud.metrics(), name);
         int totalWidth = nameWidth + RspsHud.width(RspsHud.metrics(), levelText);
         int textX = x + Math.max(4, (width - totalWidth) / 2);
-        font.render(name, textX, y + 15, RspsHud.SHADOW, TITLE);
+        RspsHud.text(font, name, textX, y + 15, TITLE, false);
         if (levelText.length() > 0) {
-            font.render(levelText, textX + nameWidth, y + 15, RspsHud.SHADOW, LEVEL);
+            RspsHud.text(font, levelText, textX + nameWidth, y + 15, LEVEL, false);
         }
 
         int barX = x + 4;
@@ -101,31 +116,31 @@ final class RspsHudOpponent {
         font.renderCentre(healthText(), barX + barWidth / 2, barY + 12, TITLE, RspsHud.SHADOW);
     }
 
-    private static String healthText() {
+    /** RuneLite's progress bar label: "cur/max", "pct%" or both - the exact value only when it is known (monsters). */
+    static String healthText() {
         int percent;
         if (maximum > 0) {
             percent = (int) Math.round(100.0 * Math.min(current, maximum) / maximum);
-            if (!RspsHudConfig.opponentExact) {
-                if (percent == 0 && current > 0) {
-                    percent = 1;
-                } else if (percent == 100 && current < maximum) {
-                    percent = 99;
-                }
-                return percent + "%";
-            }
             if (percent == 0 && current > 0) {
                 percent = 1;
             } else if (percent == 100 && current < maximum) {
                 percent = 99;
             }
-            return current + " / " + maximum + " (" + percent + "%)";
+        } else {
+            percent = (int) Math.round(100.0 * ratio / 255.0);
+            if (percent == 0 && ratio > 0) {
+                percent = 1;
+            } else if (percent == 100 && ratio < 255) {
+                percent = 99;
+            }
         }
-        percent = (int) Math.round(100.0 * ratio / 255.0);
-        if (percent == 0 && ratio > 0) {
-            percent = 1;
-        } else if (percent == 100 && ratio < 255) {
-            percent = 99;
+        String style = RspsHudConfig.get("opponent.hitpointsDisplayStyle");
+        if (maximum <= 0 || style.equals("PERCENTAGE")) {
+            return percent + "%";
         }
-        return percent + "%";
+        if (style.equals("BOTH")) {
+            return current + "/" + maximum + " (" + percent + "%)";
+        }
+        return current + "/" + maximum;
     }
 }

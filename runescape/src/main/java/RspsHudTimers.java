@@ -1,21 +1,22 @@
-import com.jagex.graphics.Font;
-
 /**
- * Timers & Buffs, PK subset: Vengeance primed, Vengeance cooldown, Teleblock and the local player's own freeze/bind. All
- * four are the server's live state (VENGEANCE_ACTIVE_ATTR and the VENGEANCE_COOLDOWN, TELEBLOCK_TIMER and FROZEN_TIMER
+ * Timers & Buffs, PK subset (RuneLite TimersAndBuffsPlugin: showVengeance, showVengeanceActive, showTeleblock,
+ * showFreezes), shown as RuneLite shows timers: infoboxes. Vengeance active is an indicator (the Vengeance Other icon, as
+ * RuneLite's VENGEANCE_ACTIVE), the others count down in m:ss, white, bright red for the last 10 % (RuneLite Timer).
+ *
+ * All four are the server's live state (VENGEANCE_ACTIVE_ATTR and the VENGEANCE_COOLDOWN, TELEBLOCK_TIMER and FROZEN_TIMER
  * timers) resent whenever they change, so a shortened Teleblock, a freeze broken by distance, a death or a relog show
- * exactly what the server has. Vengeance "active" is a state, not a countdown: it lasts until the next hit taken.
+ * exactly what the server has.
  */
 final class RspsHudTimers {
 
-    private static final int ACTIVE = 0xFF00FF00;
-    private static final int NORMAL = 0xFFFFFFFF;
-    private static final int LINE = 15;
+    private static final int WHITE = 0xFFFFFFFF;
+    /** java.awt.Color.RED.brighter(): RuneLite's colour for the last 10 % of a timer. */
+    private static final int RED = 0xFFFF0000;
 
     private static boolean vengeanceActive;
-    private static long vengeanceCooldownEnd = -1L;
-    private static long teleblockEnd = -1L;
-    private static long frozenEnd = -1L;
+    /** End and total duration of each timer: vengeance cooldown, teleblock, frozen. */
+    private static final long[] ends = {-1L, -1L, -1L};
+    private static final long[] totals = {1L, 1L, 1L};
 
     private RspsHudTimers() {
     }
@@ -23,66 +24,56 @@ final class RspsHudTimers {
     static void update(String rest) {
         String[] parts = rest.split("\\|");
         vengeanceActive = parts[0].equals("1");
-        vengeanceCooldownEnd = RspsHud.endTime(Integer.parseInt(parts[1]));
-        teleblockEnd = RspsHud.endTime(Integer.parseInt(parts[2]));
-        frozenEnd = RspsHud.endTime(Integer.parseInt(parts[3]));
+        long now = RspsHud.now();
+        for (int i = 0; i < 3; i++) {
+            long end = RspsHud.endTime(Integer.parseInt(parts[i + 1]));
+            // A timer that (re)starts - none before, or later than the running one: its full length is from now.
+            if (end > 0L && (ends[i] <= now || end > ends[i] + 1_000L)) {
+                totals[i] = Math.max(1L, end - now);
+            }
+            ends[i] = end;
+        }
     }
 
     static void reset() {
         vengeanceActive = false;
-        vengeanceCooldownEnd = -1L;
-        teleblockEnd = -1L;
-        frozenEnd = -1L;
-    }
-
-    private static boolean running(long end) {
-        return end > 0L && end > RspsHud.now();
-    }
-
-    static final String ID = "timers";
-
-    /** Panel height for this frame; 0 = nothing to show. */
-    private static boolean showVengeance() {
-        return vengeanceActive && RspsHudConfig.timerVengeance;
-    }
-
-    private static boolean show(long end, boolean on) {
-        return on && running(end);
-    }
-
-    static int height() {
-        int lines = (showVengeance() ? 1 : 0) + (show(vengeanceCooldownEnd, RspsHudConfig.timerVengeanceCooldown) ? 1 : 0)
-            + (show(teleblockEnd, RspsHudConfig.timerTeleblock) ? 1 : 0) + (show(frozenEnd, RspsHudConfig.timerFrozen) ? 1 : 0);
-        return lines == 0 ? 0 : lines * LINE + 6;
-    }
-
-    static void draw(int x, int y, int height) {
-        RspsHud.box(x, y, RspsHud.PANEL_WIDTH, height);
-        Font font = RspsHud.font();
-        int baseline = y + LINE;
-        int right = x + RspsHud.PANEL_WIDTH - 4;
-        if (showVengeance()) {
-            font.render("Vengeance", x + 4, baseline, RspsHud.SHADOW, NORMAL);
-            font.renderRight("ACTIVE", right, baseline, ACTIVE, RspsHud.SHADOW);
-            baseline += LINE;
-        }
-        if (RspsHudConfig.timerVengeanceCooldown) {
-            baseline = line(font, "Vengeance CD", vengeanceCooldownEnd, x, right, baseline);
-        }
-        if (RspsHudConfig.timerTeleblock) {
-            baseline = line(font, "Teleblock", teleblockEnd, x, right, baseline);
-        }
-        if (RspsHudConfig.timerFrozen) {
-            line(font, "Frozen", frozenEnd, x, right, baseline);
+        for (int i = 0; i < 3; i++) {
+            ends[i] = -1L;
+            totals[i] = 1L;
         }
     }
 
-    private static int line(Font font, String label, long end, int x, int right, int baseline) {
-        if (!running(end)) {
-            return baseline;
+    private static void timer(int index, int sprite) {
+        long left = ends[index] - RspsHud.now();
+        if (ends[index] <= 0L || left <= 0L) {
+            return;
         }
-        font.render(label, x + 4, baseline, RspsHud.SHADOW, NORMAL);
-        font.renderRight(RspsHud.countdown(end), right, baseline, NORMAL, RspsHud.SHADOW);
-        return baseline + LINE;
+        int colour = left < totals[index] / 10L ? RED : WHITE;
+        RspsInfoBoxes.add(sprite, RspsHud.countdown(ends[index]), colour);
+    }
+
+    /** Infoboxes of this frame. */
+    static void addInfoboxes() {
+        if (vengeanceActive && RspsHudConfig.bool("timers.showVengeanceActive")) {
+            RspsInfoBoxes.add(RspsSprites.VENGEANCE_OTHER, "", WHITE);
+        }
+        if (RspsHudConfig.bool("timers.showVengeance")) {
+            timer(0, RspsSprites.VENGEANCE);
+        }
+        if (RspsHudConfig.bool("timers.showTeleblock")) {
+            timer(1, RspsSprites.TELE_BLOCK);
+        }
+        if (RspsHudConfig.bool("timers.showFreezes")) {
+            timer(2, RspsSprites.ICE_BARRAGE);
+        }
+    }
+
+    /** Tests: 0 vengeance cooldown, 1 teleblock, 2 frozen - whether it is running now. */
+    static boolean showing(int index) {
+        return ends[index] > RspsHud.now();
+    }
+
+    static boolean vengeanceActive() {
+        return vengeanceActive;
     }
 }

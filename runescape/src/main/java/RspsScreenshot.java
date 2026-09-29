@@ -34,6 +34,12 @@ public final class RspsScreenshot {
         try {
             Point at = canvas.getLocationOnScreen();
             Rectangle area = new Rectangle(at.x, at.y, canvas.getWidth(), canvas.getHeight());
+            // "window_..." takes the whole client window, e.g. with the 78 Plugins sidebar next to the game view.
+            java.awt.Window window = name.startsWith("window_") ? javax.swing.SwingUtilities.getWindowAncestor(canvas) : null;
+            if (window != null && window.isShowing()) {
+                Point w = window.getLocationOnScreen();
+                area = new Rectangle(w.x, w.y, window.getWidth(), window.getHeight());
+            }
             BufferedImage image = new Robot().createScreenCapture(area);
             File dir = new File("C:/RSPS/screens");
             if (!dir.isDirectory() && !dir.mkdirs()) {

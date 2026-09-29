@@ -482,8 +482,26 @@ public final class MiniMenu {
                         @Pc(1406) ObjStack local1406 = (ObjStack) Static497.objStacks.get(local614 << 14 | local543.aEntity_18.level << 28 | local1385);
                         if (local1406 != null) {
                             local295 = 0;
+                            // RSPS Ground Items "Collapse ground item menu": one set of options per item id, " x N" appended.
+                            java.util.Map<Integer, Integer> rspsCollapsed = null;
+                            if (RspsHudGroundItems.collapse()) {
+                                rspsCollapsed = new java.util.HashMap<Integer, Integer>();
+                                for (ObjStackEntry e = (ObjStackEntry) local1406.objs.first(); e != null; e = (ObjStackEntry) local1406.objs.next()) {
+                                    Integer seen = rspsCollapsed.get(e.id);
+                                    rspsCollapsed.put(e.id, seen == null ? 1 : seen + 1);
+                                }
+                            }
                             for (@Pc(1416) ObjStackEntry local1416 = (ObjStackEntry) local1406.objs.last(); local1416 != null; local1416 = (ObjStackEntry) local1406.objs.previous()) {
                                 @Pc(1424) ObjType local1424 = ObjTypeList.instance.list(local1416.id);
+                                int rspsCollapsedCount = 1;
+                                if (rspsCollapsed != null) {
+                                    Integer times = rspsCollapsed.remove(local1416.id);
+                                    if (times == null) {
+                                        local295++;
+                                        continue;
+                                    }
+                                    rspsCollapsedCount = times;
+                                }
                                 if (InterfaceManager.targetMode && PlayerEntity.self.level == local543.aEntity_18.level) {
                                     @Pc(1451) ParamType local1451 = InterfaceManager.targetParam == -1 ? null : ParamTypeList.instance.list(InterfaceManager.targetParam);
                                     if ((InterfaceManager.targetMask & 0x1) != 0 && (local1451 == null || local1424.param(InterfaceManager.targetParam, local1451.defaultint) != local1451.defaultint)) {
@@ -520,7 +538,11 @@ public final class MiniMenu {
                                             if (local723 == local1424.cursor2op) {
                                                 local864 = local1424.cursor2;
                                             }
-                                            addEntryInner(false, -1, local1416.id, local186, local584, local1525[local723], local1540, true, local864, "<col=ff9040>" + local1424.name + RspsDev.tag(local1416.id), local295, false);
+                                            // RSPS Ground Items: option / name colours, quantity, deprioritised hidden items (menu action + 2000).
+                                            int rspsLevel = local543.aEntity_18.level;
+                                            int rspsAction = local1540 + (RspsHudGroundItems.deprioritize(rspsLevel, local1385, local614, local1416.id) ? 2000 : 0);
+                                            addEntryInner(false, -1, local1416.id, local186, local584, RspsHudGroundItems.menuOption(rspsLevel, local1385, local614, local1416.id, local1525[local723]), rspsAction, true, local864,
+                                                RspsHudGroundItems.menuTarget(rspsLevel, local1385, local614, local1416.id, local1424.name, local1416.count, rspsCollapsedCount) + RspsDev.tag(local1416.id), local295, false);
                                         }
                                     }
                                 }
@@ -872,7 +894,7 @@ public final class MiniMenu {
                     cursor = type.cursor2;
                 }
 
-                addEntryInner(false, -1, npc.slot, 0, 0, ops[op], action, true, ops[op].equalsIgnoreCase(LocalisedText.ATTACK.localise(Client.language)) ? type.attackCursor : cursor, "<col=ffff00>" + npcName + RspsDev.tag(type.id), npc.slot, false);
+                addEntryInner(false, -1, npc.slot, 0, 0, ops[op], action, true, ops[op].equalsIgnoreCase(LocalisedText.ATTACK.localise(Client.language)) ? type.attackCursor : cursor, RspsHudOpponent.menuTarget(npc, ops[op], "<col=ffff00>" + npcName) + RspsDev.tag(type.id), npc.slot, false);
             }
         }
 
@@ -916,7 +938,7 @@ public final class MiniMenu {
                         cursor = type.cursor2;
                     }
 
-                    addEntryInner(false, -1, npc.slot, 0, 0, ops[op], action, true, ops[op].equalsIgnoreCase(LocalisedText.ATTACK.localise(Client.language)) ? type.attackCursor : cursor, "<col=ffff00>" + npcName + RspsDev.tag(type.id), npc.slot, false);
+                    addEntryInner(false, -1, npc.slot, 0, 0, ops[op], action, true, ops[op].equalsIgnoreCase(LocalisedText.ATTACK.localise(Client.language)) ? type.attackCursor : cursor, RspsHudOpponent.menuTarget(npc, ops[op], "<col=ffff00>" + npcName) + RspsDev.tag(type.id), npc.slot, false);
                 }
             }
         }

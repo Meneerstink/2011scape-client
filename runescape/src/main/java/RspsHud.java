@@ -3,12 +3,16 @@ import com.jagex.graphics.FontMetrics;
 import com.jagex.graphics.Fonts;
 import com.jagex.graphics.Toolkit;
 
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 /**
  * RuneLite-style information overlays (owner 2026-09-29): Boosts Information, Opponent Information, Ground Items and
- * Timers & Buffs. This class is the feature manager: it receives the server's state on the RSPS side channel
- * ({@link #PREFIX} console messages, handled in ServerConnectionReader next to {@code __RSPS_DEV__:}), resets everything
- * on login/logout, and is called once per frame from the scene pass (Static294, right after the native entity overlays)
- * with the viewport rectangle. Each feature keeps its own state and draws itself; nothing here acts for the player.
+ * Timers & Buffs, with RuneLite's own settings in the 78 Plugins sidebar (RspsSidebar). This class is the feature
+ * manager: it receives the server's state on the RSPS side channel ({@link #PREFIX} console messages, handled in
+ * ServerConnectionReader next to {@code __RSPS_DEV__:}), resets everything on login/logout, sends the sidebar's changes
+ * to the server on the game thread, and is called once per frame from the scene pass (Static294, right after the native
+ * entity overlays) with the viewport rectangle. Each feature keeps its own state and draws itself; nothing here acts for
+ * the player.
  *
  * Payloads are documented on the server in {@code gg.rsmod.game.model.hud.ClientHud}.
  */
@@ -25,6 +29,11 @@ final class RspsHud {
     static final int PANEL_WIDTH = 129;
     static final int PANEL_GAP = 4;
     static final int SHADOW = 0xFF000000;
+    /** Game-message colour of a notification (RuneLite posts its notifications to the chat as well). */
+    private static final String NOTIFY_COLOUR = "<col=ef1020>";
+
+    /** Commands from the sidebar (Swing thread), sent on the game thread by {@link #tickInput}. */
+    private static final ConcurrentLinkedQueue<String> commands = new ConcurrentLinkedQueue<String>();
 
     private RspsHud() {
     }
@@ -37,6 +46,7 @@ final class RspsHud {
             if (kind.equals("cfg") || kind.equals("hl") || kind.equals("hide")) {
                 RspsHudConfig.handle(kind, rest);
                 RspsHudGroundItems.markDirty();
+                RspsSidebar.refreshLater();
             } else if (kind.equals("boost")) {
                 RspsHudBoosts.update(rest);
             } else if (kind.equals("opp")) {
@@ -45,13 +55,12 @@ final class RspsHud {
                 RspsHudTimers.update(rest);
             } else if (kind.equals("gi")) {
                 RspsHudGroundItems.update(rest);
+            } else if (kind.equals("gdelay")) {
+                RspsHudGroundItems.setDespawnTicks(Integer.parseInt(rest));
             } else if (kind.equals("open")) {
-                RspsHudSettings.open();
-                if (rest.length() > 0) {
-                    RspsHudSettings.view = rest;
-                }
+                RspsSidebar.openLater(rest.length() > 0 ? rest : null);
             } else if (kind.equals("close")) {
-                RspsHudSettings.close();
+                RspsSidebar.closeLater();
             }
         } catch (RuntimeException malformed) {
             // A malformed payload must never break the packet loop; the next update replaces the state anyway.
@@ -64,7 +73,52 @@ final class RspsHud {
         RspsHudOpponent.reset();
         RspsHudTimers.reset();
         RspsHudGroundItems.reset();
-        RspsHudSettings.close();
+        commands.clear();
+    }
+
+    /** Queues a `hud ...` command for the server (any thread); it goes out on the next client cycle. */
+    static void command(String command) {
+        commands.add(command);
+    }
+
+    /** Last command sent (tests). */
+    static String lastSent;
+
+    /** Client input loop (game thread): sends the queued commands while in game. */
+    static void tickInput() {
+        if (!com.jagex.core.constants.MainLogicStep.isAtGameScreen(MainLogicManager.step)) {
+            return;
+        }
+        for (String command = commands.poll(); command != null; command = commands.poll()) {
+            lastSent = command;
+            try {
+                RspsDev.send(command);
+            } catch (RuntimeException notConnected) {
+                // Reconnecting: the server's login push restores the saved values anyway.
+            }
+        }
+    }
+
+    /** Tests: sends what is queued without a game connection. */
+    static String drainForTest() {
+        String last = null;
+        for (String command = commands.poll(); command != null; command = commands.poll()) {
+            last = command;
+        }
+        return last;
+    }
+
+    /** A RuneLite notification: here a game message in the chatbox. */
+    /** Last notification (tests). */
+    static String lastNotification;
+
+    static void notify(String message) {
+        lastNotification = message;
+        try {
+            ChatHistory.add(0, 0, "", "", "", NOTIFY_COLOUR + message);
+        } catch (RuntimeException noChat) {
+            // Not in game: nothing to show it in.
+        }
     }
 
     /** Height of the mouse-over text line ("Walk here / 5 more options", b12 at optionsY + 16) plus a gap. */
@@ -72,14 +126,14 @@ final class RspsHud {
 
     /**
      * Called from the scene pass while the scene camera is still set, clipped to the viewport. The panels stack at the
-     * top-left of the game view, below the mouse-over text; a panel the player moved (Alt + drag) keeps its own spot and
-     * leaves the stack.
+     * top-left of the game view, below the mouse-over text - Opponent, Boosts, then the infobox row (Timers & Buffs and
+     * the boost infoboxes); a panel the player moved (Alt + drag) keeps its own spot and leaves the stack.
      */
     static void render(int x, int y, int width, int height) {
         if (Toolkit.active == null || PlayerEntity.self == null) {
             return;
         }
-        if (RspsHudConfig.groundItems) {
+        if (RspsHudConfig.enabled("grounditems")) {
             RspsHudGroundItems.render(x, y);
         }
         int top = y + PANEL_GAP;
@@ -87,31 +141,36 @@ final class RspsHud {
             top = Math.max(top, InterfaceManager.optionsY + HOVER_TEXT_CLEARANCE);
         }
         int stackY = top;
-        if (RspsHudConfig.opponent) {
-            stackY = panel(RspsHudOpponent.ID, RspsHudOpponent.height(), x, y, width, height, stackY);
+        if (RspsHudConfig.enabled("opponent")) {
+            stackY = panel(RspsHudOpponent.ID, PANEL_WIDTH, RspsHudOpponent.height(), x, y, width, height, stackY);
         }
-        if (RspsHudConfig.boosts) {
-            stackY = panel(RspsHudBoosts.ID, RspsHudBoosts.height(), x, y, width, height, stackY);
+        RspsInfoBoxes.clear();
+        if (RspsHudConfig.enabled("boosts")) {
+            RspsHudBoosts.checkThreshold();
+            stackY = panel(RspsHudBoosts.ID, RspsHudBoosts.width(), RspsHudBoosts.height(), x, y, width, height, stackY);
+            RspsHudBoosts.addInfoboxes();
         }
-        if (RspsHudConfig.timers) {
-            panel(RspsHudTimers.ID, RspsHudTimers.height(), x, y, width, height, stackY);
+        if (RspsHudConfig.enabled("timers")) {
+            RspsHudTimers.addInfoboxes();
         }
-        RspsHudSettings.render(x, y, width, height, top);
+        if (RspsInfoBoxes.count() > 0) {
+            panel(RspsInfoBoxes.ID, RspsInfoBoxes.width(), RspsInfoBoxes.SIZE, x, y, width, height, stackY);
+        }
     }
 
     /** Places and draws one panel; returns the next free y of the default stack. */
-    private static int panel(String id, int panelHeight, int viewX, int viewY, int viewWidth, int viewHeight, int stackY) {
-        if (panelHeight <= 0) {
+    private static int panel(String id, int panelWidth, int panelHeight, int viewX, int viewY, int viewWidth, int viewHeight, int stackY) {
+        if (panelHeight <= 0 || panelWidth <= 0) {
             return stackY;
         }
         boolean moved = RspsOverlayLayout.isMoved(id);
-        int[] at = RspsOverlayLayout.place(id, viewX + PANEL_GAP, stackY, PANEL_WIDTH, panelHeight, viewX, viewY, viewWidth, viewHeight);
+        int[] at = RspsOverlayLayout.place(id, viewX + PANEL_GAP, stackY, panelWidth, panelHeight, viewX, viewY, viewWidth, viewHeight);
         if (id.equals(RspsHudOpponent.ID)) {
             RspsHudOpponent.draw(at[0], at[1]);
         } else if (id.equals(RspsHudBoosts.ID)) {
             RspsHudBoosts.draw(at[0], at[1], panelHeight);
         } else {
-            RspsHudTimers.draw(at[0], at[1], panelHeight);
+            RspsInfoBoxes.draw(at[0], at[1]);
         }
         RspsOverlayLayout.decorate(id);
         return moved ? stackY : stackY + panelHeight + PANEL_GAP;
@@ -126,7 +185,7 @@ final class RspsHud {
         return ticks <= 0 ? -1L : now() + ticks * TICK_MS;
     }
 
-    /** m:ss until {@code endMs}, rounded up like a countdown (never below 0:00). */
+    /** m:ss until {@code endMs}, rounded up like a countdown (never below 0:00) - RuneLite Timer "%d:%02d". */
     static String countdown(long endMs) {
         long left = Math.max(0L, endMs - now());
         long seconds = (left + 999L) / 1000L;
@@ -144,6 +203,19 @@ final class RspsHud {
 
     static int width(FontMetrics metrics, String text) {
         return metrics == null ? text.length() * 6 : metrics.stringWidth(text);
+    }
+
+    /** Text with RuneLite's shadow, or with a one-pixel black outline instead ("Text outline"). */
+    static void text(Font font, String text, int x, int y, int colour, boolean outline) {
+        if (outline) {
+            font.render(text, x - 1, y, 0, SHADOW);
+            font.render(text, x + 1, y, 0, SHADOW);
+            font.render(text, x, y - 1, 0, SHADOW);
+            font.render(text, x, y + 1, 0, SHADOW);
+            font.render(text, x, y, 0, colour);
+        } else {
+            font.render(text, x, y, SHADOW, colour);
+        }
     }
 
     /** RuneLite-style panel box: translucent brown fill and a thin dark outline. */
