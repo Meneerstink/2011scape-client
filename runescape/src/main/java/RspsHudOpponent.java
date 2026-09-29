@@ -44,17 +44,23 @@ final class RspsHudOpponent {
         active = false;
     }
 
-    /** @return the y below the panel (unchanged when nothing is drawn) */
-    static int render(int x, int y) {
+    static final String ID = "opponent";
+
+    private static final int HEIGHT = 4 + 14 + 3 + BAR_HEIGHT + 4;
+
+    private static String name;
+    private static int level;
+
+    /** Panel height for this frame; 0 = no opponent (or not in view). Resolves the name and level for {@link #draw}. */
+    static int height() {
         if (!active) {
-            return y;
+            return 0;
         }
-        String name;
-        int level;
+        name = null;
         if (npc) {
             NPCEntityNode node = (NPCEntityNode) NPCList.local.get(index);
             if (node == null || node.npc == null) {
-                return y;
+                return 0;
             }
             NPCEntity entity = node.npc;
             name = entity.name != null ? entity.name : entity.type == null ? null : entity.type.name;
@@ -62,23 +68,23 @@ final class RspsHudOpponent {
         } else {
             PlayerEntity entity = index >= 0 && index < PlayerList.highResolutionPlayers.length ? PlayerList.highResolutionPlayers[index] : null;
             if (entity == null) {
-                return y;
+                return 0;
             }
             name = entity.displayName;
             level = entity.combatLevel;
         }
-        if (name == null) {
-            return y;
-        }
+        return name == null ? 0 : HEIGHT;
+    }
+
+    static void draw(int x, int y) {
         Font font = RspsHud.font();
         int width = RspsHud.PANEL_WIDTH;
-        int height = 4 + 14 + 3 + BAR_HEIGHT + 4;
-        RspsHud.box(x, y, width, height);
+        RspsHud.box(x, y, width, HEIGHT);
 
         String levelText = level > 0 ? " (level-" + level + ")" : "";
         int nameWidth = RspsHud.width(RspsHud.metrics(), name);
         int totalWidth = nameWidth + RspsHud.width(RspsHud.metrics(), levelText);
-        int textX = x + (width - totalWidth) / 2;
+        int textX = x + Math.max(4, (width - totalWidth) / 2);
         font.render(name, textX, y + 15, RspsHud.SHADOW, TITLE);
         if (levelText.length() > 0) {
             font.render(levelText, textX + nameWidth, y + 15, RspsHud.SHADOW, LEVEL);
@@ -93,7 +99,6 @@ final class RspsHudOpponent {
             Toolkit.active.fillRect(barX, barY, filled, BAR_HEIGHT, HP_GREEN);
         }
         font.renderCentre(healthText(), barX + barWidth / 2, barY + 12, TITLE, RspsHud.SHADOW);
-        return y + height + RspsHud.PANEL_GAP;
     }
 
     private static String healthText() {

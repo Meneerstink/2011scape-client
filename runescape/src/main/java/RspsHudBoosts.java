@@ -35,8 +35,13 @@ final class RspsHudBoosts {
         restoreEnd = -1L;
     }
 
-    /** @return the y below the panel (unchanged when nothing is drawn) */
-    static int render(int x, int y) {
+    static final String ID = "boosts";
+
+    private static boolean decayLine;
+    private static boolean restoreLine;
+
+    /** Panel height for this frame; 0 = nothing to show. */
+    static int height() {
         int rows = 0;
         boolean anyBoost = false;
         boolean anyDrain = false;
@@ -48,18 +53,22 @@ final class RspsHudBoosts {
                 rows++;
             }
         }
-        boolean decayLine = anyBoost && decayEnd > 0L;
-        boolean restoreLine = anyDrain && restoreEnd > 0L;
+        decayLine = anyBoost && decayEnd > 0L;
+        restoreLine = anyDrain && restoreEnd > 0L;
         if (rows == 0) {
-            return y;
+            return 0;
         }
         int lines = rows + (decayLine ? 1 : 0) + (restoreLine ? 1 : 0);
-        int height = lines * LINE + 6;
+        return lines * LINE + 6;
+    }
+
+    static void draw(int x, int y, int height) {
         RspsHud.box(x, y, RspsHud.PANEL_WIDTH, height);
         Font font = RspsHud.font();
         FontMetrics metrics = RspsHud.metrics();
-        int baseline = y + 3 + LINE - 3;
+        int baseline = y + LINE;
         int right = x + RspsHud.PANEL_WIDTH - 4;
+        int relativeWidth = RspsHud.width(metrics, "+99");
         for (int i = 0; i < SKILLS.length; i++) {
             int current = Static581.statLevels[SKILLS[i]];
             int base = Static498.statBaseLevels[SKILLS[i]];
@@ -70,7 +79,6 @@ final class RspsHudBoosts {
             int colour = diff > 0 ? BOOSTED : diff < 0 ? DRAINED : NORMAL;
             font.render(NAMES[i], x + 4, baseline, RspsHud.SHADOW, NORMAL);
             String relative = diff > 0 ? "+" + diff : diff < 0 ? Integer.toString(diff) : "";
-            int relativeWidth = RspsHud.width(metrics, "+99");
             font.renderRight(relative, right, baseline, colour, RspsHud.SHADOW);
             font.renderRight(current + "/" + base, right - relativeWidth - 4, baseline, colour, RspsHud.SHADOW);
             baseline += LINE;
@@ -84,6 +92,5 @@ final class RspsHudBoosts {
             font.render("Stat restore", x + 4, baseline, RspsHud.SHADOW, NORMAL);
             font.renderRight(RspsHud.countdown(restoreEnd), right, baseline, NORMAL, RspsHud.SHADOW);
         }
-        return y + height + RspsHud.PANEL_GAP;
     }
 }

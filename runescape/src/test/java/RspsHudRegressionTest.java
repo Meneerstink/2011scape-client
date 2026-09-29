@@ -1,3 +1,10 @@
+import rs2.client.event.keyboard.KeyLog;
+import rs2.client.event.keyboard.KeyboardMonitor;
+import rs2.client.event.mouse.MouseLog;
+import rs2.client.event.mouse.MouseMonitor;
+
+import java.io.File;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.function.IntFunction;
 
@@ -14,6 +21,8 @@ public final class RspsHudRegressionTest {
         settings();
         countdowns();
         groundItems();
+        layout();
+        settingsPanel();
         System.out.println("RSPS HUD regression checks passed: " + assertions);
     }
 
@@ -149,6 +158,127 @@ public final class RspsHudRegressionTest {
         check(RspsHudGroundItems.describe().contains("0,3203,3200 0 Abyssal whip #ffff9600"), "value text off, tier colour kept: " + RspsHudGroundItems.describe());
         Static497.objStacks.clear();
         RspsHud.reset();
+    }
+
+    // ---- movable panels (Alt + drag) and the 78 Plugins panel ---------------------------------------------------------
+
+    private static final class Keys extends KeyboardMonitor {
+        boolean alt;
+        @Override public KeyLog removeFirstRecorded() { return null; }
+        @Override public boolean isPressed(int keyCode) { return alt && keyCode == RspsOverlayLayout.KEY_ALT; }
+        @Override public void record() { }
+        @Override public void remove() { }
+    }
+
+    private static final class Mouse extends MouseMonitor {
+        int x;
+        int y;
+        boolean left;
+        @Override public void record() { }
+        @Override public boolean isLeftDown() { return left; }
+        @Override public boolean isRightDown() { return false; }
+        @Override public boolean isMiddleDown() { return false; }
+        @Override public void remove() { }
+        @Override public MouseLog removeFirstLog() { return null; }
+        @Override public int getRecordedX() { return x; }
+        @Override public int getRecordedY() { return y; }
+    }
+
+    private static MouseLog press(final int type, final int x, final int y) {
+        return new MouseLog() {
+            @Override public int getType() { return type; }
+            @Override public int getX() { return x; }
+            @Override public int getExtra() { return 1; }
+            @Override public int getY() { return y; }
+            @Override public long getTime() { return 0L; }
+        };
+    }
+
+    private static void layout() {
+        try {
+            File dir = Files.createTempDirectory("rsps-overlays").toFile();
+            System.setProperty("rsps.preferencesDir", dir.getAbsolutePath());
+        } catch (java.io.IOException e) {
+            throw new AssertionError(e);
+        }
+        RspsOverlayLayout.reloadForTest();
+        Keys keys = new Keys();
+        Mouse mouse = new Mouse();
+        KeyboardMonitor.instance = keys;
+        MouseMonitor.instance = mouse;
+
+        int[] at = RspsOverlayLayout.place("boosts", 4, 30, 129, 100, 0, 0, 800, 600);
+        check(at[0] == 4 && at[1] == 30, "unmoved panel: default spot");
+        at = RspsOverlayLayout.place("far", 790, 590, 129, 100, 0, 0, 800, 600);
+        check(at[0] == 671 && at[1] == 500, "a panel never leaves its area");
+
+        // Without Alt a press on a panel goes to the game.
+        check(!RspsOverlayLayout.mousePress(press(MouseLog.TYPE_PRESS_LEFT, 10, 40)), "no Alt: the click reaches the game");
+
+        // Alt + left press on the panel starts a drag and is taken from the game.
+        keys.alt = true;
+        mouse.x = 10;
+        mouse.y = 40;
+        mouse.left = true;
+        check(RspsOverlayLayout.mousePress(press(MouseLog.TYPE_PRESS_LEFT, 10, 40)), "Alt + press on a panel is taken");
+        check(!RspsOverlayLayout.mousePress(press(MouseLog.TYPE_PRESS_LEFT, 500, 300)), "Alt + press on empty scene still reaches the game");
+        mouse.x = 300;
+        mouse.y = 200;
+        RspsOverlayLayout.tick();
+        at = RspsOverlayLayout.place("boosts", 4, 30, 129, 100, 0, 0, 800, 600);
+        check(at[0] == 294 && at[1] == 190, "while dragging the panel follows the mouse, grab point kept: " + at[0] + "," + at[1]);
+        mouse.left = false;
+        RspsOverlayLayout.tick();
+        check(RspsOverlayLayout.isMoved("boosts"), "released: the panel keeps its new spot");
+        File file = RspsOverlayLayout.file();
+        check(file.isFile(), "position saved to " + file);
+
+        // A new session reads it back; a smaller window clamps it inside.
+        RspsOverlayLayout.reloadForTest();
+        at = RspsOverlayLayout.place("boosts", 4, 30, 129, 100, 0, 0, 800, 600);
+        check(at[0] == 294 && at[1] == 190, "position survives a restart");
+        at = RspsOverlayLayout.place("boosts", 4, 30, 129, 100, 0, 0, 300, 200);
+        check(at[0] == 171 && at[1] == 100, "a smaller game view clamps the moved panel inside: " + at[0] + "," + at[1]);
+
+        // Alt + right-click puts it back.
+        at = RspsOverlayLayout.place("boosts", 4, 30, 129, 100, 0, 0, 800, 600);
+        check(RspsOverlayLayout.mousePress(press(MouseLog.TYPE_PRESS_RIGHT, at[0] + 5, at[1] + 5)), "Alt + right-click on a panel is taken");
+        at = RspsOverlayLayout.place("boosts", 4, 30, 129, 100, 0, 0, 800, 600);
+        check(at[0] == 4 && at[1] == 30 && !RspsOverlayLayout.isMoved("boosts"), "Alt + right-click: back on the default spot");
+
+        // Reset all.
+        RspsOverlayLayout.dropForTest("boosts", 100, 100);
+        check(RspsOverlayLayout.isMoved("boosts"), "moved again");
+        RspsOverlayLayout.resetAll();
+        check(!RspsOverlayLayout.isMoved("boosts"), "reset all positions");
+        keys.alt = false;
+    }
+
+    private static void settingsPanel() {
+        RspsHud.handle("cfg|1011111|20000,100000,1000000,10000000|ffffff,66b2ff,99ff99,ff9600,ff66b2,aa00ff");
+        RspsHud.handle("open");
+        check(RspsHudSettings.isOpen(), "open payload (hud command) opens the panel");
+        RspsHudSettings.layoutForTest(100, 100);
+        int firstRow = 100 + 20 + 2;
+        check(RspsHudSettings.click(150, firstRow + 5, MouseLog.TYPE_PRESS_LEFT), "a click on a row is taken");
+        check(!RspsHudConfig.boosts && "hud boosts off".equals(RspsHudSettings.lastSent), "row 1 switches Boosts off and saves it: " + RspsHudSettings.lastSent);
+        RspsHudSettings.click(150, firstRow + 17 + 5, MouseLog.TYPE_PRESS_LEFT);
+        check(RspsHudConfig.boostsAll && "hud boosts all".equals(RspsHudSettings.lastSent), "row 2: all five stats");
+        RspsHudSettings.click(150, firstRow + 3 * 17 + 5, MouseLog.TYPE_PRESS_LEFT);
+        check(!RspsHudConfig.groundItems && "hud grounditems off".equals(RspsHudSettings.lastSent), "row 4: Ground Items off");
+        RspsHudSettings.click(150, firstRow + 6 * 17 + 5, MouseLog.TYPE_PRESS_LEFT);
+        check(!RspsHudConfig.timers && "hud timers off".equals(RspsHudSettings.lastSent), "row 7: Timers & Buffs off");
+        RspsHudSettings.click(150, firstRow + 6 * 17 + 5, MouseLog.TYPE_PRESS_LEFT);
+        check(RspsHudConfig.timers && "hud timers on".equals(RspsHudSettings.lastSent), "and on again");
+        check(RspsHudSettings.click(150, 110, MouseLog.TYPE_PRESS_RIGHT), "a right-click on the panel does not reach the game");
+        check(!RspsHudSettings.click(20, 20, MouseLog.TYPE_PRESS_LEFT), "a click beside the panel reaches the game");
+        check(RspsHudSettings.click(100 + 196 - 8, 110, MouseLog.TYPE_PRESS_LEFT) && !RspsHudSettings.isOpen(), "the x closes the panel");
+        check(!RspsHudSettings.click(150, firstRow + 5, MouseLog.TYPE_PRESS_LEFT), "a closed panel takes no clicks");
+        RspsHud.handle("open");
+        RspsHud.handle("close");
+        check(!RspsHudSettings.isOpen(), "close payload");
+        RspsHud.handle("cfg|1011111|20000,100000,1000000,10000000|ffffff,66b2ff,99ff99,ff9600,ff66b2,aa00ff");
+        check(RspsHudConfig.boosts && !RspsHudConfig.boostsAll && RspsHudConfig.groundItems, "the server push is the final word");
     }
 
     private static String joined(List<String> list) {

@@ -39,13 +39,15 @@ final class RspsHudTimers {
         return end > 0L && end > RspsHud.now();
     }
 
-    /** @return the y below the panel (unchanged when nothing is drawn) */
-    static int render(int x, int y) {
+    static final String ID = "timers";
+
+    /** Panel height for this frame; 0 = nothing to show. */
+    static int height() {
         int lines = (vengeanceActive ? 1 : 0) + (running(vengeanceCooldownEnd) ? 1 : 0) + (running(teleblockEnd) ? 1 : 0) + (running(frozenEnd) ? 1 : 0);
-        if (lines == 0) {
-            return y;
-        }
-        int height = lines * LINE + 6;
+        return lines == 0 ? 0 : lines * LINE + 6;
+    }
+
+    static void draw(int x, int y, int height) {
         RspsHud.box(x, y, RspsHud.PANEL_WIDTH, height);
         Font font = RspsHud.font();
         int baseline = y + LINE;
@@ -58,7 +60,6 @@ final class RspsHudTimers {
         baseline = line(font, "Vengeance CD", vengeanceCooldownEnd, x, right, baseline);
         baseline = line(font, "Teleblock", teleblockEnd, x, right, baseline);
         line(font, "Frozen", frozenEnd, x, right, baseline);
-        return y + height + RspsHud.PANEL_GAP;
     }
 
     private static int line(Font font, String label, long end, int x, int right, int baseline) {

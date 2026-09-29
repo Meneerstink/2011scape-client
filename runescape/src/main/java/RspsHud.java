@@ -45,6 +45,10 @@ final class RspsHud {
                 RspsHudTimers.update(rest);
             } else if (kind.equals("gi")) {
                 RspsHudGroundItems.update(rest);
+            } else if (kind.equals("open")) {
+                RspsHudSettings.open();
+            } else if (kind.equals("close")) {
+                RspsHudSettings.close();
             }
         } catch (RuntimeException malformed) {
             // A malformed payload must never break the packet loop; the next update replaces the state anyway.
@@ -57,10 +61,16 @@ final class RspsHud {
         RspsHudOpponent.reset();
         RspsHudTimers.reset();
         RspsHudGroundItems.reset();
+        RspsHudSettings.close();
     }
 
+    /** Height of the mouse-over text line ("Walk here / 5 more options", b12 at optionsY + 16) plus a gap. */
+    private static final int HOVER_TEXT_CLEARANCE = 22;
+
     /**
-     * Called from the scene pass while the scene camera is still set, clipped to the viewport.
+     * Called from the scene pass while the scene camera is still set, clipped to the viewport. The panels stack at the
+     * top-left of the game view, below the mouse-over text; a panel the player moved (Alt + drag) keeps its own spot and
+     * leaves the stack.
      */
     static void render(int x, int y, int width, int height) {
         if (Toolkit.active == null || PlayerEntity.self == null) {
@@ -69,17 +79,39 @@ final class RspsHud {
         if (RspsHudConfig.groundItems) {
             RspsHudGroundItems.render(x, y);
         }
-        int panelY = y + PANEL_GAP;
-        int panelX = x + PANEL_GAP;
+        int top = y + PANEL_GAP;
+        if (InterfaceManager.optionsComponent != null) {
+            top = Math.max(top, InterfaceManager.optionsY + HOVER_TEXT_CLEARANCE);
+        }
+        int stackY = top;
         if (RspsHudConfig.opponent) {
-            panelY = RspsHudOpponent.render(panelX, panelY);
+            stackY = panel(RspsHudOpponent.ID, RspsHudOpponent.height(), x, y, width, height, stackY);
         }
         if (RspsHudConfig.boosts) {
-            panelY = RspsHudBoosts.render(panelX, panelY);
+            stackY = panel(RspsHudBoosts.ID, RspsHudBoosts.height(), x, y, width, height, stackY);
         }
         if (RspsHudConfig.timers) {
-            RspsHudTimers.render(panelX, panelY);
+            panel(RspsHudTimers.ID, RspsHudTimers.height(), x, y, width, height, stackY);
         }
+        RspsHudSettings.render(x, y, width, height, top);
+    }
+
+    /** Places and draws one panel; returns the next free y of the default stack. */
+    private static int panel(String id, int panelHeight, int viewX, int viewY, int viewWidth, int viewHeight, int stackY) {
+        if (panelHeight <= 0) {
+            return stackY;
+        }
+        boolean moved = RspsOverlayLayout.isMoved(id);
+        int[] at = RspsOverlayLayout.place(id, viewX + PANEL_GAP, stackY, PANEL_WIDTH, panelHeight, viewX, viewY, viewWidth, viewHeight);
+        if (id.equals(RspsHudOpponent.ID)) {
+            RspsHudOpponent.draw(at[0], at[1]);
+        } else if (id.equals(RspsHudBoosts.ID)) {
+            RspsHudBoosts.draw(at[0], at[1], panelHeight);
+        } else {
+            RspsHudTimers.draw(at[0], at[1], panelHeight);
+        }
+        RspsOverlayLayout.decorate(id);
+        return moved ? stackY : stackY + panelHeight + PANEL_GAP;
     }
 
     static long now() {

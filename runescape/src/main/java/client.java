@@ -973,6 +973,11 @@ public final class client extends GameShell {
             } else if (type == MouseLog.TYPE_SCROLL) {
                 Static611.mouseWheelRotation += log.getExtra();
             } else if (MouseLog.isPress(type)) {
+                // RSPS overlays (RspsOverlayLayout): Alt + drag / Alt + right-click on a panel and clicks on the 78 Plugins
+                // panel are taken here, so they never reach the game (no walking or interacting through a panel).
+                if (MainLogicStep.isAtGameScreen(MainLogicManager.step) && RspsOverlayLayout.mousePress(log)) {
+                    continue;
+                }
                 Static226.mouseLogs.addLast(log);
 
                 if (Static226.mouseLogs.size() > 10) {
@@ -980,6 +985,8 @@ public final class client extends GameShell {
                 }
             }
         }
+
+        RspsOverlayLayout.tick();
 
         if (debugconsole.isOpen()) {
             Static668.method8703();

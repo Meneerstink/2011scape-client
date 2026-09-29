@@ -1,3 +1,4 @@
+import com.jagex.game.runetek6.client.GameShell;
 import com.jagex.graphics.Font;
 import com.jagex.graphics.FontMetrics;
 import com.jagex.graphics.Fonts;
@@ -67,6 +68,9 @@ final class DeadmanSkullHud {
     private static final int TEXT_SHADOW = 0xFF000000;
 
     private static final int ICON_GAP = 3;
+    /** RspsOverlayLayout id and the narrowest block the Alt outline / drag area gets. */
+    static final String LAYOUT_ID = "deadman";
+    private static final int MIN_BLOCK_WIDTH = 64;
     // Native OSRS metrics, measured from the owner references (captured at 1.2x vertical scale):
     // skull top -> label baseline 40px, label -> bracket 12px, bracket baseline -> swords 9px,
     // exclamation mark flush with the skull's right edge and 3px lower (its OSRS canvas offset).
@@ -264,6 +268,24 @@ final class DeadmanSkullHud {
             y = 2;
         }
 
+        // Movable with Alt + drag like the RSPS information panels (owner 2026-09-29); unmoved it stays exactly above the
+        // chatbox. The block always reserves the combat-icon space on top, so it does not jump when the zone changes.
+        Sprite multiIcon = DeadmanIcons.multi();
+        int swordsReserve = multiIcon == null ? 0 : MULTI_GAP + multiIcon.getHeight();
+        int exclamationWidth = exclamation == null ? 0 : exclamation.getWidth();
+        int blockWidth = Math.max(MIN_BLOCK_WIDTH, Math.max(iconWidth + 2 * exclamationWidth, Math.max(textWidth(label), textWidth(bracket))));
+        if (grace.length() > 0) {
+            blockWidth = Math.max(blockWidth, textWidth("Protected " + grace));
+        }
+        if (time.length() > 0) {
+            blockWidth = Math.max(blockWidth, skullWidth + ICON_GAP + textWidth(time));
+        }
+        blockWidth += 8;
+        int[] at = RspsOverlayLayout.place(LAYOUT_ID, cx - blockWidth / 2, y - swordsReserve, blockWidth, swordsReserve + totalHeight,
+            0, 0, GameShell.canvasWid, GameShell.canvasHei);
+        cx = at[0] + blockWidth / 2;
+        y = at[1] + swordsReserve;
+
         // Icon row: the skull itself is centred exactly on the text column (owner: "center
         // perfectly under the text"); the exclamation mark hangs off its right edge like the
         // reference screenshot.
@@ -345,6 +367,7 @@ final class DeadmanSkullHud {
             int textX = rowX + iconW + (iconW > 0 ? ICON_GAP : 0);
             font.renderCentre(graveTime, textX + timeWidth / 2, rowY + (rowHeight + FONT_HEIGHT) / 2 - 1, graveColour(), TEXT_SHADOW);
         }
+        RspsOverlayLayout.decorate(LAYOUT_ID);
     }
 
     /**
