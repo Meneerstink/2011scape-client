@@ -57,6 +57,15 @@ final class RspsHudConfig {
 
     static final List<Setting> SETTINGS = new ArrayList<Setting>();
 
+    /** RuneLite ConfigSection descriptions, the section header tooltips. */
+    static final Map<String, String> SECTION_DESCRIPTIONS = new java.util.HashMap<String, String>();
+
+    static {
+        SECTION_DESCRIPTIONS.put("Item lists", "The highlighted and hidden item lists.");
+        SECTION_DESCRIPTIONS.put("Spells", "Timers and buffs related to spells you cast.");
+        SECTION_DESCRIPTIONS.put("Miscellaneous", "Timers and buffs related to miscellaneous items or activities.");
+    }
+
     private static final String[] TIERS = {"OFF", "LOW", "MEDIUM", "HIGH", "INSANE"};
     private static final String[] TIER_NAMES = {"Off", "Low", "Medium", "High", "Insane"};
     private static final String[] CHANGE = {"ALWAYS", "BOOSTED", "NEVER"};
@@ -108,8 +117,9 @@ final class RspsHudConfig {
         bool(g, "showHighlightedOnly", "Show highlighted items only", "Configures whether or not to draw items only on your highlighted list.", false, null);
         bool(g, "dontHideUntradeables", "Do not hide untradeables", "Configures whether or not untradeable items ignore hiding under settings.", true, null);
         bool(g, "showMenuItemQuantities", "Show menu item quantities", "Configures whether or not to show the item quantities in the menu.", true, null);
-        bool(g, "recolorMenuHiddenItems", "Recolor menu hidden items", "Configures whether or not hidden items in right-click menu will be recolored.", false, null);
+        // Both at RuneLite position 5; its config panel then sorts by name.
         bool(g, "deprioritizeHiddenItems", "Deprioritize menu hidden items", "Depriotizies the menu options for items which are hidden, requiring a right-click to pick up.", false, null);
+        bool(g, "recolorMenuHiddenItems", "Recolor menu hidden items", "Configures whether or not hidden items in right-click menu will be recolored.", false, null);
         bool(g, "highlightTiles", "Highlight tiles", "Configures whether or not to highlight tiles containing ground items.", false, null);
         bool(g, "notifyHighlightedDrops", "Notify for highlighted drops", "Configures whether or not to notify for drops on your highlighted list.", false, null);
         choice(g, "notifyTier", "Notify tier", "Configures which price tiers will trigger a notification on drop.", "OFF", TIERS, TIER_NAMES, null);
@@ -145,11 +155,14 @@ final class RspsHudConfig {
         choice(g, "lootbeamStyle", "Lootbeam style", "Style of lootbeam to use.", "MODERN", new String[]{"MODERN", "LEGACY"}, new String[]{"Modern", "Legacy"}, null);
         choice(g, "hotkey", "Hotkey", "Configures the hotkey used by the Ground Items plugin.", "ALT", new String[]{"ALT", "SHIFT", "CTRL"}, new String[]{"Alt", "Shift", "Ctrl"}, null);
 
+        // RuneLite TimersAndBuffsConfig sections; items without a position sort by name inside their section.
         String t = "timers";
-        bool(t, "showVengeance", "Vengeance timer", "Configures whether vengeance timer is displayed.", true, null);
-        bool(t, "showVengeanceActive", "Vengeance active", "Configures whether an indicator for vengeance being active is displayed.", true, null);
-        bool(t, "showTeleblock", "Teleblock timer", "Configures whether teleblock timer is displayed.", true, null);
-        bool(t, "showFreezes", "Freeze timer", "Configures whether freeze timer is displayed.", true, null);
+        String spells = "Spells";
+        String misc = "Miscellaneous";
+        bool(t, "showVengeanceActive", "Vengeance active", "Configures whether an indicator for vengeance being active is displayed.", true, spells);
+        bool(t, "showVengeance", "Vengeance timer", "Configures whether vengeance and vengeance other timer is displayed.", true, spells);
+        bool(t, "showFreezes", "Freeze timer", "Configures whether freeze timer is displayed.", true, misc);
+        bool(t, "showTeleblock", "Teleblock timer", "Configures whether teleblock timer is displayed.", true, misc);
     }
 
     /** Read by the sidebar (Swing thread) while the game thread writes: a concurrent map. */

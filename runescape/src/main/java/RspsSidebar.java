@@ -503,6 +503,10 @@ final class RspsSidebar extends JPanel {
         JLabel title = new JLabel(name);
         title.setForeground(ColorScheme.BRAND_ORANGE);
         title.setFont(FontManager.getRunescapeBoldFont());
+        String description = RspsHudConfig.SECTION_DESCRIPTIONS.get(name);
+        if (description != null) {
+            title.setToolTipText("<html>" + name + ":<br>" + description + "</html>");
+        }
         header.add(title, BorderLayout.CENTER);
         box.add(header);
 
