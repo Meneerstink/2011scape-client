@@ -18,7 +18,10 @@ final class RspsHudOpponent {
     private static final int HP_RED = 0xE6660F10;
     private static final int TITLE = 0xFFFFFFFF;
     private static final int LEVEL = 0xFFFFFF00;
-    private static final int BAR_HEIGHT = 15;
+    /** RuneLite OpponentInfoOverlay: border 2, gap 2, a title line and a 16 px ProgressBarComponent. */
+    private static final int BAR_HEIGHT = 16;
+    private static final int BORDER = 2;
+    private static final int GAP = 2;
 
     private static boolean active;
     private static boolean npc;
@@ -61,7 +64,7 @@ final class RspsHudOpponent {
 
     static final String ID = "opponent";
 
-    private static final int HEIGHT = 4 + 14 + 3 + BAR_HEIGHT + 4;
+    private static final int HEIGHT = BORDER + RspsHud.LINE + GAP + BAR_HEIGHT + BORDER;
 
     private static String name;
     private static int level;
@@ -91,29 +94,46 @@ final class RspsHudOpponent {
         return name == null ? 0 : HEIGHT;
     }
 
+    private static String title() {
+        // The owner's specification adds the combat level to RuneLite's name-only title.
+        return level > 0 ? name + " (level-" + level + ")" : name;
+    }
+
+    /** RuneLite: max(STANDARD_WIDTH, title width + 2 x STANDARD_BORDER). */
+    static int width() {
+        if (name == null) {
+            return RspsHud.PANEL_WIDTH;
+        }
+        return Math.max(RspsHud.PANEL_WIDTH, RspsHud.width(RspsHud.metrics(), title()) + 2 * RspsHud.PANEL_BORDER);
+    }
+
     static void draw(int x, int y) {
         Font font = RspsHud.font();
-        int width = RspsHud.PANEL_WIDTH;
+        int width = width();
         RspsHud.box(x, y, width, HEIGHT);
 
+        // TitleComponent: centred, baseline at its top + the font height.
         String levelText = level > 0 ? " (level-" + level + ")" : "";
         int nameWidth = RspsHud.width(RspsHud.metrics(), name);
-        int totalWidth = nameWidth + RspsHud.width(RspsHud.metrics(), levelText);
-        int textX = x + Math.max(4, (width - totalWidth) / 2);
-        RspsHud.text(font, name, textX, y + 15, TITLE, false);
+        int textX = x + (width - RspsHud.width(RspsHud.metrics(), title())) / 2;
+        int titleBaseline = y + BORDER + RspsHud.LINE;
+        RspsHud.text(font, name, textX, titleBaseline, TITLE, false);
         if (levelText.length() > 0) {
-            RspsHud.text(font, levelText, textX + nameWidth, y + 15, LEVEL, false);
+            RspsHud.text(font, levelText, textX + nameWidth, titleBaseline, LEVEL, false);
         }
 
-        int barX = x + 4;
-        int barY = y + 4 + 14 + 3;
-        int barWidth = width - 8;
+        // ProgressBarComponent: 16 px, the width inside the border; label centred, baseline barY + (h - fontH) / 2 + fontH.
+        int barX = x + BORDER;
+        int barY = y + BORDER + RspsHud.LINE + GAP;
+        int barWidth = width - 2 * BORDER;
         int filled = maximum > 0 ? (int) ((long) barWidth * Math.min(current, maximum) / maximum) : barWidth * ratio / 255;
         Toolkit.active.fillRect(barX, barY, barWidth, BAR_HEIGHT, HP_RED);
         if (filled > 0) {
             Toolkit.active.fillRect(barX, barY, filled, BAR_HEIGHT, HP_GREEN);
         }
-        font.renderCentre(healthText(), barX + barWidth / 2, barY + 12, TITLE, RspsHud.SHADOW);
+        String label = healthText();
+        int labelWidth = RspsHud.width(RspsHud.metrics(), label);
+        RspsHud.text(font, label, barX + (barWidth - labelWidth) / 2, barY + (BAR_HEIGHT - RspsHud.LINE) / 2 + RspsHud.LINE, TITLE, false);
     }
 
     /** RuneLite's progress bar label: "cur/max", "pct%" or both - the exact value only when it is known (monsters). */

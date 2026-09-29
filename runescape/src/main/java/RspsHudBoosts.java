@@ -35,7 +35,8 @@ final class RspsHudBoosts {
     static final int BOOSTED = 0xFF00FF00;
     static final int NEAR_THRESHOLD = 0xFFFFFF00;
     private static final int NORMAL = 0xFFFFFFFF;
-    private static final int LINE = 15;
+    private static final int LINE = RspsHud.LINE;
+    private static final int BORDER = RspsHud.PANEL_BORDER;
     private static final int COMPACT_WIDTH = 64;
 
     private static long decayEnd = -1L;
@@ -222,7 +223,8 @@ final class RspsHudBoosts {
             return 0;
         }
         int lines = changedRows() + (nextDebuffSeconds() >= 0 ? 1 : 0) + (nextBuffSeconds() >= 0 ? 1 : 0);
-        return lines == 0 ? 0 : lines * LINE + 6;
+        // RuneLite PanelComponent: a 4 px border around lines of one font height each.
+        return lines == 0 ? 0 : BORDER + lines * LINE + BORDER;
     }
 
     static void draw(int x, int y, int height) {
@@ -231,8 +233,9 @@ final class RspsHudBoosts {
         Font font = RspsHud.font();
         FontMetrics metrics = RspsHud.metrics();
         boolean compact = RspsHudConfig.bool("boosts.compactDisplay");
-        int baseline = y + LINE;
-        int right = x + width - 4;
+        // RuneLite LineComponent: text at the line's full font height, left at the border, right-aligned at the border.
+        int baseline = y + BORDER + LINE;
+        int right = x + width - BORDER;
         for (int skill : displayed()) {
             int boost = boost(skill);
             if (boost == 0) {
@@ -244,7 +247,7 @@ final class RspsHudBoosts {
                     icon.render(x + 3, baseline - 12, 14, 14);
                 }
             } else {
-                RspsHud.text(font, SKILL_NAMES[skill], x + 4, baseline, NORMAL, false);
+                RspsHud.text(font, SKILL_NAMES[skill], x + BORDER, baseline, NORMAL, false);
             }
             String value = text(skill, true);
             RspsHud.text(font, value, right - RspsHud.width(metrics, value), baseline, colour(boost), false);
@@ -262,7 +265,7 @@ final class RspsHudBoosts {
     }
 
     private static void line(Font font, FontMetrics metrics, String label, String value, int x, int right, int baseline) {
-        RspsHud.text(font, label, x + 4, baseline, NORMAL, false);
+        RspsHud.text(font, label, x + BORDER, baseline, NORMAL, false);
         RspsHud.text(font, value, right - RspsHud.width(metrics, value), baseline, NORMAL, false);
     }
 }

@@ -289,7 +289,7 @@ public final class RspsHudRegressionTest {
         RspsHud.handle("cfg|boosts.displayPanel=false");
         check(RspsHudBoosts.height() == 0, "Display panel off: no panel");
         RspsHud.handle("cfg|boosts.displayPanel=true;boosts.displayNextBuffChange=NEVER;boosts.displayNextDebuffChange=NEVER");
-        check(RspsHudBoosts.height() == 2 * 15 + 6, "panel: two changed stats");
+        check(RspsHudBoosts.height() == 4 + 2 * 16 + 4, "panel: two changed stats, RuneLite's 4 px border and 16 px lines");
         // Threshold notification: a boost draining to the threshold.
         RspsHud.handle("cfg|boosts.notifyOnBoost=true;boosts.boostThreshold=18");
         RspsHud.lastNotification = null;

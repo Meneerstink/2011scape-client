@@ -107,10 +107,8 @@ public final class RS2Loader implements AppletStub {
         frame.setMenuBar(menuBar);
 
         frame.add(applet);
-        // The 78 Plugins sidebar (RuneLite-style) on the right of the game view.
-        var sidebar = new RspsSidebar(frame);
-        RspsSidebar.instance = sidebar;
-        frame.add(sidebar, java.awt.BorderLayout.EAST);
+        // The 78 Plugins sidebar (RuneLite's look and feel and layout) on the right of the game view.
+        RspsSidebar.install(frame);
         frame.addWindowListener(new CloseWindowListener());
         frame.pack();
 

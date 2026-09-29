@@ -1,22 +1,22 @@
 import com.jagex.graphics.Font;
 import com.jagex.graphics.FontMetrics;
-import com.jagex.graphics.Fonts;
 import com.jagex.graphics.Sprite;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * RuneLite-style infoboxes (InfoBoxComponent): a 32 px square in the standard overlay background, the icon centred, the
- * text centred along the bottom in the small font. Timers & Buffs always show as infoboxes; Boosts Information does when
+ * RuneLite-style infoboxes (InfoBoxComponent / InfoBoxOverlay): 35 px squares one pixel apart in the standard overlay
+ * background, the icon centred, the text centred along the bottom (3 px up) in the regular font. Timers & Buffs always show as infoboxes; Boosts Information does when
  * "Display infoboxes" is on. All boxes of a frame form one row that moves as one overlay (Alt + drag), like RuneLite's
  * infobox overlay.
  */
 final class RspsInfoBoxes {
 
     static final String ID = "infoboxes";
-    static final int SIZE = 32;
-    static final int GAP = 2;
+    /** RuneLite: infoBoxSize default 35, InfoBoxOverlay GAP 1, the regular font (infoboxFontType). */
+    static final int SIZE = 35;
+    static final int GAP = 1;
     private static final int SEPARATOR = 3;
 
     static final class Box {
@@ -53,8 +53,8 @@ final class RspsInfoBoxes {
     }
 
     static void draw(int x, int y) {
-        Font font = Fonts.p11 != null ? Fonts.p11 : RspsHud.font();
-        FontMetrics metrics = Fonts.p11Metrics != null ? Fonts.p11Metrics : RspsHud.metrics();
+        Font font = RspsHud.font();
+        FontMetrics metrics = RspsHud.metrics();
         for (int i = 0; i < boxes.size(); i++) {
             Box box = boxes.get(i);
             int bx = x + i * (SIZE + GAP);

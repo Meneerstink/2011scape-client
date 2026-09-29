@@ -13,6 +13,8 @@ dependencyResolutionManagement {
     repositories {
         mavenCentral()
         maven(url = "https://repo.openrs2.org/repository/openrs2-snapshots")
+        // RuneLite's FlatLaf build (net.runelite:flatlaf): the 78 Plugins sidebar uses RuneLite's own look and feel.
+        maven(url = "https://repo.runelite.net")
     }
 }
 

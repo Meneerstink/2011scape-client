@@ -23,10 +23,19 @@ final class RspsHud {
     /** One server tick. */
     static final long TICK_MS = 600L;
 
-    /** RuneLite's standard overlay background (ComponentConstants.STANDARD_BACKGROUND_COLOR, 70/61/50 at alpha 156). */
+    /** RuneLite ComponentConstants.STANDARD_BACKGROUND_COLOR (70, 61, 50, 156). */
     static final int PANEL_BACKGROUND = 0x9C463D32;
-    static final int PANEL_BORDER = 0xC8382F26;
+    /** RuneLite BackgroundComponent strokes: RGB x 0.8 (outside) and x 1.2 (inside), alpha x 1.4 = 218. */
+    static final int OUTSIDE_STROKE = 0xDA383028;
+    static final int INSIDE_STROKE = 0xDA54493C;
+    /** RuneLite ComponentConstants.STANDARD_WIDTH / STANDARD_BORDER. */
     static final int PANEL_WIDTH = 129;
+    static final int PANEL_BORDER = 4;
+    /**
+     * Line height of RuneLite's regular RuneScape font at 16 pt (measured: height 16, ascent 14); RuneLite's LineComponent and
+     * TitleComponent put each line's baseline at its top + this height.
+     */
+    static final int LINE = 16;
     static final int PANEL_GAP = 4;
     static final int SHADOW = 0xFF000000;
     /** Game-message colour of a notification (RuneLite posts its notifications to the chat as well). */
@@ -142,7 +151,8 @@ final class RspsHud {
         }
         int stackY = top;
         if (RspsHudConfig.enabled("opponent")) {
-            stackY = panel(RspsHudOpponent.ID, PANEL_WIDTH, RspsHudOpponent.height(), x, y, width, height, stackY);
+            int opponentHeight = RspsHudOpponent.height();
+            stackY = panel(RspsHudOpponent.ID, RspsHudOpponent.width(), opponentHeight, x, y, width, height, stackY);
         }
         RspsInfoBoxes.clear();
         if (RspsHudConfig.enabled("boosts")) {
@@ -218,10 +228,11 @@ final class RspsHud {
         }
     }
 
-    /** RuneLite-style panel box: translucent brown fill and a thin dark outline. */
+    /** RuneLite BackgroundComponent: the fill, an outside stroke on the edge and an inside stroke one pixel in. */
     static void box(int x, int y, int width, int height) {
         Toolkit.active.fillRect(x, y, width, height, PANEL_BACKGROUND);
-        Toolkit.active.outlineRect(x, y, width, height, PANEL_BORDER);
+        Toolkit.active.outlineRect(x, y, width, height, OUTSIDE_STROKE);
+        Toolkit.active.outlineRect(x + 1, y + 1, width - 2, height - 2, INSIDE_STROKE);
     }
 
     /**

@@ -1,102 +1,157 @@
+import rsps.runelite.ColorScheme;
+import rsps.runelite.FontManager;
+import rsps.runelite.ImageUtil;
+import rsps.runelite.RuneLiteLAF;
+
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JColorChooser;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.JToggleButton;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.MatteBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Font;
 import java.awt.Frame;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
+import java.awt.GridLayout;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 /**
- * The 78 Plugins sidebar - RuneLite's plugin panel next to the game view (owner 2026-09-29: "net als runelite in de
- * zijbalk schakelaars ... zelfde instellingen als runelite"). A navigation strip on the far right with a wrench button
- * opens / closes the panel (the window grows by the panel's width so the game view keeps its size). The panel lists the
- * plugins with a search field, each with its on/off switch and a gear that opens its configuration: every RuneLite config
- * item of that plugin (RspsHudConfig.SETTINGS) as a check box, number, choice, colour button or item list, and Reset.
+ * The 78 Plugins sidebar: RuneLite's plugin panel next to the game view, built as RuneLite builds it (owner 2026-09-29:
+ * "net als runelite in de zijbalk schakelaars ... zelfde instellingen als runelite ... maak het ook visueel exact
+ * runelite"). RuneLite's look and feel (FlatLaf + RuneLiteLAF.properties + ColorScheme + the RuneScape fonts,
+ * rsps.runelite), RuneLite's icons (switcher_on, config_edit_icon, config_back_icon, config_icon, star_on, search,
+ * arrow_right - resources /runelite, BSD-2-Clause) and the layout of RuneLite's PluginListPanel / PluginListItem /
+ * ConfigPanel (PluginPanel.PANEL_WIDTH 225 + a 17 px scrollbar, 10 px borders, 5 px row gaps, 20 px plugin rows, the
+ * star / name / gear / switch row, the 22 px back button, sections with an arrow and an orange bold title, Reset).
  *
- * Every change takes effect in the client at once and goes to the server as a `hud ...` command (sent on the game thread,
- * RspsHud.tickInput); the server saves it with the account and pushes it back, which refreshes this panel. Swing only
- * runs on the event thread here: game-thread callers use {@link #openLater} / {@link #refreshLater}.
+ * A navigation strip on the far right with RuneLite's configuration icon opens / closes the panel (the window grows by
+ * the panel's width so the game view keeps its size). Every change takes effect in the client at once and goes to the
+ * server as a `hud ...` command (sent on the game thread, RspsHud.tickInput); the server saves it with the account and
+ * pushes it back, which refreshes this panel. Swing only runs on the event thread: game-thread callers use
+ * {@link #openLater} / {@link #refreshLater}.
  */
 final class RspsSidebar extends JPanel {
 
-    // RuneLite ColorScheme.
-    static final Color DARKER = new Color(30, 30, 30);
-    static final Color DARK = new Color(40, 40, 40);
-    static final Color MEDIUM = new Color(60, 60, 60);
-    static final Color LIGHT = new Color(77, 77, 77);
-    static final Color TEXT = new Color(198, 198, 198);
-    static final Color TEXT_DIM = new Color(150, 150, 150);
-    static final Color BRAND = new Color(220, 138, 0);
-    static final Color ON = new Color(0, 160, 64);
-
     static final int PANEL_WIDTH = 225;
-    static final int NAV_WIDTH = 36;
+    static final int SCROLLBAR_WIDTH = 17;
+    static final int BORDER_OFFSET = 6;
+    static final int NAV_WIDTH = 30;
+    private static final int SPINNER_FIELD_WIDTH = 6;
+
+    private static final ImageIcon ON_SWITCHER;
+    private static final ImageIcon OFF_SWITCHER;
+    private static final ImageIcon ON_STAR;
+    private static final ImageIcon OFF_STAR;
+    private static final ImageIcon CONFIG_ICON;
+    private static final ImageIcon BACK_ICON;
+    private static final ImageIcon SECTION_EXPAND_ICON;
+    private static final ImageIcon SECTION_RETRACT_ICON;
+    private static final ImageIcon NAV_ICON;
+    private static final ImageIcon SEARCH_ICON;
+
+    static {
+        // As RuneLite derives them (PluginToggleButton, PluginListItem, ConfigPanel).
+        BufferedImage onSwitcher = ImageUtil.load("switcher_on.png");
+        ON_SWITCHER = new ImageIcon(onSwitcher);
+        OFF_SWITCHER = new ImageIcon(ImageUtil.flipImage(ImageUtil.luminanceScale(ImageUtil.grayscaleImage(onSwitcher), 0.61f), true, false));
+        BufferedImage onStar = ImageUtil.load("star_on.png");
+        ON_STAR = new ImageIcon(onStar);
+        OFF_STAR = new ImageIcon(ImageUtil.luminanceScale(ImageUtil.grayscaleImage(onStar), 0.77f));
+        CONFIG_ICON = new ImageIcon(ImageUtil.load("config_edit_icon.png"));
+        BACK_ICON = new ImageIcon(ImageUtil.load("config_back_icon.png"));
+        BufferedImage retract = ImageUtil.luminanceOffset(ImageUtil.load("arrow_right.png"), -121);
+        SECTION_EXPAND_ICON = new ImageIcon(retract);
+        SECTION_RETRACT_ICON = new ImageIcon(ImageUtil.rotateImage(retract, Math.PI / 2));
+        NAV_ICON = new ImageIcon(ImageUtil.load("config_icon.png"));
+        SEARCH_ICON = new ImageIcon(ImageUtil.load("search.png"));
+    }
 
     static RspsSidebar instance;
 
     private final JPanel content = new JPanel(new BorderLayout());
     private final JPanel navigation = new JPanel();
-    private final JButton wrench = new JButton();
     private final Frame frame;
     private boolean expanded;
     private String plugin;
     private String search = "";
+    private final Set<String> collapsedSections = new LinkedHashSet<String>();
 
     /** Controls of the open view, to refresh their values from a server push. */
     private final Map<String, Runnable> refreshers = new HashMap<String, Runnable>();
     private final List<Runnable> listRefreshers = new ArrayList<Runnable>();
 
+    /** RuneLite's look and feel, then the sidebar, on the event thread; call once from the loader. */
+    static void install(final Frame frame) {
+        Runnable create = () -> {
+            try {
+                RuneLiteLAF.setup();
+            } catch (RuntimeException noLaf) {
+                // Swing's own look: the sidebar still works
+            }
+            instance = new RspsSidebar(frame);
+            frame.add(instance, BorderLayout.EAST);
+            frame.validate();
+        };
+        try {
+            SwingUtilities.invokeAndWait(create);
+        } catch (Exception e) {
+            SwingUtilities.invokeLater(create);
+        }
+    }
+
     RspsSidebar(Frame frame) {
         super(new BorderLayout());
         this.frame = frame;
-        setBackground(DARKER);
-        content.setBackground(DARK);
-        content.setPreferredSize(new Dimension(PANEL_WIDTH, 10));
+        loadPins();
+        setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        content.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        content.setPreferredSize(new Dimension(PANEL_WIDTH + SCROLLBAR_WIDTH, 10));
         content.setVisible(false);
         navigation.setLayout(new BoxLayout(navigation, BoxLayout.Y_AXIS));
-        navigation.setBackground(DARKER);
+        navigation.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         navigation.setPreferredSize(new Dimension(NAV_WIDTH, 10));
-        navigation.setBorder(BorderFactory.createEmptyBorder(6, 3, 6, 3));
-        wrench.setToolTipText("78 Plugins");
-        wrench.setIcon(new WrenchIcon());
-        flat(wrench);
-        wrench.setMaximumSize(new Dimension(30, 30));
-        wrench.setAlignmentX(Component.CENTER_ALIGNMENT);
-        wrench.addActionListener(e -> setExpanded(!expanded));
-        navigation.add(wrench);
+        navigation.setBorder(new EmptyBorder(6, 0, 6, 0));
+        JButton nav = iconButton(NAV_ICON, "78 Plugins");
+        nav.setName("navigation");
+        nav.setAlignmentX(Component.CENTER_ALIGNMENT);
+        nav.setMaximumSize(new Dimension(NAV_WIDTH, 30));
+        nav.addActionListener(e -> setExpanded(!expanded));
+        navigation.add(nav);
         navigation.add(Box.createVerticalGlue());
         add(content, BorderLayout.CENTER);
         add(navigation, BorderLayout.EAST);
@@ -135,7 +190,7 @@ final class RspsSidebar extends JPanel {
         SwingUtilities.invokeLater(() -> instance.refresh());
     }
 
-    // ---- layout -------------------------------------------------------------------------------------------------------
+    // ---- frame --------------------------------------------------------------------------------------------------------
 
     boolean isExpanded() {
         return expanded;
@@ -154,7 +209,8 @@ final class RspsSidebar extends JPanel {
         // RuneLite: the window grows by the panel so the game view keeps its size (not when maximised).
         if (frame != null && (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == 0) {
             Dimension size = frame.getSize();
-            frame.setSize(size.width + (open ? PANEL_WIDTH : -PANEL_WIDTH), size.height);
+            int panel = PANEL_WIDTH + SCROLLBAR_WIDTH;
+            frame.setSize(size.width + (open ? panel : -panel), size.height);
         }
         revalidate();
         repaint();
@@ -169,38 +225,87 @@ final class RspsSidebar extends JPanel {
         return null;
     }
 
+    // ---- plugin list (RuneLite PluginListPanel / PluginListItem) ------------------------------------------------------
+
     void showList() {
         plugin = null;
         refreshers.clear();
         listRefreshers.clear();
         content.removeAll();
-        JPanel top = new JPanel(new BorderLayout(0, 6));
-        top.setBackground(DARK);
-        top.setBorder(BorderFactory.createEmptyBorder(8, 8, 6, 8));
-        JLabel title = new JLabel("78 Plugins");
-        title.setForeground(BRAND);
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
-        top.add(title, BorderLayout.NORTH);
-        final JTextField searchField = new JTextField(search);
-        searchField.setBackground(MEDIUM);
-        searchField.setForeground(TEXT);
-        searchField.setCaretColor(TEXT);
-        searchField.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
-        searchField.setToolTipText("Search plugins");
-        top.add(searchField, BorderLayout.SOUTH);
+
+        JPanel top = new JPanel(new BorderLayout(0, BORDER_OFFSET));
+        top.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        top.setBorder(new EmptyBorder(10, 10, 10, 10));
+        top.add(searchBar(), BorderLayout.CENTER);
         content.add(top, BorderLayout.NORTH);
 
-        final JPanel list = new JPanel();
-        list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
-        list.setBackground(DARK);
+        JPanel list = column(new EmptyBorder(8, 10, 10, 10));
+        list.setName("pluginList");
         fillPluginRows(list);
-        searchField.getDocument().addDocumentListener(new DocumentListener() {
+        content.add(scroll(list), BorderLayout.CENTER);
+        content.revalidate();
+        content.repaint();
+    }
+
+    /** RuneLite IconTextField: a 30 px darker field with the search icon on the left and a red "x" to clear it. */
+    private JComponent searchBar() {
+        final JPanel bar = new JPanel(new BorderLayout());
+        bar.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        bar.setPreferredSize(new Dimension(PANEL_WIDTH - 20, 30));
+        JLabel icon = new JLabel(SEARCH_ICON);
+        icon.setPreferredSize(new Dimension(30, 0));
+        bar.add(icon, BorderLayout.WEST);
+        final JTextField field = new JTextField(search);
+        field.setName("search");
+        field.setBorder(null);
+        field.setOpaque(false);
+        field.setForeground(ColorScheme.TEXT_COLOR);
+        bar.add(field, BorderLayout.CENTER);
+        final JButton clear = new JButton("×");
+        clear.setFont(FontManager.getRunescapeBoldFont());
+        clear.setForeground(ColorScheme.PROGRESS_ERROR_COLOR);
+        clear.setBorder(null);
+        clear.setContentAreaFilled(false);
+        clear.setFocusPainted(false);
+        clear.setPreferredSize(new Dimension(30, 0));
+        clear.setVisible(search.length() > 0);
+        clear.addActionListener(e -> field.setText(""));
+        clear.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                clear.setForeground(Color.PINK);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                clear.setForeground(ColorScheme.PROGRESS_ERROR_COLOR);
+            }
+        });
+        bar.add(clear, BorderLayout.EAST);
+        MouseAdapter hover = new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                bar.setBackground(ColorScheme.DARK_GRAY_HOVER_COLOR);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                bar.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+            }
+        };
+        bar.addMouseListener(hover);
+        field.addMouseListener(hover);
+        field.getDocument().addDocumentListener(new DocumentListener() {
             private void changed() {
-                search = searchField.getText();
-                list.removeAll();
-                fillPluginRows(list);
-                list.revalidate();
-                list.repaint();
+                search = field.getText();
+                clear.setVisible(search.length() > 0);
+                JPanel list = (JPanel) find("pluginList");
+                if (list != null) {
+                    list.removeAll();
+                    fillPluginRows(list);
+                    list.revalidate();
+                    list.repaint();
+                }
             }
 
             @Override
@@ -218,62 +323,101 @@ final class RspsSidebar extends JPanel {
                 changed();
             }
         });
-        content.add(scroll(list), BorderLayout.CENTER);
-        content.revalidate();
-        content.repaint();
+        return bar;
     }
 
     private void fillPluginRows(JPanel list) {
         String query = search.trim().toLowerCase();
-        for (final String[] p : RspsHudConfig.PLUGINS) {
+        List<String[]> order = new ArrayList<String[]>();
+        // RuneLite: pinned plugins first, then by name.
+        for (String[] p : RspsHudConfig.PLUGINS) {
+            if (pinned.contains(p[0])) {
+                order.add(p);
+            }
+        }
+        for (String[] p : RspsHudConfig.PLUGINS) {
+            if (!pinned.contains(p[0])) {
+                order.add(p);
+            }
+        }
+        boolean first = true;
+        for (final String[] p : order) {
             if (query.length() > 0 && !p[1].toLowerCase().contains(query) && !p[2].toLowerCase().contains(query)) {
                 continue;
             }
-            JPanel row = new JPanel(new BorderLayout(6, 0));
-            row.setBackground(MEDIUM);
-            row.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, DARK), BorderFactory.createEmptyBorder(6, 8, 6, 6)));
-            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
-            row.setAlignmentX(Component.LEFT_ALIGNMENT);
-            JLabel name = new JLabel(p[1]);
-            name.setForeground(TEXT);
-            name.setToolTipText(p[2]);
-            row.add(name, BorderLayout.CENTER);
-            JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
-            buttons.setOpaque(false);
-            JButton gear = new JButton(new GearIcon());
-            flat(gear);
-            gear.setToolTipText("Edit plugin configuration");
-            gear.setName("config." + p[0]);
-            gear.addActionListener(e -> showConfig(p[0]));
-            final Toggle toggle = new Toggle(RspsHudConfig.enabled(p[0]));
-            toggle.setName("toggle." + p[0]);
-            toggle.setToolTipText(RspsHudConfig.enabled(p[0]) ? "Disable plugin" : "Enable plugin");
-            toggle.onChange = on -> set(p[0] + ".enabled", Boolean.toString(on));
-            refreshers.put(p[0] + ".enabled", () -> toggle.setOn(RspsHudConfig.enabled(p[0])));
-            buttons.add(gear);
-            buttons.add(toggle);
-            row.add(buttons, BorderLayout.EAST);
-            list.add(row);
+            if (!first) {
+                list.add(Box.createVerticalStrut(5));
+            }
+            first = false;
+            list.add(pluginRow(p));
         }
     }
+
+    /** RuneLite PluginListItem: BorderLayout(3, 0), 20 px high - star, name, then the gear and the switch. */
+    private JComponent pluginRow(final String[] p) {
+        JPanel row = new JPanel(new BorderLayout(3, 0));
+        row.setOpaque(false);
+        row.setPreferredSize(new Dimension(PANEL_WIDTH, 20));
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        final JToggleButton pin = new JToggleButton(OFF_STAR);
+        pin.setSelectedIcon(ON_STAR);
+        pin.setSelected(pinned.contains(p[0]));
+        pin.setToolTipText(pin.isSelected() ? "Unpin plugin" : "Pin plugin");
+        pin.putClientProperty("JButton.buttonType", "borderless");
+        undecorate(pin);
+        pin.setPreferredSize(new Dimension(21, 0));
+        pin.addActionListener(e -> {
+            if (pin.isSelected()) {
+                pinned.add(p[0]);
+            } else {
+                pinned.remove(p[0]);
+            }
+            savePins();
+            showList();
+        });
+        row.add(pin, BorderLayout.LINE_START);
+
+        JLabel name = new JLabel(p[1]);
+        name.setForeground(Color.WHITE);
+        name.setToolTipText("<html>" + p[1] + ":<br>" + p[2] + "</html>");
+        row.add(name, BorderLayout.CENTER);
+
+        JPanel buttons = new JPanel(new GridLayout(1, 2));
+        buttons.setOpaque(false);
+        JButton config = iconButton(CONFIG_ICON, "Edit plugin configuration");
+        config.setName("config." + p[0]);
+        config.addActionListener(e -> showConfig(p[0]));
+        buttons.add(config);
+        final Toggle toggle = new Toggle(RspsHudConfig.enabled(p[0]));
+        toggle.setName("toggle." + p[0]);
+        toggle.onChange = on -> set(p[0] + ".enabled", Boolean.toString(on));
+        refreshers.put(p[0] + ".enabled", () -> toggle.setOn(RspsHudConfig.enabled(p[0])));
+        buttons.add(toggle);
+        row.add(buttons, BorderLayout.LINE_END);
+        return row;
+    }
+
+    // ---- configuration (RuneLite ConfigPanel) -------------------------------------------------------------------------
 
     void showConfig(final String pluginId) {
         plugin = pluginId;
         refreshers.clear();
         listRefreshers.clear();
         content.removeAll();
-        JPanel top = new JPanel(new BorderLayout(6, 0));
-        top.setBackground(DARK);
-        top.setBorder(BorderFactory.createEmptyBorder(8, 6, 8, 8));
-        JButton back = new JButton(new BackIcon());
-        flat(back);
-        back.setToolTipText("Back");
+
+        JPanel top = new JPanel(new BorderLayout());
+        top.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        top.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JButton back = iconButton(BACK_ICON, "Back");
         back.setName("back");
+        back.setPreferredSize(new Dimension(22, 0));
         back.addActionListener(e -> showList());
         top.add(back, BorderLayout.WEST);
         JLabel title = new JLabel(pluginName(pluginId));
-        title.setForeground(TEXT);
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 13f));
+        title.setForeground(Color.WHITE);
+        title.setToolTipText("<html>" + pluginName(pluginId) + ":<br>" + description(pluginId) + "</html>");
         top.add(title, BorderLayout.CENTER);
         final Toggle toggle = new Toggle(RspsHudConfig.enabled(pluginId));
         toggle.setName("toggle." + pluginId);
@@ -282,58 +426,130 @@ final class RspsSidebar extends JPanel {
         top.add(toggle, BorderLayout.EAST);
         content.add(top, BorderLayout.NORTH);
 
-        JPanel items = new JPanel();
-        items.setLayout(new BoxLayout(items, BoxLayout.Y_AXIS));
-        items.setBackground(DARK);
-        items.setBorder(BorderFactory.createEmptyBorder(0, 8, 8, 8));
-        String section = null;
+        JPanel main = column(new EmptyBorder(8, 10, 10, 10));
+        Map<String, JPanel> sections = new HashMap<String, JPanel>();
+        boolean first = true;
         for (RspsHudConfig.Setting setting : RspsHudConfig.SETTINGS) {
             if (!setting.plugin.equals(pluginId)) {
                 continue;
             }
-            if (setting.section != null && !setting.section.equals(section)) {
-                section = setting.section;
-                JLabel header = new JLabel(section);
-                header.setForeground(BRAND);
-                header.setBorder(BorderFactory.createEmptyBorder(8, 0, 4, 0));
-                header.setAlignmentX(Component.LEFT_ALIGNMENT);
-                items.add(header);
-            } else if (setting.section == null && section != null) {
-                section = null;
-                items.add(Box.createVerticalStrut(6));
+            JPanel target = main;
+            if (setting.section != null) {
+                JPanel section = sections.get(setting.section);
+                if (section == null) {
+                    if (!first) {
+                        main.add(Box.createVerticalStrut(5));
+                    }
+                    first = false;
+                    section = section(main, setting.section);
+                    sections.put(setting.section, section);
+                }
+                target = section;
+            } else {
+                if (!first) {
+                    main.add(Box.createVerticalStrut(5));
+                }
+                first = false;
             }
-            items.add(item(setting));
+            if (target != main && target.getComponentCount() > 0) {
+                target.add(Box.createVerticalStrut(5));
+            }
+            target.add(item(setting));
         }
+        main.add(Box.createVerticalStrut(5));
         JButton reset = new JButton("Reset");
         reset.setName("reset");
-        reset.setBackground(MEDIUM);
-        reset.setForeground(TEXT);
-        reset.setFocusPainted(false);
         reset.setAlignmentX(Component.LEFT_ALIGNMENT);
-        reset.setToolTipText("Reset this plugin's configuration to its defaults");
-        reset.addActionListener(e -> RspsHud.command("hud reset " + pluginId));
-        items.add(Box.createVerticalStrut(10));
-        items.add(reset);
-        content.add(scroll(items), BorderLayout.CENTER);
+        reset.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        reset.addActionListener(e -> {
+            int answer = GraphicsEnvironmentCheck.headless() ? JOptionPane.YES_OPTION : JOptionPane.showOptionDialog(this,
+                "Are you sure you want to reset this plugin's configuration?", "Are you sure?", JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE, null, new String[]{"Yes", "No"}, "No");
+            if (answer == JOptionPane.YES_OPTION) {
+                RspsHud.command("hud reset " + pluginId);
+            }
+        });
+        main.add(reset);
+        content.add(scroll(main), BorderLayout.CENTER);
         content.revalidate();
         content.repaint();
     }
 
+    private static String description(String id) {
+        for (String[] p : RspsHudConfig.PLUGINS) {
+            if (p[0].equals(id)) {
+                return p[2];
+            }
+        }
+        return "";
+    }
+
+    /** RuneLite config section: an arrow and the orange bold title, the contents under a medium-grey rule. */
+    private JPanel section(JPanel main, final String name) {
+        JPanel box = new JPanel();
+        box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
+        box.setOpaque(false);
+        box.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+        header.setAlignmentX(Component.LEFT_ALIGNMENT);
+        header.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+        header.setBorder(new CompoundBorder(new MatteBorder(0, 0, 1, 0, ColorScheme.MEDIUM_GRAY_COLOR), new EmptyBorder(0, 0, 3, 1)));
+        final boolean open = !collapsedSections.contains(name);
+        final JButton arrow = iconButton(open ? SECTION_RETRACT_ICON : SECTION_EXPAND_ICON, open ? "Retract" : "Expand");
+        arrow.setPreferredSize(new Dimension(18, 0));
+        header.add(arrow, BorderLayout.WEST);
+        JLabel title = new JLabel(name);
+        title.setForeground(ColorScheme.BRAND_ORANGE);
+        title.setFont(FontManager.getRunescapeBoldFont());
+        header.add(title, BorderLayout.CENTER);
+        box.add(header);
+
+        final JPanel contents = new JPanel();
+        contents.setLayout(new BoxLayout(contents, BoxLayout.Y_AXIS));
+        contents.setOpaque(false);
+        contents.setAlignmentX(Component.LEFT_ALIGNMENT);
+        contents.setBorder(new CompoundBorder(new MatteBorder(0, 0, 1, 0, ColorScheme.MEDIUM_GRAY_COLOR), new EmptyBorder(BORDER_OFFSET, 0, BORDER_OFFSET, 0)));
+        contents.setVisible(open);
+        box.add(contents);
+        MouseAdapter toggle = new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (collapsedSections.contains(name)) {
+                    collapsedSections.remove(name);
+                } else {
+                    collapsedSections.add(name);
+                }
+                boolean nowOpen = !collapsedSections.contains(name);
+                contents.setVisible(nowOpen);
+                arrow.setIcon(nowOpen ? SECTION_RETRACT_ICON : SECTION_EXPAND_ICON);
+                box.revalidate();
+            }
+        };
+        header.addMouseListener(toggle);
+        title.addMouseListener(toggle);
+        arrow.addActionListener(e -> toggle.mouseClicked(null));
+        main.add(box);
+        return contents;
+    }
+
+    /** One RuneLite config item: a BorderLayout row, the white name, the control on the right (a text area below). */
     private JComponent item(final RspsHudConfig.Setting setting) {
-        JPanel row = new JPanel(new BorderLayout(6, 0));
+        JPanel row = new JPanel(new BorderLayout());
         row.setOpaque(false);
-        row.setBorder(BorderFactory.createEmptyBorder(3, 0, 3, 0));
         row.setAlignmentX(Component.LEFT_ALIGNMENT);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, setting.type == RspsHudConfig.LIST ? 120 : 28));
         JLabel name = new JLabel(setting.name);
-        name.setForeground(TEXT);
-        name.setToolTipText("<html>" + setting.description + "</html>");
+        name.setForeground(Color.WHITE);
+        name.setToolTipText("<html>" + setting.name + ":<br>" + setting.description + "</html>");
+        // A long name gives way ("..."; the tooltip has it all) so the control on the right always shows.
+        name.setMinimumSize(new Dimension(20, 16));
+        name.setPreferredSize(new Dimension(20, 16));
         final String key = setting.key;
         switch (setting.type) {
             case RspsHudConfig.BOOL: {
                 final JCheckBox box = new JCheckBox();
                 box.setName(key);
-                box.setOpaque(false);
                 box.setSelected(RspsHudConfig.bool(key));
                 box.addActionListener(e -> set(key, Boolean.toString(box.isSelected())));
                 refreshers.put(key, () -> box.setSelected(RspsHudConfig.bool(key)));
@@ -344,7 +560,10 @@ final class RspsSidebar extends JPanel {
             case RspsHudConfig.INT: {
                 final JSpinner spinner = new JSpinner(new SpinnerNumberModel(RspsHudConfig.integer(key), 0, setting.max, 1));
                 spinner.setName(key);
-                spinner.setPreferredSize(new Dimension(92, 22));
+                Component editor = spinner.getEditor();
+                if (editor instanceof JSpinner.DefaultEditor) {
+                    ((JSpinner.DefaultEditor) editor).getTextField().setColumns(SPINNER_FIELD_WIDTH);
+                }
                 spinner.addChangeListener(e -> {
                     String value = spinner.getValue().toString();
                     if (!value.equals(RspsHudConfig.get(key))) {
@@ -364,7 +583,7 @@ final class RspsSidebar extends JPanel {
             case RspsHudConfig.ENUM: {
                 final JComboBox<String> combo = new JComboBox<String>(setting.optionNames);
                 combo.setName(key);
-                combo.setPreferredSize(new Dimension(108, 22));
+                combo.setPreferredSize(new Dimension(combo.getPreferredSize().width, 25));
                 combo.setSelectedIndex(Math.max(0, indexOf(setting.options, RspsHudConfig.get(key))));
                 combo.addActionListener(e -> {
                     String value = setting.options[Math.max(0, combo.getSelectedIndex())];
@@ -383,37 +602,32 @@ final class RspsSidebar extends JPanel {
                 break;
             }
             case RspsHudConfig.COLOR: {
+                // RuneLite ColorJButton: the colour as the button, its hex code on it in a readable text colour.
                 final JButton swatch = new JButton();
                 swatch.setName(key);
-                swatch.setPreferredSize(new Dimension(40, 20));
-                swatch.setBorder(BorderFactory.createLineBorder(LIGHT));
-                swatch.setBackground(new Color(RspsHudConfig.colour(key) & 0xFFFFFF));
-                swatch.setToolTipText("#" + RspsHudConfig.get(key));
+                swatch.setFocusPainted(false);
+                colourButton(swatch, RspsHudConfig.colour(key));
                 swatch.addActionListener(e -> {
-                    Color picked = JColorChooser.showDialog(this, setting.name, swatch.getBackground());
+                    Color picked = GraphicsEnvironmentCheck.headless() ? null : JColorChooser.showDialog(this, setting.name, swatch.getBackground());
                     if (picked != null) {
                         set(key, String.format("%06x", picked.getRGB() & 0xFFFFFF));
+                        colourButton(swatch, 0xFF000000 | picked.getRGB());
                     }
                 });
-                refreshers.put(key, () -> {
-                    swatch.setBackground(new Color(RspsHudConfig.colour(key) & 0xFFFFFF));
-                    swatch.setToolTipText("#" + RspsHudConfig.get(key));
-                });
+                refreshers.put(key, () -> colourButton(swatch, RspsHudConfig.colour(key)));
                 row.add(name, BorderLayout.CENTER);
                 row.add(swatch, BorderLayout.EAST);
                 break;
             }
             default: {
-                // An item list: RuneLite's "item1, item2, item3" text box, saved when it loses focus.
+                // RuneLite's multi-line text box ("item1, item2, item3"), saved when it loses focus.
                 final boolean hidden = key.endsWith("hiddenItems");
-                final JTextArea area = new JTextArea(String.join(", ", RspsHudConfig.names(hidden)), 3, 16);
+                final JTextArea area = new JTextArea(String.join(", ", RspsHudConfig.names(hidden)));
                 area.setName(key);
                 area.setLineWrap(true);
                 area.setWrapStyleWord(true);
-                area.setBackground(MEDIUM);
-                area.setForeground(TEXT);
-                area.setCaretColor(TEXT);
-                area.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
+                area.setRows(3);
+                area.setBorder(new EmptyBorder(4, 6, 4, 6));
                 area.addFocusListener(new FocusAdapter() {
                     @Override
                     public void focusLost(FocusEvent e) {
@@ -425,15 +639,25 @@ final class RspsSidebar extends JPanel {
                         area.setText(String.join(", ", RspsHudConfig.names(hidden)));
                     }
                 });
-                JPanel stacked = new JPanel(new BorderLayout(0, 3));
-                stacked.setOpaque(false);
-                stacked.add(name, BorderLayout.NORTH);
-                stacked.add(area, BorderLayout.CENTER);
-                row.add(stacked, BorderLayout.CENTER);
+                name.setPreferredSize(null);
+                row.add(name, BorderLayout.NORTH);
+                row.add(area, BorderLayout.SOUTH);
                 break;
             }
         }
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
         return row;
+    }
+
+    private static void colourButton(JButton button, int argb) {
+        Color colour = new Color(argb & 0xFFFFFF);
+        button.setBackground(colour);
+        button.setText("#" + String.format("%06X", argb & 0xFFFFFF));
+        double luminance = 0.299 * colour.getRed() + 0.587 * colour.getGreen() + 0.114 * colour.getBlue();
+        button.setForeground(luminance > 128 ? Color.BLACK : Color.WHITE);
+        // As wide as the hex code needs (a fixed width cut it off), RuneLite's 25 px high.
+        button.setPreferredSize(null);
+        button.setPreferredSize(new Dimension(button.getPreferredSize().width, 25));
     }
 
     private static int indexOf(String[] options, String value) {
@@ -486,138 +710,167 @@ final class RspsSidebar extends JPanel {
         }
     }
 
+    // ---- pinned plugins (RuneLite keeps them on the profile; here next to the overlay positions) ----------------------
+
+    private final Set<String> pinned = new LinkedHashSet<String>();
+
+    private static File pinFile() {
+        return new File(RspsOverlayLayout.file().getParentFile(), "sidebar.properties");
+    }
+
+    private void loadPins() {
+        File file = pinFile();
+        if (!file.isFile()) {
+            return;
+        }
+        Properties properties = new Properties();
+        try (FileReader reader = new FileReader(file)) {
+            properties.load(reader);
+            for (String id : properties.getProperty("pinned", "").split(",")) {
+                if (id.trim().length() > 0) {
+                    pinned.add(id.trim());
+                }
+            }
+        } catch (Exception ignored) {
+            // no pins
+        }
+    }
+
+    private void savePins() {
+        File file = pinFile();
+        if (file.getParentFile() != null) {
+            file.getParentFile().mkdirs();
+        }
+        Properties properties = new Properties();
+        properties.setProperty("pinned", String.join(",", pinned));
+        try (FileWriter writer = new FileWriter(file)) {
+            properties.store(writer, "78 Plugins sidebar");
+        } catch (Exception ignored) {
+            // pins are a convenience
+        }
+    }
+
     // ---- look ---------------------------------------------------------------------------------------------------------
 
+    private static JPanel column(EmptyBorder border) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        panel.setBorder(border);
+        return panel;
+    }
+
+    /** A panel that always takes the viewport's width (RuneLite PluginPanel's wrapper does the same). */
+    private static final class WidthTracking extends JPanel implements javax.swing.Scrollable {
+        WidthTracking() {
+            super(new BorderLayout());
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(java.awt.Rectangle visible, int orientation, int direction) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(java.awt.Rectangle visible, int orientation, int direction) {
+            return visible.height;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
+    }
+
     private static JScrollPane scroll(JComponent view) {
-        JPanel holder = new JPanel(new BorderLayout());
-        holder.setBackground(DARK);
+        JPanel holder = new WidthTracking();
+        holder.setBackground(ColorScheme.DARK_GRAY_COLOR);
         holder.add(view, BorderLayout.NORTH);
         JScrollPane pane = new JScrollPane(holder);
         pane.setBorder(BorderFactory.createEmptyBorder());
-        pane.getViewport().setBackground(DARK);
+        pane.getViewport().setBackground(ColorScheme.DARK_GRAY_COLOR);
         pane.getVerticalScrollBar().setUnitIncrement(16);
         pane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        pane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
         return pane;
     }
 
-    private static void flat(JButton button) {
+    /** RuneLite SwingUtil.removeButtonDecorations. */
+    private static void undecorate(javax.swing.AbstractButton button) {
         button.setBorderPainted(false);
         button.setContentAreaFilled(false);
         button.setFocusPainted(false);
+        button.setMargin(new java.awt.Insets(0, 0, 0, 0));
+        button.setOpaque(false);
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        button.setPreferredSize(new Dimension(26, 24));
     }
 
-    /** RuneLite's plugin switch: a rounded pill, green with the knob right when on. */
-    static final class Toggle extends JComponent {
+    private static JButton iconButton(ImageIcon icon, String tooltip) {
+        JButton button = new JButton(icon);
+        button.setToolTipText(tooltip);
+        button.putClientProperty("JButton.buttonType", "borderless");
+        undecorate(button);
+        return button;
+    }
+
+    /** RuneLite PluginToggleButton: the switcher image (the OFF one derived from it), 25 px wide. */
+    static final class Toggle extends JToggleButton {
         interface Listener {
             void changed(boolean on);
         }
 
-        private boolean on;
         Listener onChange;
+        private boolean quiet;
 
         Toggle(boolean on) {
-            this.on = on;
-            setPreferredSize(new Dimension(30, 16));
-            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    click();
+            super(OFF_SWITCHER);
+            setSelectedIcon(ON_SWITCHER);
+            undecorate(this);
+            setPreferredSize(new Dimension(25, 0));
+            setSelected(on);
+            updateTooltip();
+            addItemListener(e -> {
+                updateTooltip();
+                if (!quiet && onChange != null) {
+                    onChange.changed(isSelected());
                 }
             });
         }
 
+        private void updateTooltip() {
+            setToolTipText(isSelected() ? "Disable plugin" : "Enable plugin");
+        }
+
         boolean isOn() {
-            return on;
+            return isSelected();
         }
 
         void setOn(boolean on) {
-            this.on = on;
-            setToolTipText(on ? "Disable plugin" : "Enable plugin");
-            repaint();
+            quiet = true;
+            setSelected(on);
+            quiet = false;
         }
 
         /** A click (also the tests' way in). */
         void click() {
-            setOn(!on);
-            if (onChange != null) {
-                onChange.changed(on);
-            }
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            int w = getWidth();
-            int h = getHeight();
-            g2.setColor(on ? ON : LIGHT);
-            g2.fillRoundRect(0, 1, w - 1, h - 2, h - 2, h - 2);
-            g2.setColor(Color.WHITE);
-            int knob = h - 6;
-            g2.fillOval(on ? w - knob - 4 : 3, 3, knob, knob);
-            g2.dispose();
+            doClick();
         }
     }
 
-    private abstract static class PaintedIcon implements javax.swing.Icon {
-        @Override
-        public int getIconWidth() {
-            return 16;
-        }
-
-        @Override
-        public int getIconHeight() {
-            return 16;
-        }
-
-        Graphics2D prepare(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(TEXT);
-            g2.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            return g2;
-        }
-    }
-
-    /** The navigation button: a wrench, RuneLite's configuration icon. */
-    static final class WrenchIcon extends PaintedIcon {
-        @Override
-        public void paintIcon(Component c, Graphics g, int x, int y) {
-            Graphics2D g2 = prepare(g);
-            g2.setColor(BRAND);
-            g2.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            g2.drawLine(x + 4, y + 12, x + 10, y + 6);
-            g2.setStroke(new BasicStroke(2f));
-            g2.drawArc(x + 8, y + 1, 7, 7, 200, 250);
-            g2.dispose();
-        }
-    }
-
-    /** The gear that opens a plugin's configuration. */
-    static final class GearIcon extends PaintedIcon {
-        @Override
-        public void paintIcon(Component c, Graphics g, int x, int y) {
-            Graphics2D g2 = prepare(g);
-            g2.drawOval(x + 5, y + 5, 6, 6);
-            for (int i = 0; i < 8; i++) {
-                double a = i * Math.PI / 4;
-                g2.drawLine(x + 8 + (int) Math.round(Math.cos(a) * 5), y + 8 + (int) Math.round(Math.sin(a) * 5),
-                    x + 8 + (int) Math.round(Math.cos(a) * 7), y + 8 + (int) Math.round(Math.sin(a) * 7));
-            }
-            g2.dispose();
-        }
-    }
-
-    static final class BackIcon extends PaintedIcon {
-        @Override
-        public void paintIcon(Component c, Graphics g, int x, int y) {
-            Graphics2D g2 = prepare(g);
-            g2.drawLine(x + 10, y + 3, x + 5, y + 8);
-            g2.drawLine(x + 5, y + 8, x + 10, y + 13);
-            g2.dispose();
+    /** Headless tests have no dialogs. */
+    static final class GraphicsEnvironmentCheck {
+        static boolean headless() {
+            return java.awt.GraphicsEnvironment.isHeadless();
         }
     }
 
