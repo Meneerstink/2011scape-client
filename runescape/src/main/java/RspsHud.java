@@ -89,7 +89,7 @@ final class RspsHud {
         RspsLootTracker.reset(LoginManager.username);
         commands.clear();
         RspsRenderTest.cull = true;
-        RspsRenderTest.alphaDepth = true;
+        RspsRenderTest.alphaDepth = false;
     }
 
     /** Queues a `hud ...` command for the server (any thread); it goes out on the next client cycle. */

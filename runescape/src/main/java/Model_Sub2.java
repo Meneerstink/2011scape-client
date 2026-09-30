@@ -169,6 +169,9 @@ public final class Model_Sub2 extends Model {
     @OriginalMember(owner = "client!kla", name = "ic", descriptor = "Z")
     public boolean aBoolean421 = false;
 
+    /** RSPS: face alpha in draw order, kept after the colour buffer drops aByteArray54 (RspsRenderTest translucent pass). */
+    public byte[] rspsFaceAlpha;
+
     @OriginalMember(owner = "client!kla", name = "jb", descriptor = "I")
     public int anInt5543 = 0;
 
@@ -718,6 +721,9 @@ public final class Model_Sub2 extends Model {
             }
         }
         this.anIntArray413[local1216] = this.anInt5506;
+        if (this.aBoolean421) {
+            this.rspsFaceAlpha = this.aByteArray54.clone();
+        }
         Static350.aLongArray9 = null;
         this.aShortArray69 = Static358.method9173(this.anInt5538, this.aShortArray69);
         this.aShortArray73 = Static358.method9173(this.anInt5538, this.aShortArray73);
@@ -1453,15 +1459,47 @@ public final class Model_Sub2 extends Model {
                 this.aClass19_Sub3_24.method7008(this.aClass94_7 != null);
                 this.aClass19_Sub3_24.method7039(this.aClass94_6, this.aClass94_7, this.aClass94_8, this.aClass94_9);
                 @Pc(84) int local84 = this.anIntArray413.length - 1;
-                for (@Pc(86) int local86 = 0; local86 < local84; local86++) {
-                    @Pc(93) int local93 = this.anIntArray413[local86];
-                    @Pc(100) int local100 = this.anIntArray413[local86 + 1];
-                    @Pc(107) int local107 = this.aShortArray75[local93] & 0xFFFF;
-                    if (local107 == 65535) {
-                        local107 = -1;
+                // RSPS (RspsRenderTest): with translucent faces, pass 0 draws every opaque face (depth writes as before), pass 1
+                // every translucent face without depth writes - so no translucent face hides another part of the model.
+                byte[] alpha = this.aByteArray54 != null ? this.aByteArray54 : this.rspsFaceAlpha;
+                boolean split = this.aBoolean421 && alpha != null && !RspsRenderTest.alphaDepth;
+                for (int pass = 0; pass < (split ? 2 : 1); pass++) {
+                    for (@Pc(86) int local86 = 0; local86 < local84; local86++) {
+                        @Pc(93) int local93 = this.anIntArray413[local86];
+                        @Pc(100) int local100 = this.anIntArray413[local86 + 1];
+                        @Pc(107) int local107 = this.aShortArray75[local93] & 0xFFFF;
+                        if (local107 == 65535) {
+                            local107 = -1;
+                        }
+                        if (!split) {
+                            this.aClass19_Sub3_24.method6975(this.aClass94_7 != null, local107);
+                            this.aClass19_Sub3_24.method7034(local93 * 3, this.aClass136_1.anInterface1_1, (local100 - local93) * 3);
+                            continue;
+                        }
+                        boolean bound = false;
+                        for (int run = local93; run < local100; ) {
+                            boolean translucent = alpha[run] != 0;
+                            int end = run + 1;
+                            while (end < local100 && (alpha[end] != 0) == translucent) {
+                                end++;
+                            }
+                            if (translucent == (pass == 1)) {
+                                if (!bound) {
+                                    this.aClass19_Sub3_24.method6975(this.aClass94_7 != null, local107);
+                                    bound = true;
+                                }
+                                boolean zWrite = this.aClass19_Sub3_24.aBoolean596;
+                                if (translucent) {
+                                    this.aClass19_Sub3_24.C(false);
+                                }
+                                this.aClass19_Sub3_24.method7034(run * 3, this.aClass136_1.anInterface1_1, (end - run) * 3);
+                                if (translucent) {
+                                    this.aClass19_Sub3_24.C(zWrite);
+                                }
+                            }
+                            run = end;
+                        }
                     }
-                    this.aClass19_Sub3_24.method6975(this.aClass94_7 != null, local107);
-                    this.aClass19_Sub3_24.method7034(local93 * 3, this.aClass136_1.anInterface1_1, (local100 - local93) * 3);
                 }
             }
         }
@@ -3143,6 +3181,7 @@ public final class Model_Sub2 extends Model {
         } else {
             arg4.aBoolean421 = true;
         }
+        arg4.rspsFaceAlpha = this.rspsFaceAlpha;
         @Pc(85) boolean local85 = Static646.method8457(this.anInt5529, arg3);
         @Pc(93) boolean local93 = Static58.method1257(this.anInt5529, arg3);
         @Pc(99) boolean local99 = Static340.method5011(arg3, this.anInt5529);

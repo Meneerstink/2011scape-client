@@ -8,20 +8,26 @@ import jaggl.OpenGL;
  *   <li>{@code cull}: GlToolkit enables back-face culling once for everything (GL_CULL_FACE / GL_BACK). A face whose
  *   winding is flipped - mirrored by a frame, folded by a bad bake, authored the other way round - is only visible from
  *   behind. With culling off such faces show up again from the front.</li>
- *   <li>{@code alphadepth}: the GL model draws translucent faces after the opaque ones in priority order, not back to front,
- *   with depth writes on, so a near translucent face drawn first hides the translucent faces behind it (angle dependent).
- *   With this off, models that have translucent faces are drawn without writing depth.</li>
+ *   <li>{@code alphadepth}: the 667 hardware models (GL Model_Sub2, native Model_Sub1) draw translucent faces after the opaque
+ *   ones in priority order, not back to front, WITH depth writes, so a near translucent face drawn first hides whatever of
+ *   the model lies behind it and is drawn later (angle dependent: Little Nightmare, Elidinis' guardian's ward - owner
+ *   2026-09-30). OSRS draws translucent faces back to front and never lets one hide another. Since 2026-10-01 the models
+ *   draw each run of translucent faces (per-face alpha) without depth writes and every opaque face exactly as before
+ *   ({@code alphaDepth = false}, the default). {@code alphadepth=1} restores the 667 behaviour for an A/B look. (The first
+ *   version of this switch turned depth writes off for the WHOLE model, opaque faces included, which let a model's far
+ *   side show through - the owner's "alpha off maakt het erger".) Material-level translucency (667 water, foliage) keeps
+ *   the 667 path.</li>
  * </ul>
- * Driven by the server command {@code rendertest} on the side channel ({@code __RSPS_HUD__:render|cull=0,alphadepth=0});
- * default is the normal renderer, and every login resets it. The switches only change drawing state; no model data changes.
+ * Driven by the server command {@code rendertest} on the side channel ({@code __RSPS_HUD__:render|cull=0,alphadepth=1});
+ * every login resets it. The switches only change drawing state; no model data changes.
  */
 final class RspsRenderTest {
 
     /** Back-face culling as the 667 toolkit sets it. */
     static volatile boolean cull = true;
 
-    /** Depth writes for models that contain translucent faces, as the 667 toolkit draws them. */
-    static volatile boolean alphaDepth = true;
+    /** Depth writes for translucent faces as the 667 toolkit draws them (true), or none for them (false, the default). */
+    static volatile boolean alphaDepth = false;
 
     private static boolean cullApplied = true;
 
@@ -32,7 +38,7 @@ final class RspsRenderTest {
     static void handle(String payload) {
         if (payload.equals("reset")) {
             cull = true;
-            alphaDepth = true;
+            alphaDepth = false;
         } else {
             for (String part : payload.split(",")) {
                 int eq = part.indexOf('=');
@@ -61,14 +67,8 @@ final class RspsRenderTest {
             }
             cullApplied = cull;
         }
-        if (!alphaDepth && translucent) {
-            toolkit.C(false);
-        }
     }
 
     static void afterModel(GlToolkit toolkit, boolean translucent) {
-        if (!alphaDepth && translucent) {
-            toolkit.C(true);
-        }
     }
 }
