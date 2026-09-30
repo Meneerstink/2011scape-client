@@ -1037,6 +1037,10 @@ public final class client extends GameShell {
         }
 
         Static369.updateObjSprites(Toolkit.active);
+        // Loot Tracker item icons: made here, where the game makes its own inventory icons (outside the scene pass).
+        if (Toolkit.active != null && RspsHudConfig.enabled("loottracker")) {
+            RspsLootTracker.renderIcons(Toolkit.active);
+        }
         Static226.mouseLogs.removeFirst();
     }
 

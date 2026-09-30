@@ -296,8 +296,6 @@ final class RspsHudConfig {
                 }
             }
             revision++;
-            // RuneLite CameraPlugin.onConfigChanged -> applyConfigs: the zoom moves inside the new limits.
-            CameraZoomController.limitsChanged();
             return;
         }
         List<Pattern> list = kind.equals("hl") ? highlighted : hidden;

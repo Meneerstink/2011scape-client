@@ -145,9 +145,6 @@ final class RspsHud {
         if (Toolkit.active == null || PlayerEntity.self == null) {
             return;
         }
-        if (RspsHudConfig.enabled("loottracker")) {
-            RspsLootTracker.renderIcons(Toolkit.active);
-        }
         if (RspsHudConfig.enabled("grounditems")) {
             RspsHudGroundItems.render(x, y);
         }

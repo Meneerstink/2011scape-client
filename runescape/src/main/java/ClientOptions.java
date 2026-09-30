@@ -635,12 +635,12 @@ public final class ClientOptions extends Node {
         } else {
             this.speechVolume = new VolumeOption(this.soundVolume.getValue(), this);
         }
-        this.musicVolume = new VolumeOption(packet.g1(), this);
+        this.musicVolume = new VolumeOption(packet.g1(), this, VolumeOption.MUSIC_MAX);
         this.backgroundSoundVolume = new VolumeOption(packet.g1(), this);
         if (version >= 21) {
-            this.loginVolume = new VolumeOption(packet.g1(), this);
+            this.loginVolume = new VolumeOption(packet.g1(), this, VolumeOption.MUSIC_MAX);
         } else {
-            this.loginVolume = new VolumeOption(this.musicVolume.getValue(), this);
+            this.loginVolume = new VolumeOption(this.musicVolume.getValue(), this, VolumeOption.MUSIC_MAX);
         }
         if (version >= 1) {
             packet.g2();

@@ -138,10 +138,10 @@ final class RspsLootTracker {
     private static final LinkedHashMap<String, Record> aggregate = new LinkedHashMap<String, Record>();
     /** Every kill of this session ("single"). */
     private static final List<Record> session = new ArrayList<Record>();
-    /** Sources hidden with "Hide loot" (RuneLite ignoredEvents), kept on this client. */
-    private static final Set<String> hiddenEvents = new HashSet<String>();
+    /** Sources hidden with "Hide loot" (RuneLite ignoredEvents), kept on this client. Swing and game thread: concurrent. */
+    private static final Set<String> hiddenEvents = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     /** Items toggled with "Toggle item" (RuneLite ignoredItems): not counted in the prices. */
-    private static final Set<Integer> ignoredItems = new HashSet<Integer>();
+    private static final Set<Integer> ignoredItems = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
 
     static boolean groupLoot = true;
     static boolean allCollapsed;
@@ -210,9 +210,6 @@ final class RspsLootTracker {
                         single.add(item);
                     }
                 }
-                for (Item item : items) {
-                    wantIcon(item.id, 0);
-                }
             }
             revision++;
         }
@@ -262,7 +259,14 @@ final class RspsLootTracker {
         return ((long) id << 32) | Math.min(quantity, Integer.MAX_VALUE);
     }
 
+    /** Icons are made per id and count (the count is drawn in); a long session starts over past this many (~9 MB). */
+    private static final int MAX_ICONS = 2000;
+
     static void wantIcon(int id, long quantity) {
+        if (icons.size() > MAX_ICONS) {
+            icons.clear();
+            asked.clear();
+        }
         long key = iconKey(id, quantity);
         if (!icons.containsKey(key) && asked.add(key)) {
             wanted.add(key);
@@ -278,7 +282,7 @@ final class RspsLootTracker {
     }
 
     /**
-     * Game thread, once per frame (RspsHud.render): renders a few wanted icons with the game's own inventory-icon code on the
+     * Game thread, once per frame (client.mainloop, right after Static369.updateObjSprites): renders a few wanted icons with the game's own inventory-icon code on the
      * software toolkit the client keeps for item icons (Static369.updateObjSprites), count drawn like the inventory.
      */
     static void renderIcons(Toolkit toolkit) {

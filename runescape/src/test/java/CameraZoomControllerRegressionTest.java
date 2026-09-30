@@ -22,22 +22,34 @@ public final class CameraZoomControllerRegressionTest {
         RspsHudConfig.put("zoom.outerLimit", "-400");
         check(CameraZoomController.minZoom() == 528, "Negative outer limit narrows the range");
         CameraZoomController.restoreZoom(300);
-        CameraZoomController.limitsChanged();
         check(CameraZoomController.getZoom() == 528, "New limits move the zoom inside them");
+        // Login push in parts: the plugin switch arrives before the limits - an expanded zoom must survive that.
+        RspsHudConfig.put("zoom.outerLimit", "0");
+        CameraZoomController.restoreZoom(1200);
+        RspsHudConfig.put("zoom.inner", "false");
+        check(CameraZoomController.getZoom() == 896, "Defaults in effect while the limits are not known yet");
+        RspsHudConfig.put("zoom.inner", "true");
+        check(CameraZoomController.getZoom() == 1200, "The saved expanded zoom is back once the account's limits arrive");
+        RspsHudConfig.put("zoom.outerLimit", "-400");
         RspsHudConfig.put("zoom.outerLimit", "0");
         RspsHudConfig.put("zoom.controlFunction", "CONTROL_TO_ZOOM");
         CameraZoomController.restoreZoom(512);
-        CameraZoomController.tickControl(false);
+        CameraZoomController.tickControl(false, true);
         check(CameraZoomController.applyWheelRotation(-1, true, false, false, false, false, false) && CameraZoomController.getZoom() == 512,
             "Hold to zoom: the wheel without Ctrl does not zoom");
-        CameraZoomController.tickControl(true);
+        CameraZoomController.tickControl(true, true);
         CameraZoomController.applyWheelRotation(-1, true, false, false, false, false, false);
         check(CameraZoomController.getZoom() == 562, "Hold to zoom: Ctrl + wheel zooms");
         RspsHudConfig.put("zoom.controlFunction", "CONTROL_TO_RESET");
         RspsHudConfig.put("zoom.ctrlZoomValue", "700");
-        CameraZoomController.tickControl(true);
-        CameraZoomController.tickControl(false);
+        CameraZoomController.tickControl(true, true);
+        CameraZoomController.tickControl(false, true);
         check(CameraZoomController.getZoom() == 700, "Reset zoom: releasing Ctrl zooms to the reset position");
+        CameraZoomController.restoreZoom(600);
+        CameraZoomController.tickControl(true, true);
+        CameraZoomController.tickControl(false, false);
+        CameraZoomController.tickControl(false, true);
+        check(CameraZoomController.getZoom() == 600, "Losing focus with Ctrl held is no reset (RuneLite onFocusChanged)");
         check(CameraZoomController.fromLegacyDistance(320) == 512 && CameraZoomController.fromLegacyDistance(660) < 140
             && CameraZoomController.fromLegacyDistance(150) > 890, "Old saved distance maps onto the OSRS scale");
         RspsHudConfig.resetToDefaults();

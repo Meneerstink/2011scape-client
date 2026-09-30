@@ -112,7 +112,7 @@ final class RspsSidebar extends JPanel {
     private final Set<String> collapsedSections = new LinkedHashSet<String>();
     private JButton lootNav;
     /** The Loot Tracker tab is the open view. */
-    private boolean lootView;
+    private volatile boolean lootView;
 
     /** Controls of the open view, to refresh their values from a server push. */
     private final Map<String, Runnable> refreshers = new HashMap<String, Runnable>();
@@ -252,15 +252,22 @@ final class RspsSidebar extends JPanel {
 
     /** A loot event or a new item icon: the open Loot Tracker view shows it. */
     static void refreshLootLater() {
-        if (instance == null) {
+        if (instance == null || !instance.lootView) {
+            return;
+        }
+        // Loot events and new icons can come several per frame: one rebuild waits at most (the next one sees them all).
+        if (lootRefreshQueued.getAndSet(true)) {
             return;
         }
         SwingUtilities.invokeLater(() -> {
+            lootRefreshQueued.set(false);
             if (instance.lootView) {
                 instance.showLoot();
             }
         });
     }
+
+    private static final java.util.concurrent.atomic.AtomicBoolean lootRefreshQueued = new java.util.concurrent.atomic.AtomicBoolean();
 
     // ---- Loot Tracker (RuneLite LootTrackerPanel) ---------------------------------------------------------------------
 

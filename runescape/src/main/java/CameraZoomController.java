@@ -46,7 +46,13 @@ public final class CameraZoomController {
      */
     static final int CHATBOX_PANE_INTERFACE = 752;
 
-    static int getZoom() { return userZoom; }
+    /**
+     * The zoom in effect: the saved value inside the current limits. The limits are applied here, where the zoom is used, and
+     * not written back when the settings change: the login push arrives in several packets ("zoom.enabled" in the first,
+     * the limits in a later one), so writing back would clamp an expanded zoom to the defaults before the account's own
+     * limits arrive. Switching the plugin off and on again gives the old zoom back.
+     */
+    static int getZoom() { return clamp(userZoom); }
 
     /** Camera plugin switched on (the 78 Plugins sidebar); off = OSRS's own standard limits and step. */
     private static boolean pluginOn() {
@@ -80,18 +86,10 @@ public final class CameraZoomController {
 
     /**
      * A saved zoom back at start-up. Only the absolute range applies here: the account's own limits arrive with the
-     * settings push after login ({@link #limitsChanged}), so an expanded zoom is not lost to the defaults first.
+     * settings push after login and {@link #getZoom} applies them, so an expanded zoom is not lost to the defaults first.
      */
     static void restoreZoom(int zoom) {
         userZoom = Math.max(ABSOLUTE_MIN, Math.min(INNER_ZOOM_LIMIT, zoom));
-    }
-
-    /** Settings changed (server push): a zoom outside the new limits moves inside them, as script 42 does on OSRS. */
-    static void limitsChanged() {
-        int clamped = clamp(userZoom);
-        if (clamped != userZoom) {
-            setZoom(clamped);
-        }
     }
 
     static int clamp(int zoom) {
@@ -99,7 +97,7 @@ public final class CameraZoomController {
     }
 
     static int scaleDistance(int distance) {
-        return (int) Math.round(distance * Math.pow(2.0, (DEFAULT_ZOOM - userZoom) / UNITS_PER_DOUBLING));
+        return (int) Math.round(distance * Math.pow(2.0, (DEFAULT_ZOOM - getZoom()) / UNITS_PER_DOUBLING));
     }
 
     public static boolean applyWheelRotation(
@@ -118,7 +116,7 @@ public final class CameraZoomController {
         if (pluginOn() && RspsHudConfig.is("zoom.controlFunction", "CONTROL_TO_ZOOM") && !controlDown) {
             return true;
         }
-        setZoom(adjustedZoom(userZoom, rotation));
+        setZoom(adjustedZoom(getZoom(), rotation));
         return true;
     }
 
@@ -133,20 +131,20 @@ public final class CameraZoomController {
 
     /**
      * Once per client cycle (game thread) with the Ctrl key state: RuneLite CameraPlugin.keyPressed / keyReleased. Releasing
-     * Ctrl with "Reset zoom" zooms to "Reset zoom position" (clamped to -400..1400, then to the limits by script 42).
+     * Ctrl with "Reset zoom" zooms to "Reset zoom position" (clamped to -400..1400, then to the limits by script 42). Without
+     * window focus Ctrl simply counts as up and nothing resets (RuneLite CameraPlugin.onFocusChanged).
      */
-    static void tickControl(boolean ctrl) {
+    static void tickControl(boolean ctrl, boolean focused) {
+        if (!focused) {
+            controlDown = false;
+            return;
+        }
         boolean released = controlDown && !ctrl;
         controlDown = ctrl;
         if (released && pluginOn() && RspsHudConfig.is("zoom.controlFunction", "CONTROL_TO_RESET")) {
             int value = Math.max(OUTER_LIMIT_MIN, Math.min(INNER_ZOOM_LIMIT, RspsHudConfig.integer("zoom.ctrlZoomValue")));
             setZoom(clamp(value));
         }
-    }
-
-    /** Focus lost: RuneLite CameraPlugin.onFocusChanged. */
-    static void focusLost() {
-        controlDown = false;
     }
 
     static boolean shouldConsume(
