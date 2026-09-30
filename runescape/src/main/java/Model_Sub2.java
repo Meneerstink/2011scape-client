@@ -1439,6 +1439,8 @@ public final class Model_Sub2 extends Model {
         if (this.anInt5506 == 0) {
             return;
         }
+        // RSPS render A/B switches (RspsRenderTest, server command "rendertest").
+        RspsRenderTest.beforeModel(this.aClass19_Sub3_24, this.aBoolean421);
         if (this.aByte89 != 0) {
             this.method4991(true);
         }
@@ -1463,6 +1465,7 @@ public final class Model_Sub2 extends Model {
                 }
             }
         }
+        RspsRenderTest.afterModel(this.aClass19_Sub3_24, this.aBoolean421);
         this.method4983();
     }
 

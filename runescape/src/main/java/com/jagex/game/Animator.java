@@ -28,6 +28,7 @@ public class Animator {
         if (animator.method9111() && other.method9111()) {
             @Pc(12) SeqType thisAnimation = animator.animation;
             @Pc(15) SeqType otherAnimation = other.animation;
+            com.jagex.core.util.ModelTrace.setFrame(thisAnimation.id, animator.currentFrame);
             model.method7477(other.frameOffset, animator.primarySequences.anInt6448, animator.primarySequences.aClass2_Sub2_Sub18_2, other.primarySequences.anInt6450, animator.primarySequences.anInt6450, other.primarySequences.aClass2_Sub2_Sub18_2, animator.primarySequences.aClass2_Sub2_Sub18_1, animator.frameOffset, thisAnimation.rotateNormals | otherAnimation.rotateNormals, otherAnimation.frameDurations[other.currentFrame], other.primarySequences.aClass2_Sub2_Sub18_1, thisAnimation.blendFlags, thisAnimation.frameDurations[animator.currentFrame], other.primarySequences.anInt6448);
         }
     }
@@ -92,6 +93,7 @@ public class Animator {
             return;
         }
 
+        com.jagex.core.util.ModelTrace.setFrame(this.animation.id, this.currentFrame);
         model.method7487(this.primarySequences.aClass2_Sub2_Sub18_1, this.frameOffset, this.animation.frameDurations[this.currentFrame], this.primarySequences.aClass2_Sub2_Sub18_2, this.primarySequences.anInt6448, this.primarySequences.anInt6450, arg1, this.animation.rotateNormals);
 
         if (this.runSecondary && this.animation.secondaryFrames != null && this.secondarySequences.aBoolean481) {
@@ -262,6 +264,7 @@ public class Animator {
     @OriginalMember(owner = "client!gu", name = "a", descriptor = "(IIZLclient!ka;)V")
     public final void animatePartial(@OriginalArg(0) int arg0, @OriginalArg(3) Model arg1) {
         if (this.method9111()) {
+            com.jagex.core.util.ModelTrace.setFrame(this.animation.id, this.currentFrame);
             arg1.method7496(this.frameOffset, this.primarySequences.aClass2_Sub2_Sub18_1, this.primarySequences.aClass2_Sub2_Sub18_2, this.primarySequences.anInt6448, null, this.animation.frameDurations[this.currentFrame], this.animation.rotateNormals, this.primarySequences.anInt6450, arg0);
             if (this.runSecondary && this.animation.secondaryFrames != null && this.secondarySequences.aBoolean481) {
                 arg1.method7496(this.frameOffset, this.secondarySequences.aClass2_Sub2_Sub18_1, this.secondarySequences.aClass2_Sub2_Sub18_2, this.secondarySequences.anInt6448, null, this.animation.frameDurations[this.currentFrame], this.animation.rotateNormals, this.secondarySequences.anInt6450, arg0);

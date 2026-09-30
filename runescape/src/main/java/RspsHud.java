@@ -72,6 +72,8 @@ final class RspsHud {
                 RspsSidebar.openLater(rest.length() > 0 ? rest : null);
             } else if (kind.equals("close")) {
                 RspsSidebar.closeLater();
+            } else if (kind.equals("render")) {
+                RspsRenderTest.handle(rest);
             }
         } catch (RuntimeException malformed) {
             // A malformed payload must never break the packet loop; the next update replaces the state anyway.
@@ -86,6 +88,8 @@ final class RspsHud {
         RspsHudGroundItems.reset();
         RspsLootTracker.reset(LoginManager.username);
         commands.clear();
+        RspsRenderTest.cull = true;
+        RspsRenderTest.alphaDepth = true;
     }
 
     /** Queues a `hud ...` command for the server (any thread); it goes out on the next client cycle. */

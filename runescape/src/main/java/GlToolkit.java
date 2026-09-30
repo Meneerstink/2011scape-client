@@ -2145,6 +2145,9 @@ public final class GlToolkit extends Toolkit {
                 this.method6999();
             } else {
                 local33 = this.aClass169_1.method3529(arg0);
+                if (local33 == null) {
+                    com.jagex.core.util.ModelTrace.textureNotLoaded(arg0);
+                }
                 @Pc(69) TextureMetrics local69 = super.textureSource.getMetrics(arg0);
                 if (local69.speedU == 0 && local69.speedV == 0) {
                     this.method6999();

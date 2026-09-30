@@ -72,6 +72,8 @@ public abstract class Model {
                 arg0 = -local18 & 0x3FFF;
             }
         }
+        // RSPS render trace: every frame transform with the values the toolkit applies (x, y, z) - ModelTrace.transform.
+        com.jagex.core.util.ModelTrace.transform(arg1, arg7, arg8, arg0, arg3 == null ? 0 : arg3.length);
         if (arg2 == 65535) {
             this.method7499(arg1, arg3, arg7, arg8, arg0, arg6, arg5);
         } else {

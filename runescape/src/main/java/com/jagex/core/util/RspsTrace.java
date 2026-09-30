@@ -30,4 +30,36 @@ public final class RspsTrace {
         }
         System.out.println("[avtrace " + System.currentTimeMillis() + "] PROBLEM " + message);
     }
+
+    private static final java.util.Map<String, Integer> counts = new java.util.HashMap<>();
+
+    /** Counts [key]; the [threshold]-th time it is seen, prints [message] as a PROBLEM once (a wait that never ends). */
+    public static void problemAfter(String key, int threshold, String message) {
+        if (!ENABLED) {
+            return;
+        }
+        int n;
+        synchronized (counts) {
+            if (counts.size() > 20000) {
+                return;
+            }
+            n = counts.merge(key, 1, Integer::sum);
+        }
+        if (n == threshold) {
+            problemOnce(key, message);
+        }
+    }
+
+    /** A plain trace line, printed once per [key]. */
+    public static void logOnce(String key, String message) {
+        if (!ENABLED) {
+            return;
+        }
+        synchronized (reported) {
+            if (reported.size() > 20000 || !reported.add("log:" + key)) {
+                return;
+            }
+        }
+        System.out.println("[avtrace " + System.currentTimeMillis() + "] " + message);
+    }
 }

@@ -1027,6 +1027,10 @@ public final class LocType {
                     }
                 }
 
+                // RSPS render trace (owner 2026-09-30: transparent / missing parts of the mansion): one line per loc model set.
+                if (com.jagex.core.util.ModelTrace.ENABLED) {
+                    com.jagex.core.util.ModelTrace.built("loc " + this.id + " '" + this.name + "' shape " + shape + " models " + java.util.Arrays.toString(models), mesh, toolkit.textureSource, this.retex_s, this.retex_d);
+                }
                 model = toolkit.createModel(mesh, innerFunctionMask, this.typeList.featureMask, ambient, contrast);
 
                 @Pc(372) ReferenceCache local372 = this.typeList.models;

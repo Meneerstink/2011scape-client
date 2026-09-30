@@ -678,6 +678,8 @@ public final class NPCType {
             return type == null ? null : type.getModel(arg0, toolkit, basTypeList, actionAnimator, arg4, wornRotation, customisation, movementAnimator, functionMask, animators);
         }
 
+        // RSPS render trace: name the npc for ModelTrace.built / ModelTrace.transform (cleared on return).
+        com.jagex.core.util.ModelTrace.setWho("npc " + this.id + " '" + this.name + "'");
         @Pc(32) int newFunctionMask = functionMask;
         if (this.scaleV != 128) {
             newFunctionMask = functionMask | 0x2;
@@ -749,6 +751,7 @@ public final class NPCType {
             }
 
             if (notReady) {
+                com.jagex.core.util.ModelTrace.clear();
                 return null;
             }
 
@@ -808,6 +811,8 @@ public final class NPCType {
                 mesh = new Mesh(meshes, meshes.length);
             }
 
+            com.jagex.core.util.ModelTrace.built("npc " + this.id + " '" + this.name + "'", mesh, toolkit.textureSource, this.retex_s,
+                customisation == null || customisation.retex_d == null ? this.retex_d : customisation.retex_d);
             model = toolkit.createModel(mesh, innerFunctionMask, this.typeList.featureMask, this.ambient + 64, this.diffusion + 850);
 
             if (this.recol_s != null) {
@@ -863,6 +868,7 @@ public final class NPCType {
         }
 
         if (!animated && !rotated) {
+            com.jagex.core.util.ModelTrace.clear();
             return result;
         }
 
@@ -909,6 +915,9 @@ public final class NPCType {
             }
         }
 
+        if (com.jagex.core.util.ModelTrace.ENABLED && movementAnimator != null && basType != null && movementAnimator.getAnimation() != null) {
+            com.jagex.core.util.ModelTrace.movementSequence("npc " + this.id + " '" + this.name + "'", this.basId, movementAnimator.getAnimation().id, basType.movementSequences());
+        }
         if (actionAnimator != null && movementAnimator != null) {
             Animator.blend(actionAnimator, result, movementAnimator);
         } else if (actionAnimator != null) {
@@ -922,6 +931,7 @@ public final class NPCType {
         }
 
         result.s(functionMask);
+        com.jagex.core.util.ModelTrace.clear();
         return result;
     }
 

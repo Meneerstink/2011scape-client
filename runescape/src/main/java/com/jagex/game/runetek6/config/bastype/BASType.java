@@ -171,6 +171,22 @@ public final class BASType {
         }
     }
 
+    /** RSPS render trace (ModelTrace.movementSequence): every sequence this BAS can play while standing or moving. */
+    public int[] movementSequences() {
+        int extra = this.readyAnimations == null ? 0 : this.readyAnimations.length;
+        int[] base = {
+            this.ready, this.readyTurnCw, this.readyTurnCcw, this.walk, this.walkTurnCw, this.walkTurnCcw, this.walkFollowTurn180,
+            this.walkFollowTurnCw, this.walkFollowTurnCcw, this.run, this.runTurnCw, this.runTurnCcw, this.runFollowTurn180,
+            this.runFollowTurnCw, this.runFollowTurnCcw, this.crawl, this.crawlTurnCw, this.crawlTurnCcw, this.crawlFollowTurn180,
+            this.crawlFollowTurnCw, this.crawlFollowTurnCcw,
+        };
+        int[] all = java.util.Arrays.copyOf(base, base.length + extra);
+        for (int i = 0; i < extra; i++) {
+            all[base.length + i] = this.readyAnimations[i];
+        }
+        return all;
+    }
+
     @OriginalMember(owner = "client!pda", name = "a", descriptor = "(IB)Z")
     public boolean isReady(@OriginalArg(0) int id) {
         if (id == -1) {

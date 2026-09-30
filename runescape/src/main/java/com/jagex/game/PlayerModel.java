@@ -219,6 +219,19 @@ public final class PlayerModel {
         @Pc(28) int newFunctionMask = functionMask;
         @Pc(31) long hash = this.hash;
         @Pc(34) int[] identikit = this.identikit;
+        // RSPS render trace: name the player by what it wears (obj ids / body kits), for ModelTrace.built / .transform.
+        if (com.jagex.core.util.ModelTrace.ENABLED) {
+            StringBuilder worn = new StringBuilder("player");
+            for (int slot = 0; slot < identikit.length; slot++) {
+                int kit = identikit[slot];
+                if ((kit & 0x40000000) != 0) {
+                    worn.append(' ').append(slot).append("=obj").append(kit & 0x3FFFFFFF);
+                } else if ((kit & Integer.MIN_VALUE) != 0) {
+                    worn.append(' ').append(slot).append("=kit").append(kit & 0x3FFFFFFF);
+                }
+            }
+            com.jagex.core.util.ModelTrace.setWho(worn.toString());
+        }
         @Pc(36) boolean leftHand = false;
         @Pc(44) boolean rightHand = false;
 
@@ -363,9 +376,19 @@ public final class PlayerModel {
 
                     if (!objTypeList.list(kit & 0x3FFFFFFF).loadedModels(this.female, customisation)) {
                         loadModels = true;
+                        // RSPS owner 2026-09-29 (gear vanishes, bare body shows): while any worn model is not ready the old
+                        // body model is drawn; a wait that never ends names the item here.
+                        com.jagex.game.runetek6.config.objtype.ObjType waiting = objTypeList.list(kit & 0x3FFFFFFF);
+                        com.jagex.core.util.RspsTrace.problemAfter("pm-wait:" + (kit & 0x3FFFFFFF) + ':' + this.female, 300,
+                            "player model still waits for obj " + (kit & 0x3FFFFFFF) + " slot=" + identikitIndex + " female=" + this.female
+                                + " manwear=" + waiting.manwear + "/" + waiting.manwear2 + "/" + waiting.manwear3
+                                + " womanwear=" + waiting.womanwear + "/" + waiting.womanwear2 + "/" + waiting.womanwear3
+                                + " custom=" + (customisation != null) + " - the old body is drawn instead");
                     }
                 } else if ((Integer.MIN_VALUE & kit) != 0 && !idkTypeList.list(kit & 0x3FFFFFFF).isModelLoaded()) {
                     loadModels = true;
+                    com.jagex.core.util.RspsTrace.problemAfter("pm-wait-kit:" + (kit & 0x3FFFFFFF), 300,
+                        "player model still waits for body kit " + (kit & 0x3FFFFFFF) + " slot=" + identikitIndex);
                 }
             }
 
@@ -378,6 +401,7 @@ public final class PlayerModel {
                 }
 
                 if (model == null || toolkit.compareFunctionMasks(model.ua(), newFunctionMask) != 0) {
+                    com.jagex.core.util.ModelTrace.clear();
                     return null;
                 }
             } else {
@@ -439,8 +463,25 @@ public final class PlayerModel {
                 }
 
                 @Pc(826) int recolFunctionMask = newFunctionMask | 0x4000;
-                @Pc(833) Mesh mesh = new Mesh(meshes, meshes.length);
-                model = toolkit.createModel(mesh, recolFunctionMask, featureMask, 64, 850);
+                if (com.jagex.core.util.RspsTrace.ENABLED) {
+                    StringBuilder parts = new StringBuilder();
+                    for (int i = 0; i < identikit.length; i++) {
+                        if (identikit[i] != 0) {
+                            parts.append(' ').append(i).append('=').append(identikit[i] & 0x3FFFFFFF)
+                                .append(meshes[i] == null ? "(NO MESH)" : "(" + meshes[i].vertexCount + "v/" + meshes[i].faceCount + "f)");
+                        }
+                    }
+                    com.jagex.core.util.RspsTrace.logOnce("pm-build:" + hash, "player model built hash=" + hash + " female=" + this.female + parts);
+                }
+                @Pc(833) Mesh mesh;
+                try {
+                    mesh = new Mesh(meshes, meshes.length);
+                    com.jagex.core.util.ModelTrace.built(com.jagex.core.util.ModelTrace.who("player") + (this.female ? " female" : " male"), mesh, toolkit.textureSource, null, null);
+                    model = toolkit.createModel(mesh, recolFunctionMask, featureMask, 64, 850);
+                } catch (RuntimeException e) {
+                    com.jagex.core.util.RspsTrace.problemOnce("pm-fail:" + hash, "player model build FAILED hash=" + hash + ": " + e);
+                    throw e;
+                }
 
                 for (@Pc(409) int i = 0; i < 10; i++) {
                     for (@Pc(709) int j = 0; j < recol_s[i].length; j++) {
@@ -463,6 +504,7 @@ public final class PlayerModel {
 
         @Pc(925) Model bodyModel = model.copy((byte) 4, newFunctionMask, true);
         if (!animated && !rotated) {
+            com.jagex.core.util.ModelTrace.clear();
             return bodyModel;
         }
 
@@ -517,6 +559,7 @@ public final class PlayerModel {
             animator.animate(bodyModel, 0);
         }
 
+        com.jagex.core.util.ModelTrace.clear();
         return bodyModel;
     }
 
