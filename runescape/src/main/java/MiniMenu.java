@@ -1303,6 +1303,12 @@ public final class MiniMenu {
         }
         @Pc(35) long v1Long = entry.v1;
 
+        // RuneLite Minimap: "Reset Zoom" (client only).
+        if (action == RspsMinimapZoom.ACTION_RESET) {
+            RspsMinimapZoom.reset();
+            return;
+        }
+
         // RSPS developer mode: Tag / Remove / Rotate on a loc, Tag / 78 banner / 78 standard / 78 small on a tile.
         if (RspsDev.isDevAction(action)) {
             if (RspsDev.isNpcAction(action)) {

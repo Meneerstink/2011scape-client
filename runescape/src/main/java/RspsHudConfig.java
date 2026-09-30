@@ -32,6 +32,8 @@ final class RspsHudConfig {
         final String[] optionNames;
         final String section;
         final int max;
+        /** Lowest value of an INT item (RuneLite @Range min; 0 when it has none). */
+        int min;
 
         Setting(String plugin, String key, int type, String name, String description, String defaultValue, String section, int max, String[] options, String[] optionNames) {
             this.plugin = plugin;
@@ -53,6 +55,10 @@ final class RspsHudConfig {
         {"opponent", "Opponent Information", "Show name and hitpoints information about the NPC you are fighting"},
         {"grounditems", "Ground Items", "Highlight ground items and/or show price information"},
         {"timers", "Timers & Buffs", "Show various timers in an infobox"},
+        // Owner 2026-09-30. RuneLite's Camera plugin keeps its old config group "zoom"; only its zoom items are imported.
+        {"zoom", "Camera", "Expands zoom limit"},
+        {"minimap", "Minimap", "Zoom the minimap"},
+        {"loottracker", "Loot Tracker", "Tracks loot from monsters and minigames"},
     };
 
     static final List<Setting> SETTINGS = new ArrayList<Setting>();
@@ -81,6 +87,11 @@ final class RspsHudConfig {
 
     private static void integer(String plugin, String key, String name, String description, int def, int max, String section) {
         add(plugin, key, INT, name, description, Integer.toString(def), section, max, null, null);
+    }
+
+    private static void integer(String plugin, String key, String name, String description, int def, int min, int max, String section) {
+        add(plugin, key, INT, name, description, Integer.toString(def), section, max, null, null);
+        SETTINGS.get(SETTINGS.size() - 1).min = min;
     }
 
     private static void choice(String plugin, String key, String name, String description, String def, String[] options, String[] names, String section) {
@@ -155,6 +166,27 @@ final class RspsHudConfig {
         choice(g, "lootbeamStyle", "Lootbeam style", "Style of lootbeam to use.", "MODERN", new String[]{"MODERN", "LEGACY"}, new String[]{"Modern", "Legacy"}, null);
         choice(g, "hotkey", "Hotkey", "Configures the hotkey used by the Ground Items plugin.", "ALT", new String[]{"ALT", "SHIFT", "CTRL"}, new String[]{"Alt", "Shift", "Ctrl"}, null);
 
+        // RuneLite CameraConfig (group "zoom"), the zoom items, positions 1..6.
+        String z = "zoom";
+        bool(z, "inner", "Expand inner zoom limit", "Configures whether or not the inner zoom limit is reduced.", false, null);
+        integer(z, "outerLimit", "Expand outer zoom limit", "Configures how much the outer zoom limit is adjusted.", 0, -400, 400, null);
+        choice(z, "controlFunction", "Control function", "Configures the zoom function when control is pressed.", "NONE",
+            new String[]{"NONE", "CONTROL_TO_ZOOM", "CONTROL_TO_RESET"}, new String[]{"None", "Hold to zoom", "Reset zoom"}, null);
+        integer(z, "ctrlZoomValue", "Reset zoom position", "Position of zoom when it is reset.", 512, -400, 1400, null);
+        integer(z, "zoomIncrement", "Zoom speed", "Speed of zoom.", 25, 0, Integer.MAX_VALUE, null);
+
+        // RuneLite MinimapConfig: "Zoom".
+        bool("minimap", "zoom", "Zoom", "Enables zooming on the minimap.", true, null);
+
+        // RuneLite LootTrackerConfig (the ignore lists are the panel's own right-click actions here).
+        String l = "loottracker";
+        choice(l, "priceType", "Price type", "What type of price to use for calculating value.", "GRAND_EXCHANGE",
+            new String[]{"GRAND_EXCHANGE", "HIGH_ALCHEMY"}, new String[]{"Grand Exchange", "High Alchemy"}, null);
+        bool(l, "showPriceType", "Show price type", "Whether to show a GE: or HA: next to the total values in the tracker.", false, null);
+        bool(l, "syncPanel", "Remember loot", "Saves loot between client sessions.", true, null);
+        bool(l, "npcKillChatMessage", "Show chat message for NPC kills", "Adds a chat message with monster name and kill value when receiving loot from an NPC kill.", false, null);
+        bool(l, "pvpKillChatMessage", "Show chat message for PvP kills", "Adds a chat message with player name and kill value when receiving loot from a player kill.", false, null);
+
         // RuneLite TimersAndBuffsConfig sections; items without a position sort by name inside their section.
         String t = "timers";
         String spells = "Spells";
@@ -198,6 +230,8 @@ final class RspsHudConfig {
         for (String[] plugin : PLUGINS) {
             values.put(plugin[0] + ".enabled", "true");
         }
+        // RuneLite CameraPlugin: enabledByDefault = false.
+        values.put("zoom.enabled", "false");
         highlighted.clear();
         hidden.clear();
         highlightedNames.clear();
@@ -262,6 +296,8 @@ final class RspsHudConfig {
                 }
             }
             revision++;
+            // RuneLite CameraPlugin.onConfigChanged -> applyConfigs: the zoom moves inside the new limits.
+            CameraZoomController.limitsChanged();
             return;
         }
         List<Pattern> list = kind.equals("hl") ? highlighted : hidden;

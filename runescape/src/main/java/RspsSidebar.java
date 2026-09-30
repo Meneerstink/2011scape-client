@@ -110,6 +110,9 @@ final class RspsSidebar extends JPanel {
     private String plugin;
     private String search = "";
     private final Set<String> collapsedSections = new LinkedHashSet<String>();
+    private JButton lootNav;
+    /** The Loot Tracker tab is the open view. */
+    private boolean lootView;
 
     /** Controls of the open view, to refresh their values from a server push. */
     private final Map<String, Runnable> refreshers = new HashMap<String, Runnable>();
@@ -150,8 +153,30 @@ final class RspsSidebar extends JPanel {
         nav.setName("navigation");
         nav.setAlignmentX(Component.CENTER_ALIGNMENT);
         nav.setMaximumSize(new Dimension(NAV_WIDTH, 30));
-        nav.addActionListener(e -> setExpanded(!expanded));
+        nav.addActionListener(e -> {
+            if (expanded && !lootView) {
+                setExpanded(false);
+            } else {
+                setExpanded(true);
+                showList();
+            }
+        });
         navigation.add(nav);
+        // RuneLite Loot Tracker: its own navigation button (panel_icon), shown while the plugin is on.
+        lootNav = iconButton(RspsLootTracker.PANEL_ICON, "Loot Tracker");
+        lootNav.setName("navigation.loottracker");
+        lootNav.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lootNav.setMaximumSize(new Dimension(NAV_WIDTH, 30));
+        lootNav.addActionListener(e -> {
+            if (expanded && lootView) {
+                setExpanded(false);
+            } else {
+                setExpanded(true);
+                showLoot();
+            }
+        });
+        lootNav.setVisible(RspsHudConfig.enabled("loottracker"));
+        navigation.add(lootNav);
         navigation.add(Box.createVerticalGlue());
         add(content, BorderLayout.CENTER);
         add(navigation, BorderLayout.EAST);
@@ -225,9 +250,46 @@ final class RspsSidebar extends JPanel {
         return null;
     }
 
+    /** A loot event or a new item icon: the open Loot Tracker view shows it. */
+    static void refreshLootLater() {
+        if (instance == null) {
+            return;
+        }
+        SwingUtilities.invokeLater(() -> {
+            if (instance.lootView) {
+                instance.showLoot();
+            }
+        });
+    }
+
+    // ---- Loot Tracker (RuneLite LootTrackerPanel) ---------------------------------------------------------------------
+
+    void showLoot() {
+        lootView = true;
+        plugin = null;
+        refreshers.clear();
+        listRefreshers.clear();
+        JScrollPane old = (JScrollPane) find("lootScroll");
+        int scrollY = old != null ? old.getVerticalScrollBar().getValue() : 0;
+        content.removeAll();
+        JPanel panel = RspsLootTracker.build(this::showLoot);
+        panel.setName("lootTracker");
+        JPanel wrap = new JPanel(new BorderLayout());
+        wrap.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        wrap.add(panel, BorderLayout.NORTH);
+        JScrollPane scroll = (JScrollPane) scroll(wrap);
+        scroll.setName("lootScroll");
+        content.add(scroll, BorderLayout.CENTER);
+        content.revalidate();
+        content.repaint();
+        final int y = scrollY;
+        SwingUtilities.invokeLater(() -> scroll.getVerticalScrollBar().setValue(y));
+    }
+
     // ---- plugin list (RuneLite PluginListPanel / PluginListItem) ------------------------------------------------------
 
     void showList() {
+        lootView = false;
         plugin = null;
         refreshers.clear();
         listRefreshers.clear();
@@ -402,6 +464,7 @@ final class RspsSidebar extends JPanel {
     // ---- configuration (RuneLite ConfigPanel) -------------------------------------------------------------------------
 
     void showConfig(final String pluginId) {
+        lootView = false;
         plugin = pluginId;
         refreshers.clear();
         listRefreshers.clear();
@@ -562,7 +625,7 @@ final class RspsSidebar extends JPanel {
                 break;
             }
             case RspsHudConfig.INT: {
-                final JSpinner spinner = new JSpinner(new SpinnerNumberModel(RspsHudConfig.integer(key), 0, setting.max, 1));
+                final JSpinner spinner = new JSpinner(new SpinnerNumberModel(Math.max(setting.min, Math.min(setting.max, RspsHudConfig.integer(key))), setting.min, setting.max, 1));
                 spinner.setName(key);
                 Component editor = spinner.getEditor();
                 if (editor instanceof JSpinner.DefaultEditor) {
@@ -706,6 +769,19 @@ final class RspsSidebar extends JPanel {
     }
 
     void refresh() {
+        boolean lootOn = RspsHudConfig.enabled("loottracker");
+        if (lootNav != null && lootNav.isVisible() != lootOn) {
+            lootNav.setVisible(lootOn);
+            navigation.revalidate();
+            if (!lootOn && lootView) {
+                showList();
+            }
+        }
+        if (lootView) {
+            // Price type / show price type changed: the loot view is rebuilt.
+            showLoot();
+            return;
+        }
         for (Runnable refresher : refreshers.values()) {
             refresher.run();
         }

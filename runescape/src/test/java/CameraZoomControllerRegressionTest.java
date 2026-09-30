@@ -2,11 +2,61 @@ public final class CameraZoomControllerRegressionTest {
     private static int assertions;
 
     public static void main(String[] args) {
-        check(CameraZoomController.adjustedZoom(320, -1) == 305, "Wheel up zooms one bounded step");
-        check(CameraZoomController.adjustedZoom(320, 1) == 335, "Wheel down zooms one bounded step");
-        check(CameraZoomController.adjustedZoom(155, -20) == CameraZoomController.MIN_ZOOM, "Lower bound clamps");
-        check(CameraZoomController.adjustedZoom(655, 20) == CameraZoomController.MAX_ZOOM, "Upper bound clamps");
-        check(CameraZoomController.adjustedZoom(320, Integer.MAX_VALUE) == CameraZoomController.MAX_ZOOM, "Large wheel input cannot overflow");
+        // RuneLite Camera plugin off (its default): OSRS's own zoom - script 39 step 25, limits 128..896, 512 default.
+        RspsHudConfig.resetToDefaults();
+        check(CameraZoomController.adjustedZoom(512, -1) == 537, "Wheel up zooms in one 25 step (script 39)");
+        check(CameraZoomController.adjustedZoom(512, 1) == 487, "Wheel down zooms out one 25 step");
+        check(CameraZoomController.adjustedZoom(150, 20) == 128, "Outer limit clamps at 128");
+        check(CameraZoomController.adjustedZoom(880, -20) == 896, "Inner limit clamps at 896");
+        check(CameraZoomController.adjustedZoom(512, Integer.MAX_VALUE) == 128, "Large wheel input cannot overflow");
+        check(CameraZoomController.scaleDistance(1000) == 1000, "512 is the client's normal camera distance");
+
+        // Plugin on: RuneLite CameraConfig items.
+        RspsHudConfig.put("zoom.enabled", "true");
+        RspsHudConfig.put("zoom.inner", "true");
+        RspsHudConfig.put("zoom.outerLimit", "400");
+        RspsHudConfig.put("zoom.zoomIncrement", "50");
+        check(CameraZoomController.maxZoom() == 1400, "Expand inner zoom limit: 1400");
+        check(CameraZoomController.minZoom() == -272, "Expand outer zoom limit 400: 128 - 400");
+        check(CameraZoomController.adjustedZoom(512, -1) == 562, "Zoom speed 50");
+        RspsHudConfig.put("zoom.outerLimit", "-400");
+        check(CameraZoomController.minZoom() == 528, "Negative outer limit narrows the range");
+        CameraZoomController.restoreZoom(300);
+        CameraZoomController.limitsChanged();
+        check(CameraZoomController.getZoom() == 528, "New limits move the zoom inside them");
+        RspsHudConfig.put("zoom.outerLimit", "0");
+        RspsHudConfig.put("zoom.controlFunction", "CONTROL_TO_ZOOM");
+        CameraZoomController.restoreZoom(512);
+        CameraZoomController.tickControl(false);
+        check(CameraZoomController.applyWheelRotation(-1, true, false, false, false, false, false) && CameraZoomController.getZoom() == 512,
+            "Hold to zoom: the wheel without Ctrl does not zoom");
+        CameraZoomController.tickControl(true);
+        CameraZoomController.applyWheelRotation(-1, true, false, false, false, false, false);
+        check(CameraZoomController.getZoom() == 562, "Hold to zoom: Ctrl + wheel zooms");
+        RspsHudConfig.put("zoom.controlFunction", "CONTROL_TO_RESET");
+        RspsHudConfig.put("zoom.ctrlZoomValue", "700");
+        CameraZoomController.tickControl(true);
+        CameraZoomController.tickControl(false);
+        check(CameraZoomController.getZoom() == 700, "Reset zoom: releasing Ctrl zooms to the reset position");
+        check(CameraZoomController.fromLegacyDistance(320) == 512 && CameraZoomController.fromLegacyDistance(660) < 140
+            && CameraZoomController.fromLegacyDistance(150) > 890, "Old saved distance maps onto the OSRS scale");
+        RspsHudConfig.resetToDefaults();
+
+        // RuneLite Minimap "Zoom" (default on): 4 px per tile, wheel only over the minimap.
+        RspsMinimapZoom.zoom = RspsMinimapZoom.DEFAULT;
+        RspsMinimapZoom.hovered = false;
+        check(!RspsMinimapZoom.wheel(-1), "Minimap zoom ignores the wheel away from the minimap");
+        RspsMinimapZoom.hovered = true;
+        check(RspsMinimapZoom.wheel(-1) && RspsMinimapZoom.zoom == 4.5, "Wheel up over the minimap zooms it in");
+        check(RspsMinimapZoom.scale(16384) == 18432 && RspsMinimapZoom.unscale(18432) == 16384, "Dots and clicks use the same factor");
+        for (int i = 0; i < 50; i++) RspsMinimapZoom.wheel(1);
+        check(RspsMinimapZoom.zoom == RspsMinimapZoom.MIN, "Minimap zoom clamps");
+        RspsMinimapZoom.reset();
+        check(RspsMinimapZoom.zoom == 4.0 && !RspsMinimapZoom.isZoomed(), "Right-click Reset zoom");
+        RspsHudConfig.put("minimap.zoom", "false");
+        check(!RspsMinimapZoom.wheel(-1) && RspsMinimapZoom.factor() == 1.0, "Zoom off: the wheel goes to the camera, scale 1");
+        RspsHudConfig.resetToDefaults();
+        RspsMinimapZoom.hovered = false;
 
         check(consume(true, false, false, false, false, false), "Open scene accepts wheel zoom");
         check(!consume(false, false, false, false, false, false), "Outside scene preserves interface scrolling");
@@ -23,10 +73,10 @@ public final class CameraZoomControllerRegressionTest {
         check(CameraZoomController.blocksWorldZoom(true, 746), "Main-screen modal (resizable gameframe 746) still blocks zoom");
         check(!CameraZoomController.blocksWorldZoom(false, 548), "Non-modal overlays never block zoom");
 
-        CameraZoomController.restoreZoom(320);
+        CameraZoomController.restoreZoom(512);
         check(CameraZoomController.applyWheelRotation(1, true, false, false, false, false, false), "Eligible wheel input is consumed");
-        check(CameraZoomController.getZoom() == 335, "Consumed wheel input updates the real camera zoom field");
-        check(!CameraZoomController.applyWheelRotation(1, true, true, false, false, false, false) && CameraZoomController.getZoom() == 335,
+        check(CameraZoomController.getZoom() == 487, "Consumed wheel input updates the real camera zoom field");
+        check(!CameraZoomController.applyWheelRotation(1, true, true, false, false, false, false) && CameraZoomController.getZoom() == 487,
             "Blocked interface input leaves the real camera unchanged");
 
         System.out.println("Camera zoom regression checks passed: " + assertions);

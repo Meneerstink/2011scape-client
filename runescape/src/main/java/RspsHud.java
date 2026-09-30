@@ -66,6 +66,8 @@ final class RspsHud {
                 RspsHudGroundItems.update(rest);
             } else if (kind.equals("gdelay")) {
                 RspsHudGroundItems.setDespawnTicks(Integer.parseInt(rest));
+            } else if (kind.equals("loot") || kind.equals("lootr") || kind.equals("lootclear")) {
+                RspsLootTracker.handle(kind, rest);
             } else if (kind.equals("open")) {
                 RspsSidebar.openLater(rest.length() > 0 ? rest : null);
             } else if (kind.equals("close")) {
@@ -82,6 +84,7 @@ final class RspsHud {
         RspsHudOpponent.reset();
         RspsHudTimers.reset();
         RspsHudGroundItems.reset();
+        RspsLootTracker.reset(LoginManager.username);
         commands.clear();
     }
 
@@ -141,6 +144,9 @@ final class RspsHud {
     static void render(int x, int y, int width, int height) {
         if (Toolkit.active == null || PlayerEntity.self == null) {
             return;
+        }
+        if (RspsHudConfig.enabled("loottracker")) {
+            RspsLootTracker.renderIcons(Toolkit.active);
         }
         if (RspsHudConfig.enabled("grounditems")) {
             RspsHudGroundItems.render(x, y);

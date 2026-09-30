@@ -37,6 +37,7 @@ public final class RspsHudRegressionTest {
         layout();
         sidebar();
         crowdedGround();
+        lootTracker();
         System.out.println("RSPS HUD regression checks passed: " + assertions);
     }
 
@@ -516,6 +517,36 @@ public final class RspsHudRegressionTest {
             sb.append(s).append('\n');
         }
         return sb.toString();
+    }
+
+    /** RuneLite Loot Tracker: the server's loot events build the grouped and single views without double counts. */
+    private static void lootTracker() {
+        RspsHudConfig.resetToDefaults();
+        RspsLootTracker.handle("lootclear", "");
+        RspsLootTracker.groupLoot = true;
+        RspsLootTracker.handle("loot", "King Black Dragon|276|1|536,1,1000,0;1149,1,60000,36000");
+        RspsLootTracker.handle("loot", "King Black Dragon|276|1|536,1,1000,0");
+        java.util.List<RspsLootTracker.Record> grouped = RspsLootTracker.records();
+        check(grouped.size() == 1 && grouped.get(0).kills == 2, "loot: repeated kills of one source group into one record");
+        check(grouped.get(0).items.get(536).quantity == 2 && grouped.get(0).items.get(1149).quantity == 1, "loot: quantities add up per item");
+        // A long kill split over two payloads: the second (kills 0) belongs to the same kill.
+        RspsLootTracker.handle("loot", "Hill Giant|28|1|526,1,100,0");
+        RspsLootTracker.handle("loot", "Hill Giant|28|0|995,50,1,1");
+        RspsLootTracker.groupLoot = false;
+        java.util.List<RspsLootTracker.Record> single = RspsLootTracker.records();
+        check(single.size() == 3 && single.get(0).name.equals("Hill Giant") && single.get(0).items.size() == 2, "loot: split payload stays one kill");
+        RspsLootTracker.groupLoot = true;
+        check(RspsLootTracker.records().get(0).name.equals("Hill Giant"), "loot: newest source on top");
+        RspsLootTracker.handle("lootclear", "Hill Giant|28");
+        check(RspsLootTracker.records().size() == 1, "loot: a box's Reset removes only that source");
+        // Relog with Remember loot on: the server re-sends the aggregate, which must not double.
+        RspsLootTracker.reset("tester");
+        RspsLootTracker.handle("lootr", "King Black Dragon|276|2|536,2,1000,0;1149,1,60000,36000");
+        check(RspsLootTracker.records().get(0).kills == 2 && RspsLootTracker.records().get(0).items.get(536).quantity == 2, "loot: relog restores without doubling");
+        check(RspsLootTracker.stackSize(9999).equals("9,999") && RspsLootTracker.stackSize(1_234_567).equals("1.23M") && RspsLootTracker.stackSize(100_000).equals("100K"),
+            "loot: RuneLite quantityToStackSize");
+        RspsLootTracker.handle("lootclear", "");
+        check(RspsLootTracker.records().isEmpty(), "loot: Reset All");
     }
 
     private static void check(boolean condition, String message) {

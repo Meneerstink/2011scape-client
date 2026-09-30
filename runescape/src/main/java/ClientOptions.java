@@ -184,16 +184,21 @@ public final class ClientOptions extends Node {
 
     byte[] encodeLocal() {
         Packet packet = encode();
-        java.nio.ByteBuffer data = java.nio.ByteBuffer.allocate(packet.pos + 18);
-        data.put(packet.data, 0, packet.pos).putInt(0x52535053).put((byte) 1);
+        // Trailer version 2 (owner 2026-09-30, RuneLite Camera + Minimap zoom): the camera zoom in OSRS units and the
+        // minimap zoom in thousandths of a pixel per tile (RuneLite MinimapPlugin "zoomLevel").
+        java.nio.ByteBuffer data = java.nio.ByteBuffer.allocate(packet.pos + 22);
+        data.put(packet.data, 0, packet.pos).putInt(0x52535053).put((byte) 2);
         data.put((byte) startupWindowMode()).putInt(windowWidth).putInt(windowHeight).putInt(cameraZoom);
+        data.putInt((int) Math.round(RspsMinimapZoom.zoom * 1000.0));
         return data.array();
     }
 
     private void decodeLocal(Packet packet) {
         if (packet == null || packet.data.length - packet.pos < 18) return;
-        java.nio.ByteBuffer data = java.nio.ByteBuffer.wrap(packet.data, packet.pos, 18);
-        if (data.getInt() != 0x52535053 || data.get() != 1) return;
+        java.nio.ByteBuffer data = java.nio.ByteBuffer.wrap(packet.data, packet.pos, packet.data.length - packet.pos);
+        if (data.getInt() != 0x52535053) return;
+        int version = data.get();
+        if (version != 1 && version != 2) return;
         int mode = data.get();
         int width = data.getInt();
         int height = data.getInt();
@@ -203,7 +208,13 @@ public final class ClientOptions extends Node {
             windowWidth = width;
             windowHeight = height;
         }
-        if (zoom >= CameraZoomController.MIN_ZOOM && zoom <= CameraZoomController.MAX_ZOOM) cameraZoom = zoom;
+        if (version == 1) {
+            // Version 1 kept the 667 distance (150..660 around 320): the same view in OSRS units.
+            if (zoom >= CameraZoomController.SCRIPT_ZOOM_MIN && zoom <= CameraZoomController.SCRIPT_ZOOM_MAX) cameraZoom = CameraZoomController.fromLegacyDistance(zoom);
+            return;
+        }
+        if (zoom >= CameraZoomController.ABSOLUTE_MIN && zoom <= CameraZoomController.INNER_ZOOM_LIMIT) cameraZoom = zoom;
+        if (data.remaining() >= 4) RspsMinimapZoom.restore(data.getInt() / 1000.0);
     }
 
     @OriginalMember(owner = "client!kv", name = "Z", descriptor = "Lclient!tba;")
@@ -350,8 +361,8 @@ public final class ClientOptions extends Node {
                 this.soundVolume = new VolumeOption(packet.g1(), this);
                 this.backgroundSoundVolume = new VolumeOption(packet.g1(), this);
                 this.speechVolume = new VolumeOption(packet.g1(), this);
-                this.musicVolume = new VolumeOption(packet.g1(), this);
-                this.loginVolume = new VolumeOption(packet.g1(), this);
+                this.musicVolume = new VolumeOption(packet.g1(), this, VolumeOption.MUSIC_MAX);
+                this.loginVolume = new VolumeOption(packet.g1(), this, VolumeOption.MUSIC_MAX);
                 this.stereoSound = new StereoSoundOption(packet.g1(), this);
                 this.loadDefaults(false);
             } else {
@@ -473,10 +484,10 @@ public final class ClientOptions extends Node {
             this.speechVolume = new VolumeOption(this);
         }
         if (all || this.musicVolume == null) {
-            this.musicVolume = new VolumeOption(this);
+            this.musicVolume = new VolumeOption(this, VolumeOption.MUSIC_MAX);
         }
         if (all || this.loginVolume == null) {
-            this.loginVolume = new VolumeOption(this);
+            this.loginVolume = new VolumeOption(this, VolumeOption.MUSIC_MAX);
         }
         if (all || this.stereoSound == null) {
             this.stereoSound = new StereoSoundOption(this);

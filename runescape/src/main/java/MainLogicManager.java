@@ -619,6 +619,12 @@ public final class MainLogicManager {
         }
 
         Static443.method5981();
+        // RuneLite Camera: Ctrl for "Control function" (Hold to zoom / Reset zoom on release).
+        CameraZoomController.tickControl(KeyboardMonitor.instance.isPressed(82));
+        // RuneLite Minimap "Zoom": the wheel over the minimap zooms the minimap, not the camera.
+        if (RspsMinimapZoom.wheel(Static611.mouseWheelRotation)) {
+            Static611.mouseWheelRotation = 0;
+        }
         if (Static611.mouseWheelRotation != 0) {
             // K-05: same admin threshold as the Ctrl+Shift+wheel plane teleport below, so a moderator just zooms.
             boolean staffPlaneShortcut = Client.staffModLevel >= ClientConfig.TELEPORT_MIN_STAFF_LEVEL

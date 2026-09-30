@@ -117,6 +117,9 @@ public final class Minimap {
             selfZ = PlayerEntity.self.z;
         }
 
+        // RuneLite Minimap "Zoom": pixels per tile on top of the minimap's own scale.
+        scale = RspsMinimapZoom.spriteScale(scale);
+
         @Pc(120) int x = ((selfX / 128) + 208 + 48) - (Static720.mapWidth * 2);
         @Pc(137) int z = ((Static501.mapLength * 4) + 48) - (selfZ / 128) - ((Static501.mapLength - 104) * 2);
         sprite.renderRotated((float) screenX + ((float) component.width / 2.0F), ((float) component.height / 2.0F) + (float) screenY, (float) x, (float) z, scale, yaw << 2, clippingMask, screenX, screenY);
@@ -458,6 +461,8 @@ public final class Minimap {
                     local62 = local62 * 256 / (Camera.scaleOffset + 256);
                     local66 = local66 * 256 / (Camera.scaleOffset + 256);
                 }
+                local62 = RspsMinimapZoom.scale(local62);
+                local66 = RspsMinimapZoom.scale(local66);
 
                 local34[i * 2] = component.width / 2 + screenX + (local66 * (elementType.landmarkPolygons[i * 2] * 4 + drawX) + local62 * (drawY + elementType.landmarkPolygons[i * 2 + 1] * 4) >> 14);
                 local34[(i * 2) + 1] = screenY + component.height / 2 - (local66 * (drawY + elementType.landmarkPolygons[i * 2 + 1] * 4) - local62 * (drawX + elementType.landmarkPolygons[i * 2] * 4) >> 14);
@@ -818,7 +823,8 @@ public final class Minimap {
 
         @Pc(37) int local37 = Math.max(component.width / 2, component.height / 2) + 10;
         @Pc(45) int local45 = (drawY * drawY) + (drawX * drawX);
-        if ((local37 * local37) < local45) {
+        double zoom = RspsMinimapZoom.factor();
+        if ((double) (local37 * local37) < local45 * zoom * zoom) {
             return;
         }
 
@@ -828,6 +834,8 @@ public final class Minimap {
             local60 = (local60 * 256) / (Camera.scaleOffset + 256);
             local64 = (local64 * 256) / (Camera.scaleOffset + 256);
         }
+        local60 = RspsMinimapZoom.scale(local60);
+        local64 = RspsMinimapZoom.scale(local64);
 
         @Pc(98) int local98 = ((drawX * local64) + (drawY * local60)) >> 14;
         @Pc(109) int local109 = ((drawY * local64) - (drawX * local60)) >> 14;
@@ -842,7 +850,8 @@ public final class Minimap {
         }
 
         @Pc(37) int local37 = Math.min(component.width / 2, component.height / 2);
-        if (distance <= (local37 * local37)) {
+        double zoom = RspsMinimapZoom.factor();
+        if ((double) distance * zoom * zoom <= (local37 * local37)) {
             drawDot(offsetY, mask, Sprites.hintMapmarkers[sprite], arrowY, arrowX, component, offsetX);
             return;
         }
@@ -862,6 +871,8 @@ public final class Minimap {
             local81 = local81 * 256 / (Camera.scaleOffset + 256);
             local77 = local77 * 256 / (Camera.scaleOffset + 256);
         }
+        local81 = RspsMinimapZoom.scale(local81);
+        local77 = RspsMinimapZoom.scale(local77);
 
         @Pc(112) int local112 = ((arrowX * local81) + (arrowY * local77)) >> 14;
         @Pc(123) int local123 = ((arrowY * local81) - (arrowX * local77)) >> 14;

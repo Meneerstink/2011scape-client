@@ -261,7 +261,8 @@ public final class Static256 {
 
         @Pc(33) int local33 = Math.max(component.width / 2, component.height / 2) + 10;
         @Pc(59) int local59 = (arg8 * arg8) + (arg10 * arg10);
-        if ((local33 * local33) < local59) {
+        double zoom = RspsMinimapZoom.factor();
+        if ((double) (local33 * local33) < local59 * zoom * zoom) {
             return;
         }
 
@@ -271,6 +272,8 @@ public final class Static256 {
             local74 = (local74 * 256) / (Camera.scaleOffset + 256);
             local78 = (local78 * 256) / (Camera.scaleOffset + 256);
         }
+        local74 = RspsMinimapZoom.scale(local74);
+        local78 = RspsMinimapZoom.scale(local78);
 
         @Pc(107) int local107 = ((local78 * arg10) + (arg8 * local74)) >> 14;
         @Pc(118) int local118 = ((local78 * arg8) - (arg10 * local74)) >> 14;

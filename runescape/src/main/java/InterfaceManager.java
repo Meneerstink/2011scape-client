@@ -279,6 +279,7 @@ public final class InterfaceManager {
     public static boolean mouseWheelClaimedByInterface = false;
 
     public static void beginMouseWheelFrame() {
+        RspsMinimapZoom.hovered = false;
         mouseWheelOverScene = false;
         mouseWheelClaimedByInterface = false;
     }
@@ -1639,6 +1640,10 @@ public final class InterfaceManager {
                                     sinYaw = sinYaw * (Camera.scaleOffset + 256) >> 8;
                                     cosYaw = cosYaw * (Camera.scaleOffset + 256) >> 8;
                                 }
+                                // RuneLite Minimap "Zoom": screen pixels back to tiles at the zoomed scale.
+                                sinYaw = RspsMinimapZoom.unscale(sinYaw);
+                                cosYaw = RspsMinimapZoom.unscale(cosYaw);
+                                RspsMinimapZoom.hovered = true;
 
                                 @Pc(1170) int local1170 = ((y * sinYaw) + (x * cosYaw)) >> 14;
                                 @Pc(1180) int local1180 = ((y * cosYaw) - (x * sinYaw)) >> 14;
@@ -1668,6 +1673,10 @@ public final class InterfaceManager {
                                     }
 
                                     MiniMenu.addEntryInner(false, -1, 1L, local1191, local1199, Static331.moveText, MiniMenuAction.WALK, true, Static331.moveCursor, "", 0L, true);
+                                    // RuneLite Minimap: right-click the minimap to reset its zoom.
+                                    if (RspsMinimapZoom.isZoomed()) {
+                                        MiniMenu.addEntryInner(false, -1, 0L, 0, 0, "Reset", RspsMinimapZoom.ACTION_RESET + 2000, true, -1, "<col=ff9040>Zoom", 0L, false);
+                                    }
                                 }
 
                                 continue;

@@ -104,7 +104,8 @@ public final class MansionMusic {
 
     private static double volumeSetting() {
         try {
-            return Math.max(0, Math.min(127, ClientOptions.instance.musicVolume.getValue())) / 127.0;
+            // The music slider runs 0..255 (VolumeOption.MUSIC_MAX): /127 reached full volume at the middle of the slider.
+            return Math.max(0, Math.min(VolumeOption.MUSIC_MAX, ClientOptions.instance.musicVolume.getValue())) / (double) VolumeOption.MUSIC_MAX;
         } catch (Throwable t) {
             return 1.0;
         }

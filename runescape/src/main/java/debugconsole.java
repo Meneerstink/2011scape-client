@@ -891,7 +891,7 @@ public final class debugconsole {
                     // "zoom 70000" cannot wrap around through the short cast.
                     @Pc(2748) int zoom = StringTools.parseDecimal(command.substring("zoom ".length()));
                     if (zoom > 0) {
-                        Camera.zoom = (short) Math.max(CameraZoomController.MIN_ZOOM, Math.min(CameraZoomController.MAX_ZOOM, zoom));
+                        Camera.zoom = (short) Math.max(CameraZoomController.SCRIPT_ZOOM_MIN, Math.min(CameraZoomController.SCRIPT_ZOOM_MAX, zoom));
                         addline("zoom=" + Camera.zoom);
                     }
                     return;

@@ -85,14 +85,14 @@ public final class GraphicsDisplayRegressionTest {
         Static25.aShort1 = 1; Static306.aShort59 = 32767;
         Static498.method6643(0, false, 0, 1440, 3440);
         check(Static242.anInt3971 == 3440 && Static200.anInt3305 == 1440, "Wide viewport has no projection bars");
-        CameraZoomController.restoreZoom(320); Camera.zoom = 320; Static228.aShort45 = 256;
+        CameraZoomController.restoreZoom(CameraZoomController.DEFAULT_ZOOM); Camera.zoom = 320; Static228.aShort45 = 256;
         Camera.method4606(0, 3000, 334, 0, 0, 0, 0);
         int distance = -Camera.z;
         CameraZoomController.applyWheelRotation(1, true, false, false, false, false, false);
         Camera.method4606(0, 3000, 334, 0, 0, 0, 0);
         check(-Camera.z > distance, "Wheel changes actual fixed-mode camera position");
         Camera.zoom = 320; Static228.aShort45 = 256;
-        check(CameraZoomController.getZoom() == 335, "Script projection reset retains wheel zoom");
+        check(CameraZoomController.getZoom() == 487, "Script projection reset retains wheel zoom");
         Camera.method4606(0, 3000, 700, 0, 0, 0, 0); distance = -Camera.z;
         CameraZoomController.applyWheelRotation(-1, true, false, false, false, false, false);
         Camera.method4606(0, 3000, 700, 0, 0, 0, 0);
