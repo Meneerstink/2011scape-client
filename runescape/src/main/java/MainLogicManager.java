@@ -619,6 +619,8 @@ public final class MainLogicManager {
         }
 
         Static443.method5981();
+        // Transparent / opaque chatbox in resizable and fullscreen (78 Plugins "Chatbox"): re-applied after a change.
+        RspsChatbox.tick();
         // RuneLite Camera: Ctrl for "Control function" (Hold to zoom / Reset zoom on release).
         CameraZoomController.tickControl(KeyboardMonitor.instance.isPressed(82), com.jagex.game.runetek6.client.GameShell.focus);
         // RuneLite Minimap "Zoom": the wheel over the minimap zooms the minimap, not the camera.

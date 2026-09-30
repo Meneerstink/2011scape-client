@@ -59,6 +59,8 @@ final class RspsHudConfig {
         {"zoom", "Camera", "Expands zoom limit"},
         {"minimap", "Minimap", "Zoom the minimap"},
         {"loottracker", "Loot Tracker", "Tracks loot from monsters and minigames"},
+        // Owner 2026-10-01: the resizable/fullscreen chatbox background (RspsChatbox).
+        {"chatbox", "Chatbox", "Transparent or opaque chatbox in resizable and fullscreen"},
     };
 
     static final List<Setting> SETTINGS = new ArrayList<Setting>();
@@ -179,6 +181,9 @@ final class RspsHudConfig {
         bool("minimap", "zoom", "Zoom", "Enables zooming on the minimap.", true, null);
 
         // RuneLite LootTrackerConfig (the ignore lists are the panel's own right-click actions here).
+        bool("chatbox", "transparent", "Transparent chatbox",
+            "Resizable and fullscreen: see the game through the chatbox. Off = the opaque parchment chatbox of fixed mode.", true, null);
+
         String l = "loottracker";
         choice(l, "priceType", "Price type", "What type of price to use for calculating value.", "GRAND_EXCHANGE",
             new String[]{"GRAND_EXCHANGE", "HIGH_ALCHEMY"}, new String[]{"Grand Exchange", "High Alchemy"}, null);

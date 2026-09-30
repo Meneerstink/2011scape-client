@@ -77,6 +77,9 @@ public final class ClientScript extends Node2 {
     @OriginalMember(owner = "client!fj", name = "w", descriptor = "Ljava/lang/String;")
     public String name;
 
+    /** Group id in the CLIENTSCRIPTS archive (-1 for trigger scripts); RspsChatbox reads it per running script. */
+    public int id = -1;
+
     @OriginalMember(owner = "client!fj", name = "y", descriptor = "I")
     public int intVarCount;
 

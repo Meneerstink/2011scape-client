@@ -28,6 +28,7 @@ public final class ClientScriptList {
             throw new RuntimeException(cause.getMessage() + " S: " + id);
         }
 
+        script.id = id;
         cache.put(script, id);
         return script;
     }

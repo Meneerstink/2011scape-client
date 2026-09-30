@@ -38,6 +38,7 @@ public final class RspsHudRegressionTest {
         sidebar();
         crowdedGround();
         lootTracker();
+        chatbox();
         System.out.println("RSPS HUD regression checks passed: " + assertions);
     }
 
@@ -547,6 +548,77 @@ public final class RspsHudRegressionTest {
             "loot: RuneLite quantityToStackSize");
         RspsLootTracker.handle("lootclear", "");
         check(RspsLootTracker.records().isEmpty(), "loot: Reset All");
+    }
+
+    /**
+     * Transparent / opaque chatbox (RspsChatbox): only the chat-look scripts are told "fixed" and only when opaque is chosen
+     * in resizable/fullscreen; the transparent background (1247) becomes the fixed parchment (1017) with its frame and
+     * divider, a dialogue background or a hidden chat is left alone, and the default (667) stays transparent.
+     */
+    private static void chatbox() {
+        RspsHudConfig.resetToDefaults();
+        check(!RspsChatbox.opaque(), "default chatbox is the 667 transparent one");
+        check(RspsHudConfig.setting("chatbox.transparent") != null, "sidebar item Chatbox > Transparent chatbox exists");
+        boolean listed = false;
+        for (String[] p : RspsHudConfig.PLUGINS) {
+            listed |= p[0].equals("chatbox");
+        }
+        check(listed, "Chatbox is a 78 Plugins entry");
+        check(RspsChatbox.windowModeFor(84, 2) == 2, "transparent: chat lines see resizable");
+        RspsHudConfig.handle("cfg", "chatbox.transparent=false");
+        check(RspsChatbox.opaque(), "server push chatbox.transparent=false -> opaque");
+        for (int id : new int[] {84, 1301, 1362, 1558}) {
+            check(RspsChatbox.windowModeFor(id, 2) == 1, "opaque: look script " + id + " sees fixed in resizable");
+            check(RspsChatbox.windowModeFor(id, 3) == 1, "opaque: look script " + id + " sees fixed in fullscreen");
+            check(RspsChatbox.windowModeFor(id, 1) == 1, "fixed stays fixed for " + id);
+        }
+        check(RspsChatbox.windowModeFor(1364, 2) == 2, "1364 (hidden-chat layout) still sees resizable");
+        check(RspsChatbox.windowModeFor(89, 2) == 2, "89 (split private chat layout) still sees resizable");
+        check(RspsChatbox.windowModeFor(-1, 3) == 3, "trigger scripts keep the real mode");
+
+        Component[][] saved = InterfaceList.interfaces;
+        int[] savedVarcs = Static511.varcs;
+        boolean savedResizable = InterfaceManager.resizableScreen;
+        try {
+            InterfaceList.interfaces = new Component[1200][];
+            InterfaceList.interfaces[752] = new Component[14];
+            InterfaceList.interfaces[137] = new Component[180];
+            for (int i = 0; i < 14; i++) InterfaceList.interfaces[752][i] = new Component();
+            for (int i = 0; i < 180; i++) InterfaceList.interfaces[137][i] = new Component();
+            Static511.varcs = new int[2000];
+            InterfaceManager.resizableScreen = true;
+            Component bg = InterfaceList.interfaces[752][1];
+            Component frame = InterfaceList.interfaces[752][2];
+            bg.graphic = RspsChatbox.SPRITE_TRANSPARENT;
+            bg.alpha = true;
+            frame.hidden = true;
+            InterfaceList.interfaces[137][51].hidden = true;
+            InterfaceList.interfaces[137][56].textShadow = true;
+            RspsChatbox.enforce();
+            check(bg.graphic == RspsChatbox.SPRITE_OPAQUE && !bg.alpha, "opaque: 752:1 becomes the parchment without alpha");
+            check(!frame.hidden, "opaque: frame 752:2 shown");
+            check(!InterfaceList.interfaces[137][51].hidden && InterfaceList.interfaces[137][52].hidden && InterfaceList.interfaces[137][53].hidden,
+                "opaque: fixed divider 137:51 shown, transparent dividers 137:52/53 hidden");
+            check(!InterfaceList.interfaces[137][56].textShadow, "opaque: input line without shadow");
+            bg.graphic = 1204;
+            RspsChatbox.enforce();
+            check(bg.graphic == 1204, "dialogue background (varbit 542) untouched");
+            bg.graphic = RspsChatbox.SPRITE_TRANSPARENT;
+            Static511.varcs[41] = -1;
+            RspsChatbox.enforce();
+            check(bg.graphic == RspsChatbox.SPRITE_TRANSPARENT, "hidden chat (varc 41 = -1) untouched");
+            Static511.varcs[41] = 0;
+            RspsHudConfig.handle("cfg", "chatbox.transparent=true");
+            RspsChatbox.enforce();
+            check(bg.graphic == RspsChatbox.SPRITE_TRANSPARENT, "transparent chosen: nothing replaced");
+            RspsHudConfig.handle("cfg", "chatbox.transparent=false;chatbox.enabled=false");
+            check(!RspsChatbox.opaque(), "plugin off = 667 transparent");
+        } finally {
+            InterfaceList.interfaces = saved;
+            Static511.varcs = savedVarcs;
+            InterfaceManager.resizableScreen = savedResizable;
+            RspsHudConfig.resetToDefaults();
+        }
     }
 
     private static void check(boolean condition, String message) {

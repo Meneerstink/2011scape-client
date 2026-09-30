@@ -4702,7 +4702,15 @@ public final class ScriptRunner {
     }
 
     @OriginalMember(owner = "client!ou", name = "a", descriptor = "(Lclient!fj;I)V")
+    /** The script (or gosub callee) now running, for RspsChatbox's GETWINDOWMODE. */
+    static int currentScriptId = -1;
+
+    /** A script of this run wrote the chat background (RspsChatbox.touchesBackground). */
+    private static boolean chatBackgroundTouched;
+
     public static void executeScript(@OriginalArg(0) ClientScript script, @OriginalArg(1) int maxOps) {
+        currentScriptId = script.id;
+        chatBackgroundTouched = RspsChatbox.touchesBackground(script.id);
         intStackPointer = 0;
         stringStackPointer = 0;
 
@@ -4778,10 +4786,15 @@ public final class ScriptRunner {
                     }
                 } else if (op == RETURN) {
                     if (framePointer == 0) {
+                        if (chatBackgroundTouched) {
+                            chatBackgroundTouched = false;
+                            RspsChatbox.enforce();
+                        }
                         return;
                     }
                     @Pc(270) StackFrame frame = frames[--framePointer];
                     script = frame.script;
+                    currentScriptId = script.id;
                     opcodes = script.opcodes;
                     operands = script.intOperands;
                     pc = frame.pc;
@@ -4858,6 +4871,8 @@ public final class ScriptRunner {
 
                     frames[framePointer++] = frame;
                     script = callee;
+                    currentScriptId = callee.id;
+                    chatBackgroundTouched |= RspsChatbox.touchesBackground(callee.id);
                     opcodes = callee.opcodes;
                     operands = callee.intOperands;
                     pc = -1;
@@ -5933,7 +5948,7 @@ public final class ScriptRunner {
             }
 
             if (opcode == GETWINDOWMODE) {
-                intStack[intStackPointer++] = InterfaceManager.getWindowMode();
+                intStack[intStackPointer++] = RspsChatbox.windowModeFor(currentScriptId, InterfaceManager.getWindowMode());
                 return;
             }
 
