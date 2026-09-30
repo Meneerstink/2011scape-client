@@ -163,6 +163,10 @@ final class RspsHudConfig {
         bool(t, "showVengeance", "Vengeance timer", "Configures whether vengeance and vengeance other timer is displayed.", true, spells);
         bool(t, "showFreezes", "Freeze timer", "Configures whether freeze timer is displayed.", true, misc);
         bool(t, "showTeleblock", "Teleblock timer", "Configures whether teleblock timer is displayed.", true, misc);
+        bool(t, "showAntiPoison", "Antipoison/Venom timers", "Configures whether antipoison/antivenom timers are displayed.", true, misc);
+        // RuneLite's separate Poison plugin infobox (next damage + time to it), kept with the other timers here.
+        bool(t, "showPoison", "Poison/Venom", "Shows poison and venom with the next hit's damage and the time until it lands.", true, misc);
+        bool(t, "showBurn", "Burn", "Shows active burn stacks (the next burn hit) and the time until it lands.", true, misc);
     }
 
     /** Read by the sidebar (Swing thread) while the game thread writes: a concurrent map. */

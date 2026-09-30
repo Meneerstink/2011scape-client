@@ -319,6 +319,19 @@ public final class RspsHudRegressionTest {
         RspsInfoBoxes.clear();
         RspsHudTimers.addInfoboxes();
         check(RspsInfoBoxes.count() == 1 && RspsHudTimers.showing(2), "a freeze");
+        // Damage over time (2026-09-30): venom with its next damage and countdown, antivenom immunity, three burn stacks.
+        RspsHud.handle("tmr|0|0|0|0|2|20|15|0|100|3|2|0");
+        check(RspsHudTimers.dot() == 2 && RspsHudTimers.dotDamage() == 20 && RspsHudTimers.burns() == 3, "venom 20 + 3 burn stacks");
+        check(RspsHudTimers.showing(3) && RspsHudTimers.showing(5) && RspsHudTimers.showing(6), "venom, antivenom and burn countdowns");
+        RspsInfoBoxes.clear();
+        RspsHudTimers.addInfoboxes();
+        check(RspsInfoBoxes.count() == 3, "venom, burn and antivenom infoboxes: " + RspsInfoBoxes.count());
+        RspsHud.handle("cfg|timers.showPoison=false;timers.showBurn=false;timers.showAntiPoison=false");
+        RspsInfoBoxes.clear();
+        RspsHudTimers.addInfoboxes();
+        check(RspsInfoBoxes.count() == 0, "poison / burn / antipoison switchable");
+        RspsHud.handle("tmr|0|0|0|0|0|0|0|0|0|0|0|0");
+        check(RspsHudTimers.dot() == 0 && RspsHudTimers.burns() == 0, "cleared by the server");
         RspsHudConfig.resetToDefaults();
         RspsHud.reset();
     }

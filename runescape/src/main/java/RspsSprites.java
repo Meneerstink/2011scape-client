@@ -31,6 +31,53 @@ final class RspsSprites {
     static final int ICE_BARRAGE = 328;
     static final int ARROW_UP = 1517;
     static final int ARROW_DOWN = 1518;
+    /**
+     * Damage-over-time infoboxes carry the hitsplat the damage lands as (RuneLite PoisonPlugin uses the poison / venom hitsplat
+     * sprites): poison = the cache's own poison hitmark (type 6) inner sprite, venom / burn = the OSRS hitsplat art the client
+     * already ships in /hitsplats (VenomHitmarkType). Negative ids name those resources.
+     */
+    static final int POISON_HITMARK_TYPE = 6;
+    static final int RES_VENOM = -1001;
+    static final int RES_BURN = -1002;
+
+    static int poisonSprite() {
+        try {
+            com.jagex.game.runetek6.config.hitmarktype.HitmarkTypeList list =
+                com.jagex.game.runetek6.config.hitmarktype.HitmarkTypeList.instance;
+            if (list == null) {
+                return -1;
+            }
+            com.jagex.game.runetek6.config.hitmarktype.HitmarkType type = list.list(POISON_HITMARK_TYPE);
+            return type == null ? -1 : type.inner;
+        } catch (RuntimeException notLoaded) {
+            return -1;
+        }
+    }
+
+    private static Sprite resource(Toolkit toolkit, int id) {
+        String name = id == RES_VENOM ? "venom" : id == RES_BURN ? "burn" : null;
+        if (name == null) {
+            return null;
+        }
+        try (java.io.InputStream in = RspsSprites.class.getResourceAsStream("/hitsplats/" + name + ".png")) {
+            if (in == null) {
+                return null;
+            }
+            BufferedImage png = javax.imageio.ImageIO.read(in);
+            if (png == null) {
+                return null;
+            }
+            int width = png.getWidth();
+            int height = png.getHeight();
+            int[] pixels = png.getRGB(0, 0, width, height, null, 0, width);
+            for (int i = 0; i < pixels.length; i++) {
+                pixels[i] = (pixels[i] >>> 24) < 128 ? 0 : pixels[i] | 0xFF000000;
+            }
+            return toolkit.createSprite(width, width, height, pixels);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     /** Skill id (client order) -> stats-tab icon. */
     private static final int[] SKILL_ICONS = {
@@ -58,6 +105,13 @@ final class RspsSprites {
             builtFor = toolkit;
         }
         Sprite sprite = sprites.get(id);
+        if (sprite == null && id < 0) {
+            sprite = resource(toolkit, id);
+            if (sprite != null) {
+                sprites.put(id, sprite);
+            }
+            return sprite;
+        }
         if (sprite == null) {
             try {
                 IndexedImage image = IndexedImage.loadFirst(js5.SPRITES, id);
