@@ -706,6 +706,16 @@ public final class PlayerEntity extends PathingEntity {
         this.displayName = packet.gjstr();
         if (self == this) {
             Client.playerDisplayName = this.displayName;
+            // RSPS owner 2026-09-29 ("full eclipse / blue moon / torva: my gear vanishes, I see my bare body"): what the
+            // appearance block really carried for the local player, slot by slot (obj = item id, kit = body kit, 0 = empty).
+            if (AvTrace.ENABLED) {
+                StringBuilder slots = new StringBuilder();
+                for (int i = 0; i < identikit.length; i++) {
+                    int kit = identikit[i];
+                    slots.append(' ').append(i).append('=').append((kit & 0x40000000) != 0 ? "obj" + (kit & 0x3FFFFFFF) : (kit & Integer.MIN_VALUE) != 0 ? "kit" + (kit & 0x3FFFFFFF) : "0");
+                }
+                AvTrace.log("appearance self npc=" + npcId + " bas=" + this.basId + slots);
+            }
         }
         this.nameUnfiltered = this.displayName;
         this.combatLevel = packet.g1();
