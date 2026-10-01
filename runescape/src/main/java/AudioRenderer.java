@@ -38,7 +38,8 @@ public final class AudioRenderer {
 
                 if (sound.delay < (sound.isVorbis() ? -1500 : -10)) {
                     stopped = true;
-                    AvTrace.log("PROBLEM sound expired without playing id=" + sound.id + " type=" + sound.type + " synthLoaded=" + (sound.synth != null) + " coord=" + sound.coord);
+                    // RSPS: a sound already skipped for a valid reason (out of range, other level) expiring is expected, not a PROBLEM.
+                    AvTrace.log((sound.avTraced ? "sound expired (skipped above) id=" : "PROBLEM sound expired without playing id=") + sound.id + " type=" + sound.type + " synthLoaded=" + (sound.synth != null) + " coord=" + sound.coord);
                 } else {
                     if (sound.type == SoundType.SYNTH && sound.synth == null) {
                         sound.synth = SynthSound.get(js5.SYNTH_SOUNDS, sound.id, 0);
@@ -84,7 +85,9 @@ public final class AudioRenderer {
                                 @Pc(251) int minRange = Math.abs(x) + Math.abs(y) - 512;
 
                                 if (soundRange < minRange) {
-                                    AvTrace.log("PROBLEM sound not played: out of range id=" + sound.id + " distance=" + (minRange >> 9) + " radius=" + (soundRange >> 9) + " coord=" + sound.coord);
+                                    // RSPS: beyond the cue's own radius - correct, traced but not a PROBLEM.
+                                    sound.avTraced = true;
+                                    AvTrace.log("sound not played: out of range id=" + sound.id + " distance=" + (minRange >> 9) + " radius=" + (soundRange >> 9) + " coord=" + sound.coord);
                                     sound.delay = -99999;
                                     continue;
                                 }
@@ -121,7 +124,7 @@ public final class AudioRenderer {
                                 volume = 0;
                                 if (!sound.avTraced) {
                                     sound.avTraced = true;
-                                    AvTrace.log("PROBLEM sound not played: other level id=" + sound.id + " soundLevel=" + level + " playerLevel=" + PlayerEntity.self.level);
+                                    AvTrace.log("sound not played: other level id=" + sound.id + " soundLevel=" + level + " playerLevel=" + PlayerEntity.self.level);
                                 }
                             }
                         }

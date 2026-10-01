@@ -638,6 +638,7 @@ public abstract class GameShell extends Applet implements Runnable, FocusListene
             // logger.debug("maininit");
             this.maininit();
             tickScheduler = TickScheduler.create();
+            com.jagex.core.util.FreezeWatchdog.start();
 
             while (killtime == 0L || SystemTimer.safetime() < killtime) {
                 scheduledTicks = tickScheduler.scheduleDelayed(logicUpdateInterval);
@@ -645,12 +646,15 @@ public abstract class GameShell extends Applet implements Runnable, FocusListene
                 // RSPS debug toolkit: a logic + draw pass that takes over FREEZE_MS is a visible freeze (stutter, hang) -
                 // reported with how long the logic and the drawing each took, so graphics hangs can be told from logic hangs.
                 @Pc(213) long logicStart = System.nanoTime();
+                com.jagex.core.util.FreezeWatchdog.phase(com.jagex.core.util.FreezeWatchdog.LOGIC);
                 for (@Pc(213) int tick = 0; tick < scheduledTicks; tick++) {
                     this.tick0();
                 }
 
                 @Pc(213) long drawStart = System.nanoTime();
+                com.jagex.core.util.FreezeWatchdog.phase(com.jagex.core.util.FreezeWatchdog.DRAW);
                 this.draw0();
+                com.jagex.core.util.FreezeWatchdog.phase(com.jagex.core.util.FreezeWatchdog.IDLE);
                 @Pc(213) long end = System.nanoTime();
                 if (com.jagex.core.util.RspsTrace.ENABLED && (end - logicStart) / 1_000_000L > FREEZE_MS) {
                     com.jagex.core.util.RspsTrace.problemOnce("freeze:" + (end / 5_000_000_000L),

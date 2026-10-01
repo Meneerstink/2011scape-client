@@ -72,7 +72,7 @@ public final class Static431 {
             SoundManager.sounds[SoundManager.count++] = new Sound((byte) (arg0.vorbisSound ? 2 : 1), local55, local61, 0, local134, local80, local212, arg2);
             AvTrace.log("frame sound queued seq=" + arg0.id + " frame=" + arg1 + " id=" + local55 + " radius=" + local93 + " self=" + (arg2 == PlayerEntity.self) + " coord=" + local212);
         } else if (local93 != 0) {
-            AvTrace.log("PROBLEM frame sound dropped: background option 0 seq=" + arg0.id + " frame=" + arg1 + " id=" + local55);
+            AvTrace.log("frame sound dropped: background option 0 (player setting) seq=" + arg0.id + " frame=" + arg1 + " id=" + local55);
         }
     }
 }
