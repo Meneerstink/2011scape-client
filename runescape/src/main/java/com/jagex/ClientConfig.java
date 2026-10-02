@@ -28,8 +28,28 @@ public class ClientConfig {
 
     public static String HOST_ADDRESS = "http://" + HOST;
 
+    /**
+     * Owner 2026-10-02: game/login port. The live server listens on 50015; an agent's test server
+     * (tools/live/Start-TestServer.ps1) on another port, reached by a test client launched with {@code -Drsps.gamePort=<port>}
+     * (gradle {@code -Prsps.gamePort}). JS5 stays on the one read-only file server (50016).
+     */
+    public static final int GAME_PORT = portProperty("rsps.gamePort", 50015);
+
     /** K-05: Ctrl+Shift (and world map Ctrl) teleport clicks; the server only accepts {@code tele} from admins. */
     public static final int TELEPORT_MIN_STAFF_LEVEL = 2;
+
+    private static int portProperty(String name, int fallback) {
+        String value = System.getProperty(name);
+        if (value == null) {
+            return fallback;
+        }
+        try {
+            int port = Integer.parseInt(value.trim());
+            return port > 0 && port < 65536 ? port : fallback;
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
 
     private static String hostProperty() {
         String host = System.getProperty("rsps.host");

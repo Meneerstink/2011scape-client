@@ -27,6 +27,8 @@ application {
 // the same switch as :runescape:run, so both launchers start the owner's client the same way.
 tasks.named<JavaExec>("run") {
     systemProperty("rsps.dev", providers.gradleProperty("rsps.dev").getOrElse("false"))
+    // Owner 2026-10-02: a test client for the agent's test server (tools\live\Start-TestServer.ps1) passes -Prsps.gamePort.
+    providers.gradleProperty("rsps.gamePort").orNull?.let { systemProperty("rsps.gamePort", it) }
 }
 
 // Configure the JAR task to include dependencies

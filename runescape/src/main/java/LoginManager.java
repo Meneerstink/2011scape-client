@@ -886,8 +886,8 @@ public final class LoginManager {
     public static void setLoginResponse(@OriginalArg(0) int response) {
         if (ClientConfig.DISABLE_LOBBY){
             lobbyLoginResponse = response;
-            ConnectionInfo.game.defaultPort = 50015;
-            ConnectionInfo.game.alternatePort = 50015;
+            ConnectionInfo.game.defaultPort = ClientConfig.GAME_PORT;
+            ConnectionInfo.game.alternatePort = ClientConfig.GAME_PORT;
             ConnectionInfo.game.world = 15;
             return;
         }

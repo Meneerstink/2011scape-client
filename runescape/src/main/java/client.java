@@ -1082,11 +1082,11 @@ public final class client extends GameShell {
             // Remote players: launch with -Drsps.host=<server ip>; default stays local (ClientConfig.HOST).
             String rspsHost = ClientConfig.HOST;
             ConnectionInfo.game.address = rspsHost;
-            ConnectionInfo.game.defaultPort = 50015;
-            ConnectionInfo.game.alternatePort = 50015;
+            ConnectionInfo.game.defaultPort = ClientConfig.GAME_PORT;
+            ConnectionInfo.game.alternatePort = ClientConfig.GAME_PORT;
             ConnectionInfo.lobby.address = rspsHost;
-            ConnectionInfo.lobby.defaultPort = 50015;
-            ConnectionInfo.lobby.alternatePort = 50015;
+            ConnectionInfo.lobby.defaultPort = ClientConfig.GAME_PORT;
+            ConnectionInfo.lobby.alternatePort = ClientConfig.GAME_PORT;
 
             ConnectionInfo.js5 = new ConnectionInfo();
             ConnectionInfo.js5.address = rspsHost;
