@@ -56,6 +56,48 @@ public final class SoundManager {
     }
 
     /**
+     * Map area change (a teleport, a long walk). RSPS overnight 2026-10-02: the original client called {@link #reset()}
+     * here, so every sound the server sent in the same tick as the area change was lost - the player's own non-positional
+     * sounds included (a familiar's arrival cue after its owner teleported: "synth queued", never played or refused).
+     * Non-positional sounds (coord 0) stay queued unchanged. Positional ones hold map-local tiles
+     * (level << 24 | x << 16 | z << 8 | radius): they are moved by the area delta the same way the player's path is
+     * ({@code local -= delta}) and dropped only when they fall outside the new area.
+     */
+    public static void rebase(int deltaX, int deltaZ, int mapWidth, int mapLength) {
+        @Pc(5) Sound[] next = new Sound[50];
+        @Pc(7) int kept = 0;
+        @Pc(9) int dropped = 0;
+        for (@Pc(11) int i = 0; i < count; i++) {
+            @Pc(15) Sound sound = sounds[i];
+            if (sound == null) {
+                continue;
+            }
+            if (sound.coord == 0) {
+                next[kept++] = sound;
+                continue;
+            }
+            @Pc(30) int x = (sound.coord >> 16 & 0xFF) - deltaX;
+            @Pc(35) int z = (sound.coord >> 8 & 0xFF) - deltaZ;
+            if (x < 0 || z < 0 || x >= mapWidth || z >= mapLength || x > 0xFF || z > 0xFF) {
+                dropped++;
+                continue;
+            }
+            @Pc(50) Sound moved = new Sound(sound.type, sound.id, sound.loops, sound.delay, sound.volume, sound.rate, (sound.coord & 0xFF0000FF) | (x << 16) | (z << 8), sound.entity);
+            moved.packet = sound.packet;
+            moved.stream = sound.stream;
+            moved.vorbis = sound.vorbis;
+            moved.synth = sound.synth;
+            moved.avTraced = sound.avTraced;
+            next[kept++] = moved;
+        }
+        if (kept + dropped > 0) {
+            AvTrace.log("map area change: " + kept + " queued sound(s) kept, " + dropped + " positional dropped (outside the new area)");
+        }
+        sounds = next;
+        count = kept;
+    }
+
+    /**
      * Drops every stream whose sample layout was created for the previous audio output mode.
      * Positioned sounds remain registered and are recreated on the next renderer tick; queued
      * one-shot effects are deliberately stopped instead of being replayed after the switch.

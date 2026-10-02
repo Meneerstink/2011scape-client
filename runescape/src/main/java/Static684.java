@@ -176,7 +176,8 @@ public final class Static684 {
             Minimap.flagX -= deltaX;
         }
 
-        SoundManager.reset();
+        // RSPS: keep the sounds sent in this tick (was SoundManager.reset(): see SoundManager.rebase).
+        SoundManager.rebase(deltaX, deltaZ, Static720.mapWidth, Static501.mapLength);
 
         if (buildStep != 12) {
             Camera.lookX -= deltaX;
