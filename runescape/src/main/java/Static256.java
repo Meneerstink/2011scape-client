@@ -32,6 +32,7 @@ public final class Static256 {
                 Static524.entityMoveFlags = 0;
                 Static521.entityMoveSpeed = MoveSpeed.STATIONARY;
                 entity.delayedWalkingTicks++;
+                WalkTrace.held(entity, "animating precedence 0 while the path started before the animation");
                 return;
             }
 
@@ -39,6 +40,7 @@ public final class Static256 {
                 Static521.entityMoveSpeed = MoveSpeed.STATIONARY;
                 entity.delayedWalkingTicks++;
                 Static524.entityMoveFlags = 0;
+                WalkTrace.held(entity, "walking precedence 0: the body waits for the animation to finish");
                 return;
             }
         }

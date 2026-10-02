@@ -441,6 +441,7 @@ public final class PlayerList {
             }
 
             player.animationPathPointer = 0;
+            WalkTrace.exactMove(player);
         }
 
         if ((flags & PlayerExtendedInfoFlag.TURN) != 0) {

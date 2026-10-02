@@ -25,6 +25,9 @@ public final class Static354 {
             @Pc(88) int z2 = (entity.exactMoveZ2 * 512) + (entity.getSize() * 256);
             entity.x = ((x2 * elapsed) + (x1 * (total - elapsed))) / total;
             entity.z = ((z2 * elapsed) + (z1 * (total - elapsed))) / total;
+            if (TimeUtils.clock == entity.exactMoveT2) {
+                WalkTrace.exactMoveEnd(entity);
+            }
         }
 
         entity.delayedWalkingTicks = 0;

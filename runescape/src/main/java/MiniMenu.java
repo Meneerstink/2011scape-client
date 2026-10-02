@@ -1406,6 +1406,7 @@ public final class MiniMenu {
                 }
 
                 ServerConnection.GAME.send(message);
+                WalkTrace.click(v2, v3, v1);
 
                 Static147.findPath(0, v3, 1, true, v2, 0, -4, 1);
             }

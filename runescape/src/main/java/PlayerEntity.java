@@ -457,6 +457,7 @@ public final class PlayerEntity extends PathingEntity {
 
     @OriginalMember(owner = "client!ca", name = "c", descriptor = "(III)V")
     public void teleport(@OriginalArg(0) int x, @OriginalArg(2) int z) {
+        WalkTrace.moved(this, "teleport", x, z, -1);
         super.pathPointer = 0;
         super.pathX[0] = x;
         super.pathZ[0] = z;
@@ -942,6 +943,7 @@ public final class PlayerEntity extends PathingEntity {
 
     @OriginalMember(owner = "client!ca", name = "b", descriptor = "(IIIB)V")
     public void move(@OriginalArg(1) int x, @OriginalArg(0) int z, @OriginalArg(3) byte speed) {
+        WalkTrace.moved(this, "move", x, z, speed);
         if (super.actionAnimator.isAnimating() && super.actionAnimator.getAnimation().walkingPrecedence == 1) {
             super.actionAnimations = null;
             super.actionAnimator.update(true, -1);
