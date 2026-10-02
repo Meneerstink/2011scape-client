@@ -30,12 +30,39 @@ public final class Static235 {
 
         MapRegion.active.removeLoc(level, x, z, layer, Client.collisionMaps[level], Toolkit.active);
 
+        // RSPS (owner 2026-10-02, POH minimap icons): the minimap image and its icon list are captured once per level
+        // (Minimap.drawLevel) and never again for a loc spawned or removed later - an instance's furniture and map markers
+        // (player-owned house) arrive after that capture. A change the minimap shows (any removal, a wall, a loc with a
+        // map scene or a map icon) redraws it on the next pass (Minimap.method2046 runs once per cycle).
+        if (affectsMinimap(id, shape)) {
+            Minimap.level = -1;
+        }
+
         if (id >= 0) {
             @Pc(93) int valueBefore = ClientOptions.instance.groundDecor.getValue();
             ClientOptions.instance.update(1, ClientOptions.instance.groundDecor);
             MapRegion.active.loadLocation(x, z, level, virtualLevel, id, shape, rotation, animation, Client.collisionMaps[level], Toolkit.active);
             ClientOptions.instance.update(valueBefore, ClientOptions.instance.groundDecor);
         }
+    }
+
+    /** Whether a loc change at this spot changes the minimap: a removal, a wall, or a loc with a map scene or map icon. */
+    static boolean affectsMinimap(int id, int shape) {
+        if (id < 0 || LocShapes.isWall(shape)) {
+            return true;
+        }
+        LocType type = LocTypeList.instance.list(id);
+        if (type.mapelement >= 0 || type.msi != -1) {
+            return true;
+        }
+        if (type.multiloc != null) {
+            for (int child : type.multiloc) {
+                if (child >= 0 && LocTypeList.instance.list(child).mapelement >= 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @OriginalMember(owner = "client!hf", name = "b", descriptor = "(III)Z")
