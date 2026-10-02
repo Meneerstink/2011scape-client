@@ -411,12 +411,6 @@ public final class InterfaceManager {
             @Pc(125) int offsetX = screenX + child.x;
             @Pc(130) int offsetY = screenY + child.y;
 
-            // RSPS 78 login screen: the art (in place of the shell's old background) and the frame behind the
-            // login status boxes and their buttons.
-            if (RspsLoginScreen.beforeComponent(child, offsetX, offsetY)) {
-                Toolkit.active.KA(x1, y1, x2, y2);
-            }
-
             // RSPS Deadman: both layers of the PvP overlay (381:0 zone state, 381:3 skull timer) are
             // drawn as custom panels (guarded / dangerous icon + text; the player's own head-icon
             // skull + remaining time) instead of the cache's layouts - see DeadmanSkullHud. Their
@@ -517,11 +511,6 @@ public final class InterfaceManager {
                             Static294.method4339(offsetY, child.clientcode == ComponentClientCode.LOGIN_SCENE, child.width, child.height, offsetX);
                             Toolkit.active.KA(x1, y1, x2, y2);
                         }
-                        // RSPS 78 login screen: with the animated background on, the art covers the login scene.
-                        if (child.clientcode == ComponentClientCode.LOGIN_SCENE && RspsLoginScreen.drawOverScene()) {
-                            Toolkit.active.KA(x1, y1, x2, y2);
-                        }
-
 
                         dirtyRectangles[rectangle] = true;
                         continue;
@@ -1120,11 +1109,6 @@ public final class InterfaceManager {
 
     @OriginalMember(owner = "client!client", name = "b", descriptor = "(Lclient!hda;)Z")
     public static boolean isHidden(@OriginalArg(0) Component component) {
-        // RSPS 78 login screen: the login interface's 2011 decoration is replaced by the new artwork.
-        if (RspsLoginScreen.hides(component)) {
-            return true;
-        }
-
         if (testOpacity) {
             if (serverActiveProperties(component).events != 0) {
                 return false;
@@ -1336,9 +1320,6 @@ public final class InterfaceManager {
             x1 = OrthoMode.method2283();
             y1 = Static422.method5771();
         }
-
-        // RSPS 78 login screen: background, logo and panel behind the login interface.
-        RspsLoginScreen.drawBackdrop(x1, y1);
 
         draw(topLevelInterface, x1, y1, GameShell.canvasWid + x1, GameShell.canvasHei + y1, x1, y1, -1);
 
@@ -2539,9 +2520,6 @@ public final class InterfaceManager {
                 component.y = height - component.height;
             }
         }
-
-        // RSPS 78 login screen: the working login components sit on the new panel's fields, button and links.
-        RspsLoginScreen.adjust(component);
     }
 
     @OriginalMember(owner = "client!mt", name = "a", descriptor = "(IIIZI)V")
