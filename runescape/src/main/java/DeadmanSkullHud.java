@@ -97,23 +97,86 @@ final class DeadmanSkullHud {
         return component != null && component.slot == ((INTERFACE_ID << 16) | TIMER_LAYER);
     }
 
-    /**
-     * @param layer the 381:0 or 381:3 layer being drawn
-     * @param baseX screen x of interface 381's own origin
-     * @param baseY screen y of interface 381's own origin
-     */
-    static void draw(Component layer, int baseX, int baseY) {
-        // The whole HUD (zone block + timer row) is drawn from the zone layer so it can be anchored
-        // as one column; the timer layer contributes nothing on its own.
-        if (isZoneLayer(layer)) {
-            drawAll(layer, baseX, baseY);
+    // ---- E16 (owner 2026-10-03, all caps: "DE DMM HUD MOET ALTIJD IN BEELD ZIJN ... MAG NOOOIT VERDWIJNEN") ------------------
+    // The HUD used to exist only while interface 381 sat in the shared PvP-overlay slot (548:19 / 746:10); Barrows, God Wars,
+    // Fight Caves, Clan Wars, the Duel Arena and Pest Control take that slot, so the HUD was gone there (research
+    // agent-handoffs/research-2026-10-03-dmm-hud.md). Now the server sends the two strings on the RSPS side channel
+    // (`dmmz|<label|lo-hi[|M]>`, `dmmt|<skull|grace|emblem|grave>`, on change and every 5 ticks) and the HUD is drawn after the
+    // whole interface tree on the full canvas (drawOverlay), over every top level, modal, bank, GE and the world map.
+
+    private static volatile String zoneState = "";
+    private static volatile String timerState = "";
+    private static boolean loggedNotDrawn;
+    private static String lastLoggedPlace = "";
+
+    /** Side-channel payload (RspsHud): {@code dmmz} = the zone text, {@code dmmt} = the timer text. */
+    static void update(String kind, String value) {
+        String text = value == null ? "" : value.trim();
+        boolean changed;
+        if (kind.equals("dmmz")) {
+            changed = !text.equals(zoneState);
+            zoneState = text;
+        } else {
+            changed = !text.equals(timerState);
+            timerState = text;
+        }
+        if (changed) {
+            System.out.println("[dmmhud] state zone=" + zoneState + " timer=" + timerState);
+            loggedNotDrawn = false;
         }
     }
 
+    /** Login, logout, reconnect: nothing survives; the server pushes the state right after login. */
+    static void reset() {
+        zoneState = "";
+        timerState = "";
+        loggedNotDrawn = false;
+    }
+
     private static String componentText(int slot) {
-        Component component = InterfaceList.getComponent((INTERFACE_ID << 16) | slot, -1);
-        String text = component == null ? null : component.text;
-        return text == null ? "" : text.trim();
+        return slot == ZONE_TEXT ? zoneState : timerState;
+    }
+
+    /**
+     * Called once per frame from InterfaceManager.method3833, right after the top-level interface (gameframe, world map, any
+     * fullscreen screen) and everything mounted in it was drawn. The clip is reset to the whole canvas first.
+     */
+    static void drawOverlay(int originX, int originY) {
+        if (!com.jagex.core.constants.MainLogicStep.isAtGameScreen(MainLogicManager.step)) {
+            return;
+        }
+        if (zoneState.length() == 0) {
+            if (!loggedNotDrawn) {
+                loggedNotDrawn = true;
+                System.out.println("[dmmhud] NOT drawn: no state yet (top=" + InterfaceManager.topLevelInterface + ")");
+            }
+            return;
+        }
+        try {
+            Toolkit.active.KA(originX, originY, originX + GameShell.canvasWid, originY + GameShell.canvasHei);
+            int[] box = drawAll(null, originX, originY);
+            if (box != null) {
+                // Software renderer: only dirty rectangles reach the screen. Flip the HUD's area now and redraw it next frame.
+                InterfaceManager.flipDirtyRectWithin(box[0], box[1], box[2], box[3]);
+                for (int i = 0; i < InterfaceManager.rectangleCount; i++) {
+                    Rectangle r = InterfaceManager.rectangles[i];
+                    if (r != null && r.x + r.width > box[0] && r.x < box[0] + box[2] && r.y + r.height > box[1] && r.y < box[1] + box[3]) {
+                        InterfaceManager.dirtyRectangles[i] = true;
+                    }
+                }
+                String place = box[0] + "," + box[1] + " " + box[2] + "x" + box[3] + " mode=" + InterfaceManager.getWindowMode() + " top=" + InterfaceManager.topLevelInterface;
+                if (!place.equals(lastLoggedPlace)) {
+                    lastLoggedPlace = place;
+                    System.out.println("[dmmhud] drawn at " + place);
+                }
+            }
+        } catch (RuntimeException e) {
+            // Never let the HUD break the frame; name it once.
+            if (!loggedNotDrawn) {
+                loggedNotDrawn = true;
+                System.out.println("[dmmhud] PROBLEM NOT drawn: " + e);
+            }
+        }
     }
 
     private static String label(String zoneText) {
@@ -194,14 +257,15 @@ final class DeadmanSkullHud {
         return Sprites.deadmanSkull(pkIcon, 0, self != null && self.pkSkulled);
     }
 
-    private static void drawAll(Component zone, int baseX, int baseY) {
+    /** Draws the whole HUD; returns its screen box {x, y, w, h}, or null when nothing could be drawn. */
+    private static int[] drawAll(Component zone, int baseX, int baseY) {
         String zoneText = componentText(ZONE_TEXT);
         if (zoneText.length() == 0) {
-            return;
+            return null;
         }
         Font font = font();
         if (font == null) {
-            return;
+            return null;
         }
         String label = label(zoneText);
         String bracket = bracket(zoneText);
@@ -262,7 +326,9 @@ final class DeadmanSkullHud {
             cx = chat.x + CHAT_CENTRE_OFFSET;
             y = chat.y - CHAT_MARGIN - totalHeight;
         } else {
-            return; // the chatbox has not been laid out yet: draw nothing rather than somewhere else
+            // No chatbox laid out yet (a fullscreen top level straight after login): bottom-left of the canvas, above the chat strip.
+            cx = baseX + CHAT_CENTRE_OFFSET + 8;
+            y = baseY + GameShell.canvasHei - 165 - CHAT_MARGIN - totalHeight;
         }
         if (y < 2) {
             y = 2;
@@ -368,6 +434,7 @@ final class DeadmanSkullHud {
             font.renderCentre(graveTime, textX + timeWidth / 2, rowY + (rowHeight + FONT_HEIGHT) / 2 - 1, graveColour(), TEXT_SHADOW);
         }
         RspsOverlayLayout.decorate(LAYOUT_ID);
+        return new int[] {at[0], at[1], blockWidth, swordsReserve + totalHeight};
     }
 
     /**

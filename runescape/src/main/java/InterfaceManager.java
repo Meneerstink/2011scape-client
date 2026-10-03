@@ -416,14 +416,8 @@ public final class InterfaceManager {
             // skull + remaining time) instead of the cache's layouts - see DeadmanSkullHud. Their
             // cache children are never drawn. Redrawn every frame, in every display and graphics mode.
             if ((child.slot >>> 16) == DeadmanSkullHud.INTERFACE_ID) {
-                // Every component of interface 381 - whichever layer it hangs under - is handled
-                // here; the cache's own skull/text layout is never drawn (owner: "remove the old
-                // hud completely").
-                if (DeadmanSkullHud.isZoneLayer(child)) {
-                    DeadmanSkullHud.draw(child, screenX, screenY);
-                    Toolkit.active.KA(x1, y1, x2, y2);
-                    dirtyRectangles[rectangle] = true;
-                }
+                // The cache's own skull/text layout of 381 is never drawn (owner: "remove the old hud completely"). The HUD itself
+                // is no interface tenant any more (E16): DeadmanSkullHud.drawOverlay draws it after the whole interface tree.
                 continue;
             }
 
@@ -1322,6 +1316,11 @@ public final class InterfaceManager {
         }
 
         draw(topLevelInterface, x1, y1, GameShell.canvasWid + x1, GameShell.canvasHei + y1, x1, y1, -1);
+
+        // RSPS Deadman HUD (E16, owner 2026-10-03: "DE DMM HUD MOET ALTIJD IN BEELD ZIJN"; 04:3x: also over bank / GE and the world
+        // map): drawn here, after every top level (gameframe, world map, fullscreen screens) and every modal, with the whole canvas
+        // as clip - so no interface slot, overlay, top-level switch or clip can hide it.
+        DeadmanSkullHud.drawOverlay(x1, y1);
 
         if (dragChildren != null) {
             draw(dragChildren, ROOT, dragOffsetX, dragOffsetY, x1, y1, x1 + GameShell.canvasWid, y1 + GameShell.canvasHei, dragLayer.rectangle, true);

@@ -74,6 +74,9 @@ final class RspsHud {
                 RspsSidebar.closeLater();
             } else if (kind.equals("render")) {
                 RspsRenderTest.handle(rest);
+            } else if (kind.equals("dmmz") || kind.equals("dmmt")) {
+                // Deadman HUD state (E16, owner 2026-10-03: "DE DMM HUD MAG NOOOIT VERDWIJNEN"): the HUD is no interface any more.
+                DeadmanSkullHud.update(kind, rest);
             }
         } catch (RuntimeException malformed) {
             // A malformed payload must never break the packet loop; the next update replaces the state anyway.
@@ -86,6 +89,7 @@ final class RspsHud {
         RspsHudOpponent.reset();
         RspsHudTimers.reset();
         RspsHudGroundItems.reset();
+        DeadmanSkullHud.reset();
         RspsLootTracker.reset(LoginManager.username);
         commands.clear();
         RspsRenderTest.cull = true;
