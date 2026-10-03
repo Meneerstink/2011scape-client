@@ -12,6 +12,12 @@ public final class ClientScriptList {
 
     @OriginalMember(owner = "client!pga", name = "a", descriptor = "(II)Lclient!fj;")
     public static ClientScript list(@OriginalArg(0) int id) {
+        // E6: the 78 client's Grand Exchange scripts and patched search scripts (RspsGrandExchange) come first.
+        ClientScript rsps = RspsGrandExchange.script(id);
+        if (rsps != null) {
+            return rsps;
+        }
+
         @Pc(10) ClientScript script = (ClientScript) cache.get(id);
         if (script != null) {
             return script;
@@ -30,6 +36,17 @@ public final class ClientScriptList {
 
         script.id = id;
         cache.put(script, id);
+        return script;
+    }
+
+    /** The cache's own script [id], uncached and unpatched (RspsGrandExchange calls the originals it patches). */
+    public static ClientScript original(int id) {
+        byte[] data = js5.CLIENTSCRIPTS.getfile(0, id);
+        if (data == null || data.length <= 1) {
+            return null;
+        }
+        ClientScript script = ClientScript.decode(data);
+        script.id = id;
         return script;
     }
 

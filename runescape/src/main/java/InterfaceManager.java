@@ -771,6 +771,9 @@ public final class InterfaceManager {
                                 Toolkit.active.T(offsetX, offsetY, offsetX + child.width, child.height + offsetY);
                             }
 
+                            // Combat tab weapon name stays on one line (CombatTabNameFit, owner 2026-10-03).
+                            font = CombatTabNameFit.fit(child, font, text, Toolkit.active, Sprites.nameIcons);
+
                             font.renderLines(text, offsetX, offsetY, 0, 0, child.width, child.height, child.textAlignX, child.textAlignY, child.maxLines, child.textHeight, colour | ((255 - (transparency & 0xFF)) << 24), child.textShadow ? 255 - (transparency & 0xFF) << 24 : -1, null, Sprites.nameIcons, null);
 
                             if (clipComponents) {

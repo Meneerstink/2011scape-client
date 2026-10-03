@@ -119,6 +119,18 @@ val deadmanWorldMapRegression by tasks.registering(JavaExec::class) {
 
 tasks.check { dependsOn(deadmanWorldMapRegression) }
 
+val combatTabNameFitRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks the combat tab weapon name stays on one line (smaller cache font for long names)."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("CombatTabNameFitRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
+tasks.check { dependsOn(combatTabNameFitRegression) }
+
 tasks.check {
     dependsOn(r13Regression, audioSettingsRegression, audioVolumeRegression, cameraZoomRegression, oldStyleHitsplatRegression, debugOverlayRegression)
 }
