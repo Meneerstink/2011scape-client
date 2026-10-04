@@ -2817,7 +2817,7 @@ public final class ScriptRunner {
                 @Pc(15) int id = intStack[intStackPointer];
                 @Pc(21) int slot = intStack[intStackPointer + 1];
 
-                intStack[intStackPointer++] = ClientInventory.total(id, slot, false);
+                intStack[intStackPointer++] = ClientInventory.total(id, slot, false) + RspsRunePouch.extra(id, slot, currentScriptId);
                 return;
             }
 
