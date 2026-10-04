@@ -260,8 +260,10 @@ public final class Camera {
             local7 = 100;
         }
         @Pc(33) int local33 = local7 * (zoom - Static228.aShort45) / 100 + Static228.aShort45;
+        @Pc(33) int unscaled = local33;
         // Keep script-controlled projection separate from persistent player wheel zoom.
         local33 = CameraZoomController.scaleDistance(local33);
+        CameraZoomController.updateFogExtra((local33 - unscaled) * arg1 >> 8);
         OrthoMode.renderZoom = OrthoMode.zoom * local33 >> 8;
 
         @Pc(45) int local45 = local33 * arg1 >> 8;

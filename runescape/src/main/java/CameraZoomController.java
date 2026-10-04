@@ -96,6 +96,26 @@ public final class CameraZoomController {
         return Math.max(minZoom(), Math.min(maxZoom(), zoom));
     }
 
+    /**
+     * How much further the camera stands than the 667 distance (world units, never negative). The GL fog range is measured
+     * from the camera, so the toolkits add this to the fog start / end (GlToolkit.method6969, GlxToolkit.method8150): the fog
+     * stays where it was around the player. Owner 2026-10-04 (031449 / 032935): zoomed fully out in the Barrows crypt the
+     * whole scene was fogged black - everything near the player lay beyond the fog end.
+     */
+    static volatile int fogExtraDistance;
+
+    static void updateFogExtra(int extra) {
+        int value = Math.max(0, extra);
+        if (value == fogExtraDistance) {
+            return;
+        }
+        fogExtraDistance = value;
+        com.jagex.graphics.Toolkit toolkit = com.jagex.graphics.Toolkit.active;
+        if (toolkit instanceof GlToolkit) {
+            ((GlToolkit) toolkit).method6969();
+        }
+    }
+
     static int scaleDistance(int distance) {
         return (int) Math.round(distance * Math.pow(2.0, (DEFAULT_ZOOM - getZoom()) / UNITS_PER_DOUBLING));
     }
