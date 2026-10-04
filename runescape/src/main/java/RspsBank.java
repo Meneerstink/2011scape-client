@@ -149,6 +149,23 @@ public final class RspsBank {
     }
 
     /** Patched 1453 (slot): the active component (created / found by the caller) shows bank slot [slot] with the OSRS menu. */
+    /** The cache's bank layout script: lays the items of each tab out and stops at the first slot whose count is 0. */
+    static final int SCRIPT_BANK_LAYOUT = 1456;
+
+    /**
+     * INV_GETNUM as the bank layout (script 1456) sees it: the 667 bank ends its list at the first count of 0 ("1000 ->
+     * local0"), so a placeholder (an item with count 0, OSRS script 278) hid itself and every item after it - the owner's
+     * "the bank shows placeholders really weird" (2026-10-04 031525; seen in the agent's client: after 'Placeholder' on
+     * slot 1 only the coins in slot 0 were left). Inside 1456 a placeholder counts as present; its own slot still draws it
+     * with no number (patched 1453).
+     */
+    static int layoutCount(int inv, int slot, int scriptId, int count) {
+        if (count == 0 && inv == INV_BANK && scriptId == SCRIPT_BANK_LAYOUT && ClientInventory.get(inv, slot, false) != -1) {
+            return 1;
+        }
+        return count;
+    }
+
     static ClientScript itemOps(int mode, boolean alwaysPlaceholder) {
         Asm c = new Asm();
         // int locals: 0 slot (arg), 1 obj, 2 count

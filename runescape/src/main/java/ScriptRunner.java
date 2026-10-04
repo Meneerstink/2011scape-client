@@ -2807,7 +2807,7 @@ public final class ScriptRunner {
                 @Pc(15) int id = intStack[intStackPointer];
                 @Pc(21) int slot = intStack[intStackPointer + 1];
 
-                intStack[intStackPointer++] = ClientInventory.count(id, slot, false);
+                intStack[intStackPointer++] = RspsBank.layoutCount(id, slot, currentScriptId, ClientInventory.count(id, slot, false));
                 return;
             }
 
