@@ -351,6 +351,7 @@ public final class WorldMap {
             @Pc(203) Deque local203 = method5081(toolkit);
             renderElements(local203, toolkit);
             DeadmanWorldMapOverlay.draw(toolkit);
+            GraveWorldMapMarker.draw(toolkit);
 
             if (anInt5084 > 0) {
                 anInt3467--;
