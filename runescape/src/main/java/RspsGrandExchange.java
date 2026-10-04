@@ -12,7 +12,7 @@ import java.util.Map;
  * script engine instead of a cache edit. The server stays in charge: it lays the buttons out and enables their ops.
  *
  * <ul>
- * <li>{@link #SCRIPT_BUTTON}: a button (sprite + label with up to two ops) as dynamic children of a layer - the GE
+ * <li>{@link #SCRIPT_BUTTON}: a 667 stone button (nine pieces + label with up to two ops) as dynamic children of a layer - the GE
  *     screen's History / Collect and the collection box's Inventory / Bank (OSRS scripts 803 / 793 / 788). A click
  *     reaches the server as IF_BUTTON on that layer with the label's child index as slot.</li>
  * <li>{@link #SCRIPT_SET_OPS}: ops + op base on a static component - the History rows' "Buy-offer" / "Examine"
@@ -37,6 +37,27 @@ public final class RspsGrandExchange {
     static final int SCRIPT_BUTTON_HOVER = 40102;
     static final int SCRIPT_PREVIOUS_HOVER = 40103;
     public static final int SCRIPT_SET_OP = 40104;
+    static final int SCRIPT_BUTTON_LEAVE = 40105;
+
+    /** A button is {@link #BUTTON_PIECES} stone pieces and its label: {@link #BUTTON_CHILDREN} dynamic children. */
+    static final int BUTTON_PIECES = 9;
+    static final int BUTTON_LABEL = BUTTON_PIECES;
+    public static final int BUTTON_CHILDREN = BUTTON_PIECES + 1;
+    static final int BUTTON_BORDER = 9;
+
+    /** Script 680 (normal) and 915 (hover): the background, then the corners TL TR BL BR and the edges left top right bottom. */
+    static final int[] BUTTON_NORMAL = {297, 913, 914, 915, 916, 917, 918, 919, 920};
+    static final int[] BUTTON_HOVER = {1040, 929, 930, 931, 932, 933, 934, 935, 936};
+
+    /** Per piece: x kind, y kind, width kind, height kind (see {@link #pieceX}). */
+    static final int[][] BUTTON_LAYOUT = {
+        {0, 0, 0, 0},
+        {0, 0, 1, 1}, {1, 0, 1, 1}, {0, 1, 1, 1}, {1, 1, 1, 1},
+        {0, 2, 1, 2}, {2, 0, 2, 1}, {1, 2, 1, 2}, {2, 1, 2, 1},
+    };
+
+    /** 105:187 "Confirm Offer": b12_full, 0xCC9800. */
+    static final int BUTTON_TEXT_COLOUR = 0xCC9800;
 
     /** The cache's own 574 / 576, reachable under these ids once 574 / 576 are patched. */
     static final int ORIGINAL_BASE = 40000;
@@ -56,11 +77,8 @@ public final class RspsGrandExchange {
     /** Below the instruction text (389:7 spans y 51..82 of the results layer); one 15-pixel row like the results. */
     static final int PREVIOUS_ROW_Y = 86;
 
-    static final int BUTTON_SPRITE = 1146;
-    static final int BUTTON_FONT = 495;
+    static final int BUTTON_FONT = 496;
     static final int RESULT_FONT = 495;
-    static final int ORANGE = 0xFF981F;
-    static final int WHITE = 0xFFFFFF;
     static final int RESULT_COLOUR = 10508800;
 
     static final int HOOK_SOURCE_LAYER = Integer.MIN_VALUE + 3;
@@ -118,7 +136,9 @@ public final class RspsGrandExchange {
             case SCRIPT_SET_OP:
                 return setOp();
             case SCRIPT_BUTTON_HOVER:
-                return colourHover();
+                return pieces(SCRIPT_BUTTON_HOVER, BUTTON_HOVER);
+            case SCRIPT_BUTTON_LEAVE:
+                return pieces(SCRIPT_BUTTON_LEAVE, BUTTON_NORMAL);
             case SCRIPT_PREVIOUS_HOVER:
                 return previousHover();
             case SETS_LAYOUT:
@@ -201,19 +221,32 @@ public final class RspsGrandExchange {
 
     /* ------------------------------------------------ scripts ------------------------------------------------ */
 
-    /** (layer, firstChild, x, y, width, height; label, op1, op2): button sprite at firstChild, label + ops at firstChild + 1. */
+    /**
+     * (layer, firstChild, x, y, width, height; label, op1, op2): the 667 Grand Exchange's own stone button - the look of
+     * "Confirm Offer" (105:186 / 187: cache scripts 680 = background 297 + border pieces 913..920 through script 98, hover 915
+     * = background 1040 + pieces 929..936; label font 496, colour 0xCC9800, shadow, centred). The nine pieces are children
+     * firstChild .. firstChild + 8 (in 680's order), the label with the ops is firstChild + {@link #BUTTON_LABEL}; hovering
+     * the label swaps the pieces to the hover look and back, as 97 / 653 do for "Confirm Offer".
+     */
     static ClientScript button() {
         Cs2 c = new Cs2();
-        c.iload(0).i(Component.TYPE_GRAPHIC).iload(1).op(CC_CREATE);
-        c.iload(2).iload(3).i(0).i(0).op(CC_IF_SETPOSITION);
-        c.iload(4).iload(5).i(0).i(0).op(CC_IF_SETSIZE);
-        c.i(BUTTON_SPRITE).op(CC_IF_SETGRAPHIC);
+        for (int piece = 0; piece < BUTTON_PIECES; piece++) {
+            c.iload(0).i(Component.TYPE_GRAPHIC).iload(1).i(piece).op(ADD).op(CC_CREATE);
+            pieceX(c, BUTTON_LAYOUT[piece][0]);
+            pieceY(c, BUTTON_LAYOUT[piece][1]);
+            c.i(0).i(0).op(CC_IF_SETPOSITION);
+            pieceWidth(c, BUTTON_LAYOUT[piece][2]);
+            pieceHeight(c, BUTTON_LAYOUT[piece][3]);
+            c.i(0).i(0).op(CC_IF_SETSIZE);
+            c.i(BUTTON_NORMAL[piece]).op(CC_IF_SETGRAPHIC);
+            c.i(1).op(CC_IF_SETTILING);
+        }
 
-        c.iload(0).i(Component.TYPE_TEXT).iload(1).i(1).op(ADD).op(CC_CREATE);
+        c.iload(0).i(Component.TYPE_TEXT).iload(1).i(BUTTON_LABEL).op(ADD).op(CC_CREATE);
         c.iload(2).iload(3).i(0).i(0).op(CC_IF_SETPOSITION);
         c.iload(4).iload(5).i(0).i(0).op(CC_IF_SETSIZE);
         c.i(BUTTON_FONT).op(CC_IF_SETTEXTFONT);
-        c.i(ORANGE).op(CC_IF_SETCOLOUR);
+        c.i(BUTTON_TEXT_COLOUR).op(CC_IF_SETCOLOUR);
         c.i(1).op(CC_IF_SETTEXTSHADOW);
         c.i(1).i(1).i(0).op(CC_IF_SETTEXTALIGN);
         c.sload(0).op(CC_IF_SETTEXT);
@@ -223,22 +256,64 @@ public final class RspsGrandExchange {
             c.sload(op).i(op).op(CC_IF_SETOP);
             c.land(skip);
         }
-        c.i(SCRIPT_BUTTON_HOVER).i(HOOK_SOURCE_LAYER).i(HOOK_SOURCE_CHILD).i(WHITE).s("iii").op(CC_IF_SETONMOUSEOVER);
-        c.i(SCRIPT_BUTTON_HOVER).i(HOOK_SOURCE_LAYER).i(HOOK_SOURCE_CHILD).i(ORANGE).s("iii").op(CC_IF_SETONMOUSELEAVE);
+        c.i(SCRIPT_BUTTON_HOVER).i(HOOK_SOURCE_LAYER).i(HOOK_SOURCE_CHILD).s("ii").op(CC_IF_SETONMOUSEOVER);
+        c.i(SCRIPT_BUTTON_LEAVE).i(HOOK_SOURCE_LAYER).i(HOOK_SOURCE_CHILD).s("ii").op(CC_IF_SETONMOUSELEAVE);
         c.op(RETURN);
         return c.build(SCRIPT_BUTTON, 6, 3, 6, 3);
     }
 
-    /** (layer, child, colour): the hovered label's colour. */
-    static ClientScript colourHover() {
+    /** (layer, label child): every piece of the label's button to [sprites] (the hover or the normal look). */
+    static ClientScript pieces(int id, int[] sprites) {
         Cs2 c = new Cs2();
-        c.iload(0).iload(1).op(CC_FIND);
-        int found = c.branch(BRANCH_IF_TRUE);
+        for (int piece = 0; piece < BUTTON_PIECES; piece++) {
+            c.iload(0).iload(1).i(BUTTON_LABEL - piece).op(SUB).op(CC_FIND);
+            int missing = c.branch(BRANCH_IF_FALSE);
+            c.i(sprites[piece]).op(CC_IF_SETGRAPHIC);
+            c.land(missing);
+        }
         c.op(RETURN);
-        c.land(found);
-        c.iload(2).op(CC_IF_SETCOLOUR);
-        c.op(RETURN);
-        return c.build(SCRIPT_BUTTON_HOVER, 3, 0, 3, 0);
+        return c.build(id, 2, 0, 2, 0);
+    }
+
+    // Script 680's piece boxes: x (0 left, 1 right - 9, 2 left + 9), y (same with the height), width / height (0 full, 1 nine, 2 full - 18).
+    private static void pieceX(Cs2 c, int kind) {
+        c.iload(2);
+        if (kind == 1) {
+            c.iload(4).op(ADD).i(BUTTON_BORDER).op(SUB);
+        } else if (kind == 2) {
+            c.i(BUTTON_BORDER).op(ADD);
+        }
+    }
+
+    private static void pieceY(Cs2 c, int kind) {
+        c.iload(3);
+        if (kind == 1) {
+            c.iload(5).op(ADD).i(BUTTON_BORDER).op(SUB);
+        } else if (kind == 2) {
+            c.i(BUTTON_BORDER).op(ADD);
+        }
+    }
+
+    private static void pieceWidth(Cs2 c, int kind) {
+        if (kind == 1) {
+            c.i(BUTTON_BORDER);
+        } else {
+            c.iload(4);
+            if (kind == 2) {
+                c.i(2 * BUTTON_BORDER).op(SUB);
+            }
+        }
+    }
+
+    private static void pieceHeight(Cs2 c, int kind) {
+        if (kind == 1) {
+            c.i(BUTTON_BORDER);
+        } else {
+            c.iload(5);
+            if (kind == 2) {
+                c.i(2 * BUTTON_BORDER).op(SUB);
+            }
+        }
     }
 
     /** (component; opBase, op1, op10): ops of a static component (IF_SETOP = CC_IF_SETOP + 1000). */
