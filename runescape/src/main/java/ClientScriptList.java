@@ -17,6 +17,11 @@ public final class ClientScriptList {
         if (rsps != null) {
             return rsps;
         }
+        // E7: the OSRS bank menus (patched 1453 / 1540) and buttons (RspsBank).
+        ClientScript bank = RspsBank.script(id);
+        if (bank != null) {
+            return bank;
+        }
 
         @Pc(10) ClientScript script = (ClientScript) cache.get(id);
         if (script != null) {

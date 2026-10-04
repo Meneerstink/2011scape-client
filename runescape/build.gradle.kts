@@ -131,6 +131,30 @@ val combatTabNameFitRegression by tasks.registering(JavaExec::class) {
 
 tasks.check { dependsOn(combatTabNameFitRegression) }
 
+val geSetsLayoutRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks the GE item sets grid (script 676) starts every set category in column 0 (bug 211448)."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("GeSetsLayoutRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
+tasks.check { dependsOn(geSetsLayoutRegression) }
+
+val rspsBankRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Runs the 78 client's OSRS bank scripts (RspsBank: item / side inventory menus, buttons) on a stack model (E7)."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("RspsBankRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
+tasks.check { dependsOn(rspsBankRegression) }
+
 tasks.check {
     dependsOn(r13Regression, audioSettingsRegression, audioVolumeRegression, cameraZoomRegression, oldStyleHitsplatRegression, debugOverlayRegression)
 }

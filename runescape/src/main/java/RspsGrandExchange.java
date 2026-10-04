@@ -1,7 +1,11 @@
 import static com.jagex.core.constants.ClientScriptOpCode.*;
 
+import com.jagex.game.runetek6.config.enumtype.EnumType;
+import com.jagex.game.runetek6.config.enumtype.EnumTypeList;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * E6 (owner 2026-10-03): the OSRS Grand Exchange parts the revision-667 cache never had, built from the client's own
@@ -16,6 +20,11 @@ import java.util.List;
  * <li>Item search (interface 389): "Previous search:" when the search is empty, and Enter picks the previous search
  *     (empty search) or the first result (OSRS script 3362; Wiki changes 27 February 2015 and 8 April 2020). The cache's
  *     own scripts 574 (key handler) and 576 (refresh) still run unchanged: the patched versions call them.</li>
+ * <li>Item sets (interface 645, owner bug 211448 "sets the layout is not centered correctly"): the cache's script 676 lays the
+ *     sets of enum 1087 out ten to a row and starts every category on a new row with fixed pads ("+4 before 11858", ...). The
+ *     667 enum has Akrisae's set (21768) as a seventh Barrows set, which the pads never counted, so every category after the
+ *     Barrows sets started one column right of the grid. {@link #setsLayout} runs the cache's own 676 with each pad
+ *     recomputed from the enum to "up to the next row" ({@link #repadSets}).</li>
  * </ul>
  * The server names the previous search with the console line {@code __RSPS_GE__:last|<itemId>} before it opens the search.
  */
@@ -57,10 +66,20 @@ public final class RspsGrandExchange {
     static final int HOOK_SOURCE_LAYER = Integer.MIN_VALUE + 3;
     static final int HOOK_SOURCE_CHILD = Integer.MIN_VALUE + 5;
 
+    /** The cache's item sets layout (645:16), its set roster and grid width. */
+    static final int SETS_LAYOUT = 676;
+    static final int SETS_ENUM = 1087;
+    static final int SETS_COLUMNS = 10;
+
+    /** Script 676's grid position counter (int local 5). */
+    static final int SETS_POSITION_LOCAL = 5;
+
     private static volatile int previousSearch = -1;
     private static ClientScript keys;
     private static ClientScript refresh;
     private static int builtFor = Integer.MIN_VALUE;
+    private static ClientScript sets;
+    private static boolean setsBuilt;
 
     private RspsGrandExchange() {
     }
@@ -102,9 +121,82 @@ public final class RspsGrandExchange {
                 return colourHover();
             case SCRIPT_PREVIOUS_HOVER:
                 return previousHover();
+            case SETS_LAYOUT:
+                if (!setsBuilt) {
+                    sets = setsLayout();
+                    // Built once the set roster can be read (in game); until then the cache's own 676 runs.
+                    setsBuilt = sets != null || EnumTypeList.instance != null;
+                }
+                return sets;
             default:
                 return null;
         }
+    }
+
+    /* ---------------------------------------------- item sets ---------------------------------------------- */
+
+    /** The cache's 676 with its category pads recomputed from enum 1087, or null (the cache's own 676 runs) when not possible. */
+    static ClientScript setsLayout() {
+        if (EnumTypeList.instance == null) {
+            return null;
+        }
+        EnumType roster = EnumTypeList.instance.list(SETS_ENUM);
+        ClientScript script = ClientScriptList.original(SETS_LAYOUT);
+        if (roster == null || script == null) {
+            return null;
+        }
+        // 676 reads enum 1087 from key 1 until a key returns the enum's default (11760 in the 667 cache).
+        List<Integer> values = new ArrayList<>();
+        for (int key = 1; key <= 4096; key++) {
+            int value = roster.getInt(key);
+            if (value == roster.defaultInt) {
+                break;
+            }
+            values.add(value);
+        }
+        return repadSets(script, values) ? script : null;
+    }
+
+    /**
+     * Finds 676's category pads - {@code if (set == <id>) local5 += <pad>;} compiled as PUSH_CONSTANT_INT id, BRANCH_EQUALS 1,
+     * BRANCH 4, PUSH_INT_LOCAL 5, PUSH_CONSTANT_INT pad, ADD, POP_INT_LOCAL 5, once in the item pass and once in the marker
+     * pass - and sets each pad to what brings that category to the start of the next row for the sets in [values] (in enum
+     * order). Same op count, so every branch of the script stays valid. False when the script has no such pad.
+     */
+    static boolean repadSets(ClientScript script, List<Integer> values) {
+        int[] ops = script.opcodes;
+        int[] operands = script.intOperands;
+        if (ops == null || operands == null) {
+            return false;
+        }
+        Map<Integer, List<Integer>> pads = new HashMap<>();
+        for (int k = 0; k + 6 < ops.length; k++) {
+            if (ops[k] == PUSH_CONSTANT_INT
+                && ops[k + 1] == BRANCH_EQUALS && operands[k + 1] == 1
+                && ops[k + 2] == BRANCH && operands[k + 2] == 4
+                && ops[k + 3] == PUSH_INT_LOCAL && operands[k + 3] == SETS_POSITION_LOCAL
+                && ops[k + 4] == PUSH_CONSTANT_INT
+                && ops[k + 5] == ADD
+                && ops[k + 6] == POP_INT_LOCAL && operands[k + 6] == SETS_POSITION_LOCAL) {
+                pads.computeIfAbsent(operands[k], id -> new ArrayList<>()).add(k + 4);
+            }
+        }
+        if (pads.isEmpty()) {
+            return false;
+        }
+        int position = 0;
+        for (int value : values) {
+            List<Integer> at = pads.get(value);
+            if (at != null) {
+                int pad = (SETS_COLUMNS - position % SETS_COLUMNS) % SETS_COLUMNS;
+                for (int index : at) {
+                    operands[index] = pad;
+                }
+                position += pad;
+            }
+            position++;
+        }
+        return true;
     }
 
     /* ------------------------------------------------ scripts ------------------------------------------------ */
