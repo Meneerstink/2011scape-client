@@ -2598,7 +2598,8 @@ public final class ScriptRunner {
             }
 
             if (op == RESUME_COUNTDIALOG) {
-                @Pc(4911) String input = stringStack[--stringStackPointer];
+                // RSPS: OSRS amount suffixes (1b) and the int cap (RspsCountInput).
+                @Pc(4911) String input = RspsCountInput.expand(stringStack[--stringStackPointer]);
 
                 @Pc(21) int count = 0;
                 if (StringTools.isDecimal(input)) {
