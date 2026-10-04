@@ -801,12 +801,15 @@ public final class ObjType {
         if (mesh.version < 13) {
             mesh.upscale();
         }
+        // RSPS: an OSRS item's dialogue head is fitted onto the HD player head (OsrsChatheadFit, owner 025612).
+        com.jagex.graphics.OsrsChatheadFit.fit(mesh);
 
         if (model2 != -1) {
             @Pc(105) Mesh mesh2 = Mesh.load(model2, this.myList.meshes);
             if (mesh2.version < 13) {
                 mesh2.upscale();
             }
+            com.jagex.graphics.OsrsChatheadFit.fit(mesh2);
             @Pc(128) Mesh[] meshes = {mesh, mesh2};
             mesh = new Mesh(meshes, 2);
         }
