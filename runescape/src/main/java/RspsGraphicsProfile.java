@@ -14,6 +14,9 @@ public final class RspsGraphicsProfile {
      */
     public static final boolean ROOFS_HIDE_ONLY_UNDER_PLAYER = true;
 
+    /** First map z of the underground map squares (RS convention: dungeons sit 6400 tiles north of the surface). */
+    public static final int UNDERGROUND_Z = 6400;
+
     /**
      * RSPS map tile flag 0x20 on the level above the player: "part of the building below" (the Royal Hall's balconies and
      * upper doorways, RoyalHallMapTool.BELOW_BUILDING). Owner 2026-09-27: from inside the hall no balcony may show through

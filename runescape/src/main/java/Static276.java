@@ -42,6 +42,19 @@ public final class Static276 {
         if (Camera.renderingLevel == 3) {
             return;
         }
+        // RSPS (owner bugs 031449 / 154436 / 032935, "black when zoomed out" in Barrows): underground maps are stacked - the
+        // Barrows crypts (plane 3) lie straight above the tunnels, at y -10688. The extended (RuneLite/OSRS) zoom lifts a
+        // top-down camera to about y -17500, above that level, whose floor then covers the whole view; the 667 zoom never got
+        // that high and those tunnels carry no roof flags (0x4) for the flood below. OSRS with roofs hidden draws nothing above
+        // the player's plane; underground that rule is used here: every tile of the levels above is hidden this frame.
+        if (WorldMap.areaBaseZ + (PlayerEntity.self.z >> 9) >= RspsGraphicsProfile.UNDERGROUND_Z) {
+            @Pc(36) byte hidden = (byte) (Static198.anInt3276 & 0xFF);
+            for (@Pc(38) int level = Camera.renderingLevel + 1; level < 4; level++) {
+                for (@Pc(40) int x = 0; x < Static720.mapWidth; x++) {
+                    java.util.Arrays.fill(Static328.aByteArrayArrayArray4[level][x], hidden);
+                }
+            }
+        }
         for (local30 = 0; local30 < 2; local30++) {
             Static482.anIntArray588[local30] = -1000000;
             Static9.anIntArray18[local30] = 1000000;
