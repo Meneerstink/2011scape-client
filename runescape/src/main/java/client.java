@@ -989,6 +989,7 @@ public final class client extends GameShell {
         }
 
         RspsOverlayLayout.tick();
+        RspsDeferredOnLoad.tick();
         // The 78 Plugins sidebar's changes go to the server on this (the game) thread.
         RspsHud.tickInput();
 

@@ -2274,6 +2274,8 @@ public final class InterfaceManager {
         sub.id = id;
         sub.type = type;
         subInterfaces.put(idAndSlot, sub);
+        AvTrace.log("if open " + id + " at " + (idAndSlot >>> 16) + ":" + (idAndSlot & 0xFFFF) + " type=" + type
+            + " loaded=" + InterfaceList.loaded[id] + (fromClient ? " (client script)" : ""));
 
         restartInterfaceAnims(id);
 
@@ -2817,6 +2819,8 @@ public final class InterfaceManager {
         @Pc(6) int subId = sub.id;
         @Pc(10) int idAndSlot = (int) sub.key;
         sub.unlink();
+        AvTrace.log("if close " + subId + " at " + (idAndSlot >>> 16) + ":" + (idAndSlot & 0xFFFF) + " type=" + sub.type
+            + (fromClient ? " (client)" : ""));
 
         if (discard) {
             discard(subId);

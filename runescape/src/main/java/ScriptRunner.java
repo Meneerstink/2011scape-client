@@ -959,7 +959,11 @@ public final class ScriptRunner {
 
     @OriginalMember(owner = "client!ou", name = "d", descriptor = "(I)V")
     public static void executeOnLoad(@OriginalArg(0) int id) {
-        if (id == -1 || !InterfaceList.load(id)) {
+        if (id == -1) {
+            return;
+        }
+        if (!InterfaceList.load(id)) {
+            RspsDeferredOnLoad.skipped(id);
             return;
         }
 
