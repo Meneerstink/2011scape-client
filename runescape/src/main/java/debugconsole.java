@@ -628,7 +628,10 @@ public final class debugconsole {
                     return;
                 }
 
-                if (command.startsWith("pc")) {
+                // RSPS: Jagex's dev "pc <name> <text>" private-message test caught every command starting with "pc" (the server's
+                // pcstart ...) and framed MESSAGE_PRIVATE (a 2-byte-length packet) with a 1-byte length - from then on every packet
+                // the server read was garbage or it waited forever (seen 2026-10-05: "no valid metadata", then a dead session). Off.
+                if (false && command.startsWith("pc ")) {
                     @Pc(1833) ServerConnection connection = ConnectionManager.active();
                     @Pc(1839) ClientMessage message = ClientMessage.create(ClientProt.MESSAGE_PRIVATE, connection.isaac);
                     message.bitPacket.p1(0);

@@ -141,6 +141,12 @@ public final class ServerConnection {
     @OriginalMember(owner = "client!gw", name = "a", descriptor = "(ILclient!fk;)V")
     public void send(@OriginalArg(1) ClientMessage message) {
         this.messages.addLast(message);
+        if (AvTrace.ENABLED && message.prot != null) {
+            // RSPS desync trace (2026-10-05, test server "no valid metadata"): opcode, declared length and the real body size.
+            int body = message.bitPacket.pos - 1 - (message.rawSize == -1 ? 1 : message.rawSize == -2 ? 2 : 0);
+            boolean bad = message.rawSize >= 0 && body != message.rawSize;
+            if (bad) AvTrace.log("PROBLEM send opcode=" + message.prot.getOpcode() + " declared=" + message.rawSize + " body=" + body + " - the server reads every later packet wrong");
+        }
         message.totalSize = message.bitPacket.pos;
         message.bitPacket.pos = 0;
         this.buffered += message.totalSize;
