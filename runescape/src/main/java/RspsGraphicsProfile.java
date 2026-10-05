@@ -14,8 +14,11 @@ public final class RspsGraphicsProfile {
      */
     public static final boolean ROOFS_HIDE_ONLY_UNDER_PLAYER = true;
 
-    /** First map z of the underground map squares (RS convention: dungeons sit 6400 tiles north of the surface). */
-    public static final int UNDERGROUND_Z = 6400;
+    /**
+     * First map z north of the surface world (map square row 65): every underground map - dungeons at z 4400..10000, God Wars
+     * at 5184, Barrows tunnels at 9664 - lies above it, the surface (Weiss, Lunar Isle, the Wilderness) below 4100.
+     */
+    public static final int UNDERGROUND_Z = 4160;
 
     /**
      * RSPS map tile flag 0x20 on the level above the player: "part of the building below" (the Royal Hall's balconies and
