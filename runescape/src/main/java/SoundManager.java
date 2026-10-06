@@ -35,8 +35,11 @@ public final class SoundManager {
     @OriginalMember(owner = "client!bc", name = "c", descriptor = "I")
     public static int count = 0;
 
-    /** Owner mix decision (2026-09-19): ambient/area sounds are 10% quieter than the prior 85% mix. */
-    public static final double AMBIENT_GAIN_PERCENT = 76.5D;
+    /**
+     * Owner mix decisions: 2026-09-19 ambient/area sounds 10% quieter than the prior 85% mix (76.5%); 2026-10-06 (bug 025408,
+     * OWNER_QUESTIONS Q7 "half as loud") half of that again.
+     */
+    public static final double AMBIENT_GAIN_PERCENT = 38.25D;
 
     public static int ambientVolume() {
         return ambientVolumeFor(ClientOptions.instance.backgroundSoundVolume.getValue());

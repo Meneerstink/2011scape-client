@@ -2,12 +2,12 @@ public final class AudioVolumeRegressionTest {
     private static int assertions;
 
     public static void main(String[] args) {
-        check(SoundManager.AMBIENT_GAIN_PERCENT == 76.5D,
-            "Ambient gain keeps the requested 10% reduction after the prior 85% mix");
-        check(SoundManager.ambientVolumeFor(127) == 97,
+        check(SoundManager.AMBIENT_GAIN_PERCENT == 38.25D,
+            "Ambient gain is half of the 2026-09-19 76.5% mix (owner 2026-10-06, bug 025408)");
+        check(SoundManager.ambientVolumeFor(127) == 49,
             "Maximum background volume is reduced by the shared ambient mixer");
-        check(SoundManager.ambientVolumeFor(100) == 77,
-            "Normal background volume uses the 76.5% gain, rounded only at the output");
+        check(SoundManager.ambientVolumeFor(100) == 38,
+            "Normal background volume uses the 38.25% gain, rounded only at the output");
         check(SoundManager.ambientVolumeFor(0) == 0,
             "Muted background audio remains muted");
         // Audio Options sliders (cs2 1215 / 1159): music and login music run 0..255, effects and area sounds 0..127.

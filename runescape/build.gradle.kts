@@ -83,6 +83,18 @@ val cameraZoomRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
+val cameraCollisionRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks the camera-collision geometry: camera ray vs wall edge / solid loc -> allowed camera distance."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("CameraCollisionRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
+tasks.check { dependsOn(cameraCollisionRegression) }
+
 val oldStyleHitsplatRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks old-style hitsplat, hitpoints and prayer display scaling"
