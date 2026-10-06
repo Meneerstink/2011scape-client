@@ -942,6 +942,11 @@ public final class LocType {
             functionMask |= 0x2;
         }
 
+        // RSPS place mode: a per-instance fit translates on every axis, scales and turns the copy.
+        if (customisation != null && customisation.hasFit()) {
+            functionMask |= 0xF;
+        }
+
         if (this.recol_s != null) {
             functionMask |= 0x4000;
         }
@@ -1061,6 +1066,37 @@ public final class LocType {
         if (shape == 4 && rotation > 3) {
             result.k(2048);
             result.H(180, 0, -180);
+        }
+
+        // RSPS place mode (2026-10-06): this one instance's fit (LocTypeCustomisation.fit*, server LocFit), applied to
+        // the copy in the loc's own frame before its quarter-turn: +x along the wall, -z away from it, -y up. A wall
+        // decoration (shapes 4-8) scales and turns about its wall contact (its own max z) at mid height, scenery about
+        // the tile centre on the ground; the offsets come last. Only this copy changes, never the shared base model.
+        if (customisation != null && customisation.hasFit()) {
+            boolean onWall = shape >= 4 && shape <= 8;
+            int pivotY = onWall ? (result.fa() + result.EA()) / 2 : 0;
+            int pivotZ = onWall ? result.G() : 0;
+            int yaw = customisation.fitYaw & 0x3FFF;
+            if (customisation.fitScale != 128 || yaw != 0) {
+                if (pivotY != 0 || pivotZ != 0) {
+                    result.H(0, -pivotY, -pivotZ);
+                }
+                if (customisation.fitScale != 128) {
+                    result.O(customisation.fitScale, customisation.fitScale, customisation.fitScale);
+                }
+                if (yaw != 0) {
+                    result.k(yaw);
+                }
+                if (pivotY != 0 || pivotZ != 0) {
+                    result.H(0, pivotY, pivotZ);
+                }
+            }
+            if (customisation.fitX != 0 || customisation.fitY != 0 || customisation.fitZ != 0) {
+                result.H(customisation.fitX, customisation.fitY, customisation.fitZ);
+            }
+            if (com.jagex.core.util.ModelTrace.ENABLED) {
+                System.out.println("[fittrace] loc fit applied id=" + this.id + " shape=" + shape + " rot=" + rotation + " model=" + result.getClass().getSimpleName() + " pivotY=" + pivotY + " pivotZ=" + pivotZ + " scale=" + customisation.fitScale + " yaw=" + yaw + " off=" + customisation.fitX + "," + customisation.fitY + "," + customisation.fitZ + " bounds x=" + result.V() + ".." + result.RA() + " y=" + result.fa() + ".." + result.EA() + " z=" + result.HA() + ".." + result.G() + " mask=" + Integer.toHexString(functionMask));
+            }
         }
 
         @Pc(448) int rotationMask = rotation & 0x3;

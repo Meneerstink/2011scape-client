@@ -942,6 +942,10 @@ public final class client extends GameShell {
         Static216.keyPressCount = 0;
 
         for (@Pc(94) KeyLog log = KeyboardMonitor.instance.removeFirstRecorded(); log != null; log = KeyboardMonitor.instance.removeFirstRecorded()) {
+            // RSPS place mode (owner 2026-10-06): while a decoration is selected its keys never reach the chat or the camera.
+            if (RspsDev.placing && RspsDev.key(log)) {
+                continue;
+            }
             @Pc(102) int type = log.getType();
 
             if (type == KeyLog.TYPE_HELD || type == KeyLog.TYPE_TYPED) {

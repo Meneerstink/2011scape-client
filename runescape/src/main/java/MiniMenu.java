@@ -363,6 +363,10 @@ public final class MiniMenu {
                         addEntryInner(false, -1, 0L, local140, local142, "78 banner", RspsDev.ACTION_BANNER_TILE, true, -1, here, (local142 | local140 << 0) + 0x41000000L, true);
                         addEntryInner(false, -1, 0L, local140, local142, "Tag tile", RspsDev.ACTION_TAG_TILE, true, -1, here, (local142 | local140 << 0) + 0x40000000L, true);
                         addEntryInner(false, -1, 0L, local140, local142, "Teleport here", RspsDev.ACTION_TELE_TILE, true, -1, here, (local142 | local140 << 0) + 0x45000000L, true);
+                        // Place mode (owner 2026-10-06): the Legacy Deadman logo / wide banner / flag free on this tile.
+                        for (int place = RspsDev.PLACE_LOCS.length - 1; place >= 0; place--) {
+                            addEntryInner(false, -1, 0L, local140, local142, RspsDev.PLACE_NAMES[place] + " here", RspsDev.ACTION_PLACE_TILE + place, true, -1, here, (local142 | local140 << 0) + (0x48000000L + place * 0x1000000L), true);
+                        }
                     }
                 }
             }
@@ -615,6 +619,12 @@ public final class MiniMenu {
                                     addEntryInner(false, -1, locV1, local186, local584, "Remove", RspsDev.ACTION_REMOVE_LOC, true, -1, locLabel, local1654.hashCode(), false);
                                     addEntryInner(false, -1, locV1, local186, local584, "Rotate", RspsDev.ACTION_ROTATE_LOC, true, -1, locLabel, local1654.hashCode(), false);
                                     addEntryInner(false, -1, locV1, local186, local584, "Tag", RspsDev.ACTION_TAG_LOC, true, -1, locLabel, local1654.hashCode(), false);
+                                    // Place mode (owner 2026-10-06): a new 78 logo / wide banner / flag on this wall, or this decoration itself.
+                                    addEntryInner(false, -1, locV1, local186, local584, "Copy & place", RspsDev.ACTION_COPY_DECO, true, -1, locLabel, local1654.hashCode(), false);
+                                    addEntryInner(false, -1, locV1, local186, local584, "Adjust", RspsDev.ACTION_ADJUST_LOC, true, -1, locLabel, local1654.hashCode(), false);
+                                    for (int place = RspsDev.PLACE_LOCS.length - 1; place >= 0; place--) {
+                                        addEntryInner(false, -1, locV1, local186, local584, RspsDev.PLACE_NAMES[place] + " here", RspsDev.ACTION_PLACE_WALL + place, true, -1, locLabel, local1654.hashCode(), false);
+                                    }
                                 }
                             }
                         }

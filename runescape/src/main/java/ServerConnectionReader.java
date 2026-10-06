@@ -2587,7 +2587,17 @@ public final class ServerConnectionReader {
                     }
                 }
 
-                Static296.customiseLocation(new LocTypeCustomisation(LocTypeCustomisation.uid++, remodel, recol, retex), Static87.updateZoneLevel, layer, zoneX, zoneY);
+                LocTypeCustomisation customisation = new LocTypeCustomisation(LocTypeCustomisation.uid++, remodel, recol, retex);
+                // RSPS place mode (2026-10-06): flag 0x10 = per-placement fit of this one loc (server LocFit).
+                if ((flags & 0x10) == 0x10) {
+                    customisation.fitX = bitPacket.g2s();
+                    customisation.fitY = bitPacket.g2s();
+                    customisation.fitZ = bitPacket.g2s();
+                    customisation.fitScale = bitPacket.g2();
+                    customisation.fitYaw = bitPacket.g2();
+                    AvTrace.log("loc fit id=" + id + " zone=" + zoneX + "," + zoneY + " level=" + Static87.updateZoneLevel + " shape=" + shape + " dx=" + customisation.fitX + " dy=" + customisation.fitY + " dz=" + customisation.fitZ + " scale=" + customisation.fitScale + " yaw=" + customisation.fitYaw);
+                }
+                Static296.customiseLocation(customisation, Static87.updateZoneLevel, layer, zoneX, zoneY);
             }
         } else if (prot == ZoneProt.LOC_ANIM) {
             @Pc(15) int animation = bitPacket.g2_alt3();

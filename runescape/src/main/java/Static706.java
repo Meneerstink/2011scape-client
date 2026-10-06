@@ -23,6 +23,11 @@ public final class Static706 {
             return;
         }
         @Pc(52) Location local52 = MapRegion.active.getLoc(arg3, arg4, arg2, arg0);
+        // RSPS (2026-10-06): a customisation only lands on a dynamic loc (LocEntity); a loc without opcode 177 is built as
+        // Static* and keeps its plain model - the trace names it so a silently ignored LOC_CUSTOMISE is visible.
+        if (!(local52 instanceof DynamicLocation) && !(local52 instanceof DynamicWall) && !(local52 instanceof DynamicWallDecor) && !(local52 instanceof DynamicGroundDecor)) {
+            AvTrace.log("PROBLEM loc customise ignored: " + (local52 == null ? "no loc" : local52.getClass().getSimpleName() + " is not dynamic (loc def needs opcode 177)") + " at " + arg4 + "," + arg2 + "," + arg3 + " layer=" + arg0);
+        }
         if (local52 == null) {
             return;
         }

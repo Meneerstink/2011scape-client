@@ -181,6 +181,10 @@ final class RspsHud {
         if (RspsInfoBoxes.count() > 0) {
             panel(RspsInfoBoxes.ID, RspsInfoBoxes.width(), RspsInfoBoxes.SIZE, x, y, width, height, stackY);
         }
+        // Developer place mode (owner 2026-10-06): the selected decoration's values and keys.
+        if (RspsDev.placing) {
+            RspsDev.drawOverlay(x, y, width, height);
+        }
     }
 
     /** Places and draws one panel; returns the next free y of the default stack. */
