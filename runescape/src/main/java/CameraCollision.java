@@ -1,6 +1,7 @@
 import com.jagex.Client;
 import com.jagex.core.util.RspsTrace;
 import com.jagex.core.util.TimeUtils;
+import com.jagex.game.Location;
 import com.jagex.game.camera.CameraMode;
 import com.jagex.game.collision.CollisionFlag;
 import com.jagex.game.collision.CollisionMap;
@@ -42,6 +43,9 @@ public final class CameraCollision {
     static final int RESTORE_STEP = 256;
     static final int RESTORE_RATE = 100;
 
+    /** Whether solid locs pull the live camera in (off: walls only, see LiveGrid.locTop). */
+    static final boolean LOCS_BLOCK = false;
+
     /** No solid loc on a tile. */
     static final int NO_LOC = Integer.MAX_VALUE;
 
@@ -60,6 +64,14 @@ public final class CameraCollision {
 
         /** World y of the top of a solid loc on tile (x, z), or {@link #NO_LOC}. */
         int locTop(int x, int z);
+
+        /**
+         * Whether the edge between tiles (x, z) and (nx, nz), crossed at fine point (px, pz) with the ray at world y [rayY],
+         * blocks the camera. Default: a wall on the edge whose top is above the ray.
+         */
+        default boolean blocks(int x, int z, int nx, int nz, int px, int pz, double rayY) {
+            return this.wallBetween(x, z, nx, nz) && rayY > this.wallTop(px, pz);
+        }
     }
 
     private static int current = FULL;
@@ -115,7 +127,7 @@ public final class CameraCollision {
             }
             double rayY = fy + (cy - fy) * t;
             int kind = HIT_NONE;
-            if (grid.wallBetween(tx, tz, nx, nz) && rayY > grid.wallTop((int) (fx + dx * t), (int) (fz + dz * t))) {
+            if (grid.blocks(tx, tz, nx, nz, (int) (fx + dx * t), (int) (fz + dz * t), rayY)) {
                 kind = HIT_WALL;
             } else {
                 int locTop = grid.locTop(nx, nz);
@@ -220,6 +232,104 @@ public final class CameraCollision {
         int level;
         CollisionMap map;
 
+        /**
+         * Own client 2026-10-06 (Royal Hall, player 3164,3492,0, camera south of the hall): nothing was pulled in - the ray
+         * passed over the ground storey's 360, and then through the south doorway, where no collision wall stands but the
+         * hall's facade is drawn above the opening (GeHomeHallCurtains: storey 2 as a level-0 wall, storey 1 as a level-0
+         * shape-10 loc hanging over the doorway). So the edge blocks, on every level from the player's up, where the ray runs
+         * through what is actually drawn there:
+         *  - a wall model on that edge (Tile.wall / adjacentWall, shape 0 one edge, shape 2 two edges), between its base y and
+         *    its top (y + getMinY(2));
+         *  - a wall in that level's collision map, between the floor and the storey top ({@link #wallTop});
+         *  - a loc hanging over the tile being entered (its model's bottom at least {@link #MIN_STOREY} above the floor - a
+         *    lintel or facade, never furniture standing on the floor), between its bottom and top.
+         */
+        @Override
+        public boolean blocks(int x, int z, int nx, int nz, int px, int pz, double rayY) {
+            int player = this.level;
+            CollisionMap own = this.map;
+            int edgeA = nx > x ? 2 : nx < x ? 0 : nz > z ? 1 : 3;
+            int edgeB = (edgeA + 2) & 3;
+            try {
+                for (int l = player; l < 4; l++) {
+                    if (drawnWall(l, x, z, edgeA, rayY) || drawnWall(l, nx, nz, edgeB, rayY) || overhang(l, nx, nz, px, pz, rayY)) {
+                        return true;
+                    }
+                    CollisionMap m = Client.collisionMaps[l];
+                    if (m == null) {
+                        continue;
+                    }
+                    this.level = l;
+                    this.map = m;
+                    if (this.wallBetween(x, z, nx, nz) && rayY > this.wallTop(px, pz) && rayY <= Static102.averageHeight(l, px, pz)) {
+                        return true;
+                    }
+                }
+                return false;
+            } finally {
+                this.level = player;
+                this.map = own;
+            }
+        }
+
+        private static Tile sceneTile(int l, int x, int z) {
+            Tile[][][] tiles = Static334.activeTiles;
+            if (tiles == null || l >= tiles.length || x < 0 || z < 0 || x >= tiles[l].length || z >= tiles[l][x].length) {
+                return null;
+            }
+            return tiles[l][x][z];
+        }
+
+        /** Edges (0 west, 1 north, 2 east, 3 south) a wall of [shape] / [rotation] stands on: shape 0 one, shape 2 two. */
+        static boolean onEdge(int shape, int rotation, int edge) {
+            if (shape == 0) {
+                return (rotation & 3) == edge;
+            }
+            if (shape == 2) {
+                return (rotation & 3) == edge || ((rotation + 1) & 3) == edge;
+            }
+            return false;
+        }
+
+        private static boolean drawnWall(int l, int x, int z, int edge, double rayY) {
+            Tile tile = sceneTile(l, x, z);
+            if (tile == null) {
+                return false;
+            }
+            return wallHit(tile.wall, edge, rayY) || wallHit(tile.adjacentWall, edge, rayY);
+        }
+
+        private static boolean wallHit(Wall wall, int edge, double rayY) {
+            if (!(wall instanceof Location)) {
+                return false;
+            }
+            Location loc = (Location) wall;
+            return onEdge(loc.getShape(), loc.getRotation(), edge) && rayY > wall.y + wall.getMinY(2) && rayY <= wall.y;
+        }
+
+        private static boolean overhang(int l, int x, int z, int px, int pz, double rayY) {
+            Tile tile = sceneTile(l, x, z);
+            if (tile == null) {
+                return false;
+            }
+            int floor = Static102.averageHeight(l, px, pz);
+            for (PositionEntityNode node = tile.head; node != null; node = node.node) {
+                if (!(node.entity instanceof StaticLocation)) {
+                    continue;
+                }
+                StaticLocation loc = (StaticLocation) node.entity;
+                if (loc.model == null) {
+                    continue;
+                }
+                int top = loc.y + loc.model.fa();
+                int bottom = loc.y + loc.model.EA();
+                if (floor - bottom >= MIN_STOREY && rayY > top && rayY <= bottom) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private int flags(int x, int z) {
             int ix = x - this.map.x;
             int iz = z - this.map.z;
@@ -261,7 +371,11 @@ public final class CameraCollision {
 
         @Override
         public int locTop(int x, int z) {
-            if ((flags(x, z) & CollisionFlag.LOCATION) == 0) {
+            // Walls only in the live client (2026-10-06, own client at 3164,3492,0): the loc next to the player in the hall
+            // centre pulled a fully zoomed-out camera (10145) in to 300, inside the player's head - with a low camera every
+            // loc beside the player is "above the ray". The owner's reports are about walls; the loc rule stays for the
+            // geometry regression only.
+            if (!LOCS_BLOCK || (flags(x, z) & CollisionFlag.LOCATION) == 0) {
                 return NO_LOC;
             }
             Tile[][][] tiles = Static334.activeTiles;
