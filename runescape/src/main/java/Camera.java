@@ -287,9 +287,6 @@ public final class Camera {
         Camera.y = y - local69;
         Camera.roll = 0;
         Camera.yaw = yaw;
-        // RSPS camera collision (owner 2026-10-06, Q11 = A): under a roof the player-follow camera stays on the player's
-        // side of walls and solid locs; every other camera mode is left as computed.
-        CameraCollision.apply(x, y, z);
     }
 
     @OriginalMember(owner = "client!kba", name = "a", descriptor = "(IZIBIII)V")
