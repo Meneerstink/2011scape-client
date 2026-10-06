@@ -95,6 +95,18 @@ val cameraCollisionRegression by tasks.registering(JavaExec::class) {
 
 tasks.check { dependsOn(cameraCollisionRegression) }
 
+val runePouchRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks that pouch runes count inside the spellbook rune counter (script 19) and the scripts it calls."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("RspsRunePouchRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
+tasks.check { dependsOn(runePouchRegression) }
+
 val oldStyleHitsplatRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks old-style hitsplat, hitpoints and prayer display scaling"

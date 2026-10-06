@@ -20,9 +20,27 @@ public final class RspsRunePouch {
 
     /** Runes of [obj] in the pouch that the rune counter adds to an INV_TOTAL on [inv]. */
     static int extra(int inv, int obj, int scriptId) {
-        if (inv != INVENTORY || scriptId != RUNE_COUNT_SCRIPT) {
+        if (inv != INVENTORY || !inRuneCount(scriptId)) {
             return 0;
         }
         return ClientInventory.total(INV, obj, false);
+    }
+
+    /**
+     * Script 19 itself or a script it called. Script 19 counts every combination rune (smoke, mud, steam, lava, mist, dust) through
+     * GOSUB script 1 (members check + INV_TOTAL), so pouch combination runes were never counted (owner bug 2026-10-06 163302:
+     * divine rune pouch with mud and smoke runes).
+     */
+    static boolean inRuneCount(int scriptId) {
+        if (scriptId == RUNE_COUNT_SCRIPT) {
+            return true;
+        }
+        for (int i = 0; i < ScriptRunner.framePointer; i++) {
+            StackFrame frame = ScriptRunner.frames[i];
+            if (frame != null && frame.script != null && frame.script.id == RUNE_COUNT_SCRIPT) {
+                return true;
+            }
+        }
+        return false;
     }
 }
