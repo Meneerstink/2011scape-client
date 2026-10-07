@@ -113,6 +113,9 @@ final class RspsSidebar extends JPanel {
     private JButton lootNav;
     /** The Loot Tracker tab is the open view. */
     private volatile boolean lootView;
+    private JButton questNav;
+    /** The Quest Helper tab is the open view. */
+    private volatile boolean questView;
 
     /** Controls of the open view, to refresh their values from a server push. */
     private final Map<String, Runnable> refreshers = new HashMap<String, Runnable>();
@@ -154,7 +157,7 @@ final class RspsSidebar extends JPanel {
         nav.setAlignmentX(Component.CENTER_ALIGNMENT);
         nav.setMaximumSize(new Dimension(NAV_WIDTH, 30));
         nav.addActionListener(e -> {
-            if (expanded && !lootView) {
+            if (expanded && !lootView && !questView) {
                 setExpanded(false);
             } else {
                 setExpanded(true);
@@ -177,6 +180,21 @@ final class RspsSidebar extends JPanel {
         });
         lootNav.setVisible(RspsHudConfig.enabled("loottracker"));
         navigation.add(lootNav);
+        // RuneLite Quest Helper: its own navigation button (quest_icon), shown while the plugin is on (owner 2026-10-07).
+        questNav = iconButton(RspsQuestHelper.PANEL_ICON, "Quest Helper");
+        questNav.setName("navigation.questhelper");
+        questNav.setAlignmentX(Component.CENTER_ALIGNMENT);
+        questNav.setMaximumSize(new Dimension(NAV_WIDTH, 30));
+        questNav.addActionListener(e -> {
+            if (expanded && questView) {
+                setExpanded(false);
+            } else {
+                setExpanded(true);
+                showQuest();
+            }
+        });
+        questNav.setVisible(RspsHudConfig.enabled("questhelper"));
+        navigation.add(questNav);
         navigation.add(Box.createVerticalGlue());
         add(content, BorderLayout.CENTER);
         add(navigation, BorderLayout.EAST);
@@ -269,10 +287,67 @@ final class RspsSidebar extends JPanel {
 
     private static final java.util.concurrent.atomic.AtomicBoolean lootRefreshQueued = new java.util.concurrent.atomic.AtomicBoolean();
 
+    // ---- Quest Helper (RuneLite QuestHelperPanel) ---------------------------------------------------------------------
+
+    /** New quest data from the server: the open Quest Helper view shows it. */
+    static void refreshQuestLater() {
+        if (instance == null || !instance.questView) {
+            return;
+        }
+        if (questRefreshQueued.getAndSet(true)) {
+            return;
+        }
+        SwingUtilities.invokeLater(() -> {
+            questRefreshQueued.set(false);
+            if (instance.questView) {
+                instance.showQuest();
+            }
+        });
+    }
+
+    private static final java.util.concurrent.atomic.AtomicBoolean questRefreshQueued = new java.util.concurrent.atomic.AtomicBoolean();
+
+    /** After a rebuild while typing: the search field keeps the focus and the caret at the end. */
+    static void focusQuestSearch() {
+        if (instance == null) {
+            return;
+        }
+        Component c = instance.find("questSearch");
+        if (c instanceof JTextField) {
+            JTextField f = (JTextField) c;
+            f.requestFocusInWindow();
+            f.setCaretPosition(f.getText().length());
+        }
+    }
+
+    void showQuest() {
+        questView = true;
+        lootView = false;
+        plugin = null;
+        refreshers.clear();
+        listRefreshers.clear();
+        JScrollPane old = (JScrollPane) find("questScroll");
+        int scrollY = old != null ? old.getVerticalScrollBar().getValue() : 0;
+        content.removeAll();
+        JPanel panel = RspsQuestHelper.build(this::showQuest);
+        panel.setName("questHelper");
+        JPanel wrap = new JPanel(new BorderLayout());
+        wrap.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        wrap.add(panel, BorderLayout.NORTH);
+        JScrollPane scroll = (JScrollPane) scroll(wrap);
+        scroll.setName("questScroll");
+        content.add(scroll, BorderLayout.CENTER);
+        content.revalidate();
+        content.repaint();
+        final int y = scrollY;
+        SwingUtilities.invokeLater(() -> scroll.getVerticalScrollBar().setValue(y));
+    }
+
     // ---- Loot Tracker (RuneLite LootTrackerPanel) ---------------------------------------------------------------------
 
     void showLoot() {
         lootView = true;
+        questView = false;
         plugin = null;
         refreshers.clear();
         listRefreshers.clear();
@@ -297,6 +372,7 @@ final class RspsSidebar extends JPanel {
 
     void showList() {
         lootView = false;
+        questView = false;
         plugin = null;
         refreshers.clear();
         listRefreshers.clear();
@@ -472,6 +548,7 @@ final class RspsSidebar extends JPanel {
 
     void showConfig(final String pluginId) {
         lootView = false;
+        questView = false;
         plugin = pluginId;
         refreshers.clear();
         listRefreshers.clear();
@@ -784,9 +861,21 @@ final class RspsSidebar extends JPanel {
                 showList();
             }
         }
+        boolean questOn = RspsHudConfig.enabled("questhelper");
+        if (questNav != null && questNav.isVisible() != questOn) {
+            questNav.setVisible(questOn);
+            navigation.revalidate();
+            if (!questOn && questView) {
+                showList();
+            }
+        }
         if (lootView) {
             // Price type / show price type changed: the loot view is rebuilt.
             showLoot();
+            return;
+        }
+        if (questView) {
+            showQuest();
             return;
         }
         for (Runnable refresher : refreshers.values()) {

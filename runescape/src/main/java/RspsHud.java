@@ -68,6 +68,9 @@ final class RspsHud {
                 RspsHudGroundItems.setDespawnTicks(Integer.parseInt(rest));
             } else if (kind.equals("loot") || kind.equals("lootr") || kind.equals("lootclear")) {
                 RspsLootTracker.handle(kind, rest);
+            } else if (kind.startsWith("qh")) {
+                // Quest Helper side panel (QuestHelperPanel.kt on the server).
+                RspsQuestHelper.handle(kind, rest);
             } else if (kind.equals("open")) {
                 RspsSidebar.openLater(rest.length() > 0 ? rest : null);
             } else if (kind.equals("close")) {
@@ -95,6 +98,7 @@ final class RspsHud {
         DeadmanSkullHud.reset();
         GraveWorldMapMarker.reset();
         RspsLootTracker.reset(LoginManager.username);
+        RspsQuestHelper.reset();
         commands.clear();
         RspsRenderTest.cull = true;
         RspsRenderTest.alphaDepth = false;
