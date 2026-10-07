@@ -946,6 +946,10 @@ public final class client extends GameShell {
             if (RspsDev.placing && RspsDev.key(log)) {
                 continue;
             }
+            // RSPS house teleport screens (owner bug 183223): OSRS key shortcuts 1-9 / A-Z of the nexus and jewellery box.
+            if (RspsTeleportKeys.key(log)) {
+                continue;
+            }
             @Pc(102) int type = log.getType();
 
             if (type == KeyLog.TYPE_HELD || type == KeyLog.TYPE_TYPED) {
