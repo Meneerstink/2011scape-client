@@ -21,10 +21,16 @@ public final class Static235 {
         }
 
         if (ClientOptions.instance.animateBackground.getValue() == 0 && !Static696.isTileVisibleFrom(z, Static164.areaLevel, x, virtualLevel)) {
+            if (id >= 0) {
+                AvTrace.log("PROBLEM loc change id=" + id + " shape=" + shape + " at local " + x + "," + z + " level " + level + " skipped: tile not visible from area level " + Static164.areaLevel + " (virtual level " + virtualLevel + ", flags " + Static280.tileFlags[level][x][z] + ")");
+            }
             return;
         }
 
         if (Static334.activeTiles == null) {
+            if (id >= 0) {
+                AvTrace.log("PROBLEM loc change id=" + id + " shape=" + shape + " at local " + x + "," + z + " skipped: no active scene tiles");
+            }
             return;
         }
 

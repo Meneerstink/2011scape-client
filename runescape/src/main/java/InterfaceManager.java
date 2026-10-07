@@ -1497,6 +1497,10 @@ public final class InterfaceManager {
 
                     if (component.opKeys != null && !debugconsole.isOpen()) {
                         for (@Pc(402) int key = 0; key < component.opKeys.length; key++) {
+                            // RSPS place mode: its keys (arrows, PgUp/PgDn ...) never also drive the gameframe's camera op keys.
+                            if (RspsDev.ownsKeyCode(component.opKeys[key])) {
+                                continue;
+                            }
                             if (KeyboardMonitor.instance.isPressed(component.opKeys[key])) {
                                 if (component.opKeysIgnoreHeld == null || TimeUtils.clock >= component.opKeysIgnoreHeld[key]) {
                                     @Pc(634) byte mask = component.opChars[key];

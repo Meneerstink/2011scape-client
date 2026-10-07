@@ -387,6 +387,15 @@ public final class RspsDev {
         return false;
     }
 
+    /**
+     * Whether place mode owns this key code right now. The gameframe binds the arrow keys (camera turn/pitch) as component
+     * op keys, which InterfaceManager polls from the raw key state - swallowing the key events alone left the camera
+     * turning while a decoration was nudged (2026-10-07, screens/78-branding-2026-10-07/16-along.png).
+     */
+    static boolean ownsKeyCode(int keyCode) {
+        return placing && enabled && !debugconsole.isOpen() && special(keyCode) != null;
+    }
+
     private static String special(int keyCode) {
         switch (keyCode) {
             case KEY_LEFT:
