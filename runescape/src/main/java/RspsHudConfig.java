@@ -61,6 +61,8 @@ final class RspsHudConfig {
         {"loottracker", "Loot Tracker", "Tracks loot from monsters and minigames"},
         // Owner 2026-10-01: the resizable/fullscreen chatbox background (RspsChatbox).
         {"chatbox", "Chatbox", "Transparent or opaque chatbox in resizable and fullscreen"},
+        // Owner 2026-10-07: the Quest Helper as a plugin (RuneLite Quest Helper: "An in-game interactive guide for quests").
+        {"questhelper", "Quest Helper", "An in-game interactive guide for quests"},
     };
 
     static final List<Setting> SETTINGS = new ArrayList<Setting>();
@@ -183,6 +185,13 @@ final class RspsHudConfig {
         // RuneLite LootTrackerConfig (the ignore lists are the panel's own right-click actions here).
         bool("chatbox", "transparent", "Transparent chatbox",
             "Resizable and fullscreen: see the game through the chatbox. Off = the opaque parchment chatbox of fixed mode.", true, null);
+
+        // RuneLite QuestHelperConfig items this helper has (the server ClientHudConfig keeps the same keys).
+        String q = "questhelper";
+        bool(q, "autoStartQuests", "Auto start helpers", "Automatically start the quest helper when you start a quest.", true, null);
+        bool(q, "showOverlayPanel", "Display overlay on screen", "Show the panel with the current step in the top-left corner of the game.", true, null);
+        bool(q, "showMiniMapArrow", "Display arrows", "Show the hint arrow over the next npc or place, and on the minimap.", true, null);
+        bool(q, "showStepMessages", "Step messages in chat", "Write each new quest step in the chatbox.", true, null);
 
         String l = "loottracker";
         choice(l, "priceType", "Price type", "What type of price to use for calculating value.", "GRAND_EXCHANGE",
