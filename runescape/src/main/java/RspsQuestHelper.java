@@ -134,6 +134,11 @@ final class RspsQuestHelper {
 
     /** A server payload (game thread). */
     static void handle(String kind, String rest) {
+        // The in-game hints (world map, minimap, npc outline, dialogue options): RspsQuestHelperHints.
+        if (kind.equals("qht") || kind.equals("qhd") || kind.equals("qhda")) {
+            RspsQuestHelperHints.handle(kind, rest);
+            return;
+        }
         boolean redraw = false;
         synchronized (RspsQuestHelper.class) {
             String[] p = rest.split("\\|", -1);

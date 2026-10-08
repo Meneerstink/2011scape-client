@@ -352,6 +352,7 @@ public final class WorldMap {
             renderElements(local203, toolkit);
             DeadmanWorldMapOverlay.draw(toolkit);
             GraveWorldMapMarker.draw(toolkit);
+            RspsQuestHelperHints.drawWorldMap(toolkit);
 
             if (anInt5084 > 0) {
                 anInt3467--;

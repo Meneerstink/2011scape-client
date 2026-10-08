@@ -68,6 +68,9 @@ final class RspsHud {
                 RspsHudGroundItems.setDespawnTicks(Integer.parseInt(rest));
             } else if (kind.equals("loot") || kind.equals("lootr") || kind.equals("lootclear")) {
                 RspsLootTracker.handle(kind, rest);
+            } else if (kind.equals("cine")) {
+                // Cinematic mode for scripted scenes (IntroGuardScene).
+                RspsCinematic.handle(rest);
             } else if (kind.startsWith("qh")) {
                 // Quest Helper side panel (QuestHelperPanel.kt on the server).
                 RspsQuestHelper.handle(kind, rest);
@@ -99,6 +102,8 @@ final class RspsHud {
         GraveWorldMapMarker.reset();
         RspsLootTracker.reset(LoginManager.username);
         RspsQuestHelper.reset();
+        RspsQuestHelperHints.reset();
+        RspsCinematic.reset();
         commands.clear();
         RspsRenderTest.cull = true;
         RspsRenderTest.alphaDepth = false;
@@ -158,12 +163,16 @@ final class RspsHud {
      * the boost infoboxes); a panel the player moved (Alt + drag) keeps its own spot and leaves the stack.
      */
     static void render(int x, int y, int width, int height) {
-        if (Toolkit.active == null || PlayerEntity.self == null) {
+        if (Toolkit.active != null && RspsCinematic.curtain) {
+            Toolkit.active.fillRect(x, y, width, height, 0xFF000000);
+        }
+        if (Toolkit.active == null || PlayerEntity.self == null || RspsCinematic.active) {
             return;
         }
         if (RspsHudConfig.enabled("grounditems")) {
             RspsHudGroundItems.render(x, y);
         }
+        RspsQuestHelperHints.drawNpcHighlight(x, y);
         int top = y + PANEL_GAP;
         if (InterfaceManager.optionsComponent != null) {
             top = Math.max(top, InterfaceManager.optionsY + HOVER_TEXT_CLEARANCE);

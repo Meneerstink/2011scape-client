@@ -274,6 +274,9 @@ public final class Minimap {
             }
         }
 
+        // Quest Helper: quest icon on the target, or the direction arrow on the edge (RspsQuestHelperHints).
+        RspsQuestHelperHints.drawMinimap(component, clippingMask, screenX, screenY, selfX, selfZ);
+
         if (Camera.mode != CameraMode.MODE_FOLLOWCOORD) {
             if (flagX != 0) {
                 @Pc(585) int arrowX = ((flagX * 4) + ((PlayerEntity.self.getSize() - 1) * 2) + 2) - (selfX / 128);

@@ -1747,6 +1747,10 @@ public final class MiniMenu {
 
     @OriginalMember(owner = "client!vha", name = "a", descriptor = "(Lclient!ha;Z)V")
     public static void draw(@OriginalArg(0) Toolkit toolkit) {
+        // Cinematic mode (RspsCinematic): no mouse-over text or menu over the scene.
+        if (RspsCinematic.active) {
+            return;
+        }
         if (open) {
             drawFull(toolkit);
         } else {

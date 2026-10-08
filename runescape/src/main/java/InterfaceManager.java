@@ -404,6 +404,11 @@ public final class InterfaceManager {
                 continue;
             }
 
+            // Cinematic mode (RspsCinematic, the intro's guard scene): the game frame is not drawn.
+            if (RspsCinematic.hide(child)) {
+                continue;
+            }
+
             if (child.clientcode != 0) {
                 drawSpinningPlayer(child);
             }
@@ -770,6 +775,10 @@ public final class InterfaceManager {
                             if (clipComponents) {
                                 Toolkit.active.T(offsetX, offsetY, offsetX + child.width, child.height + offsetY);
                             }
+
+                            // Quest Helper: the right dialogue option, numbered and highlighted (RspsQuestHelperHints).
+                            colour = RspsQuestHelperHints.dialogueColour(child, text, colour);
+                            text = RspsQuestHelperHints.dialogueText(child, text);
 
                             // Combat tab weapon name stays on one line (CombatTabNameFit, owner 2026-10-03).
                             font = CombatTabNameFit.fit(child, font, text, Toolkit.active, Sprites.nameIcons);
