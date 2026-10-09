@@ -12,7 +12,7 @@ import org.openrs2.deob.annotation.OriginalMember;
 import org.openrs2.deob.annotation.Pc;
 
 @OriginalClass("client!pb")
-public class HitmarkType { // not final: VenomHitmarkType derives the black venom splat from the poison type
+public final class HitmarkType {
 
     @OriginalMember(owner = "client!pb", name = "b", descriptor = "Lclient!ld;")
     public HitmarkTypeList myList;
@@ -55,6 +55,35 @@ public class HitmarkType { // not final: VenomHitmarkType derives the black veno
 
     @OriginalMember(owner = "client!pb", name = "n", descriptor = "I")
     public int comparisonType = -1;
+
+    /**
+     * OSRS hitsplat multi (opcodes 17/18, OSRS HitSplatDefinition.transforms): the definition shown is picked by a setting.
+     * Imported 1:1 with the OSRS hitsplats (owner 2026-10-09, OsrsHitsplatImportTool); null = a plain definition.
+     */
+    public int[] transforms = null;
+
+    public int transformVarbit = -1;
+
+    public int transformVarp = -1;
+
+    /**
+     * The definition this multi resolves to (OSRS HitSplatDefinition.transform), or null when it resolves to none. The only
+     * settings OSRS hitsplat multis read are varbits 10236 (HITSPLAT_TINT_DISABLED) and 14196 (HITSPLAT_MAXHIT_DISABLED); this
+     * client has neither setting, so both read their OSRS default 0 (tints and max hit splats on).
+     */
+    public HitmarkType transform() {
+        int value = -1;
+        if (this.transformVarbit != -1 || this.transformVarp != -1) {
+            value = 0;
+        }
+        int id;
+        if (value >= 0 && value < this.transforms.length - 1) {
+            id = this.transforms[value];
+        } else {
+            id = this.transforms[this.transforms.length - 1];
+        }
+        return id == -1 ? null : this.myList.list(id);
+    }
 
     @OriginalMember(owner = "client!pb", name = "a", descriptor = "(Lclient!ha;I)Lclient!st;")
     public Sprite getInner(@OriginalArg(0) Toolkit toolkit) {
@@ -161,6 +190,31 @@ public class HitmarkType { // not final: VenomHitmarkType derives the black veno
             this.anInt7178 = packet.g2s();
         } else if (code == 14) {
             this.fadeTime = packet.g2();
+        } else if (code == 17 || code == 18) {
+            this.transformVarbit = packet.g2();
+            if (this.transformVarbit == 65535) {
+                this.transformVarbit = -1;
+            }
+            this.transformVarp = packet.g2();
+            if (this.transformVarp == 65535) {
+                this.transformVarp = -1;
+            }
+            int last = -1;
+            if (code == 18) {
+                last = packet.g2();
+                if (last == 65535) {
+                    last = -1;
+                }
+            }
+            int count = packet.g1();
+            this.transforms = new int[count + 2];
+            for (int i = 0; i <= count; i++) {
+                this.transforms[i] = packet.g2();
+                if (this.transforms[i] == 65535) {
+                    this.transforms[i] = -1;
+                }
+            }
+            this.transforms[count + 1] = last;
         }
     }
 

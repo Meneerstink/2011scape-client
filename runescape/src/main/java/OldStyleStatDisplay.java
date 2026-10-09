@@ -20,6 +20,6 @@ public final class OldStyleStatDisplay {
         if (skill != HITPOINTS && skill != PRAYER) {
             return rawValue;
         }
-        return OldStyleHitsplatDisplay.value(rawValue);
+        return rawValue;
     }
 }

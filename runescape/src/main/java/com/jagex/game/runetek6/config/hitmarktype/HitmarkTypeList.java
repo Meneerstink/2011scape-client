@@ -15,18 +15,6 @@ public final class HitmarkTypeList {
 
     private static final int DEFAULT_CACHE_SIZE = 64;
 
-    /** The cache's poison hitmark type (server HitType.POISON). */
-    public static final int POISON_ID = 6;
-
-    /** Server HitType.VENOM: the OSRS venom splat on the poison type's data (VenomHitmarkType). */
-    public static final int VENOM_ID = 14;
-
-    /** The cache's regular damage hitmark type (server HitType.REGULAR_HIT). */
-    public static final int REGULAR_ID = 3;
-
-    /** Server HitType.BURN (owner 2026-09-19): the OSRS burn splat on the regular damage type's data; past the cache's 0-27. */
-    public static final int BURN_ID = 28;
-
     @OriginalMember(owner = "client!rla", name = "e", descriptor = "Lclient!ld;")
     public static HitmarkTypeList instance;
 
@@ -107,12 +95,11 @@ public final class HitmarkTypeList {
         @Pc(30) js5 local30 = this.configClient;
         @Pc(39) byte[] data;
         synchronized (this.configClient) {
-            data = this.configClient.getfile(id == VENOM_ID ? POISON_ID : id == BURN_ID ? REGULAR_ID : id, Js5ConfigGroup.HITMARKTYPE);
+            data = this.configClient.getfile(id, Js5ConfigGroup.HITMARKTYPE);
         }
 
-        // RSPS venom / burn (owner 2026-09-18/19, exactly like OSRS): this 2011 cache predates both, so each is a cache base type
-        // (poison / regular damage) drawn with the real OSRS splat sprite (VenomHitmarkType); the server sends VENOM_ID / BURN_ID.
-        type = id == VENOM_ID ? new VenomHitmarkType() : id == BURN_ID ? new VenomHitmarkType("burn", false) : new HitmarkType();
+        // Every id is an OSRS hitsplat definition (owner 2026-10-09, OsrsHitsplatImportTool): venom 5 and burn 74 included.
+        type = new HitmarkType();
         type.myList = this;
         if (data != null) {
             type.decode(new Packet(data));

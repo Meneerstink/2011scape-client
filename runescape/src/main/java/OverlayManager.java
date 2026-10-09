@@ -353,7 +353,6 @@ public final class OverlayManager {
                     }
                 }
 
-                int renderedHitmarkIndex = 0;
                 for (@Pc(267) int j = 0; j < GraphicsDefaults.instance.maxhitmarks; j++) {
                     @Pc(1179) int endTime = entity.hitmarkEndTimes[j];
                     @Pc(504) int damageTypeId = entity.damageHitmarkTypes[j];
@@ -367,6 +366,14 @@ public final class OverlayManager {
 
                         damageType = HitmarkTypeList.instance.list(entity.damageHitmarkTypes[j]);
                         duration = damageType.duration;
+                        // OSRS multi hitsplats (lit / tint / max by setting): the parent's duration, the resolved definition's art.
+                        if (damageType.transforms != null) {
+                            damageType = damageType.transform();
+                            if (damageType == null) {
+                                entity.hitmarkEndTimes[j] = -1;
+                                continue;
+                            }
+                        }
                     } else if (endTime < 0) {
                         continue;
                     }
@@ -375,6 +382,9 @@ public final class OverlayManager {
                     @Pc(1218) HitmarkType soakType = null;
                     if (soakTypeId >= 0) {
                         soakType = HitmarkTypeList.instance.list(soakTypeId);
+                        if (soakType.transforms != null) {
+                            soakType = soakType.transform();
+                        }
                     }
 
                     if (endTime - duration <= TimeUtils.clock) {
@@ -388,16 +398,21 @@ public final class OverlayManager {
                         if (damageType == null) {
                             entity.hitmarkEndTimes[j] = -1;
                         } else {
-                            @Pc(1274) int midY = OldStyleHitsplatDisplay.anchorHeight(entity.getY());
+                            @Pc(1274) int midY = entity.getY() / 2; // OSRS: defaultHeight / 2
                             Static716.method9350(entity, screenHeight >> 1, midY, screenWidth >> 1);
 
                             if (hitmarkpos[0] > -1) {
-                                // RSPS: centred vertical stack scaled with the splat size (OldStyleHitsplatDisplay).
-                                hitmarkpos[0] += OldStyleHitsplatDisplay.offsetX(GraphicsDefaults.instance.hitmarkpos_x, j);
-                                // Slot ids are reused after expiry and can be sparse. Stack by the
-                                // visible ordinal, not by the backing slot, or a delayed/mixed
-                                // multi-hit leaves a gap and appears unstacked.
-                                hitmarkpos[1] += OldStyleHitsplatDisplay.offsetY(GraphicsDefaults.instance.hitmarkpos_y, renderedHitmarkIndex);
+                                // OSRS hitsplat slots (owner 2026-10-09: full OSRS, client class312 drawActor2d): slot 0 on the
+                                // anchor, slot 1 20 px above it, slots 2 / 3 15 px left / right and 10 px up.
+                                if (j == 1) {
+                                    hitmarkpos[1] -= 20;
+                                } else if (j == 2) {
+                                    hitmarkpos[0] -= 15;
+                                    hitmarkpos[1] -= 10;
+                                } else if (j == 3) {
+                                    hitmarkpos[0] += 15;
+                                    hitmarkpos[1] -= 10;
+                                }
                                 @Pc(1321) int damageIconWidth = 0;
                                 @Pc(1323) int damageInnerWidth = 0;
                                 @Pc(1325) int damageLeftWidth = 0;
@@ -418,7 +433,7 @@ public final class OverlayManager {
                                 @Pc(1355) int soakInnerOffsetX = 0;
                                 @Pc(1357) int soakLeftOffsetX = 0;
                                 @Pc(1359) int soakRightOffsetX = 0;
-                                @Pc(1364) Sprite damageIcon = ScaledHitsplatSprite.wrap(damageType.getIcon(Toolkit.active));
+                                @Pc(1364) Sprite damageIcon = damageType.getIcon(Toolkit.active);
                                 @Pc(1366) int maxHeight = 0;
 
                                 if (damageIcon != null) {
@@ -431,7 +446,7 @@ public final class OverlayManager {
                                     damageIconOffsetX = Static167.hitmarkOffsets[0];
                                 }
 
-                                @Pc(1391) Sprite damageInner = ScaledHitsplatSprite.wrap(damageType.getInner(Toolkit.active));
+                                @Pc(1391) Sprite damageInner = damageType.getInner(Toolkit.active);
                                 if (damageInner != null) {
                                     damageInnerWidth = damageInner.getWidth();
                                     @Pc(1374) int iconHeight = damageInner.getHeight();
@@ -442,7 +457,7 @@ public final class OverlayManager {
                                     damageInnerOffsetX = Static167.hitmarkOffsets[0];
                                 }
 
-                                @Pc(1420) Sprite damageLeft = ScaledHitsplatSprite.wrap(damageType.getLeft(Toolkit.active));
+                                @Pc(1420) Sprite damageLeft = damageType.getLeft(Toolkit.active);
                                 if (damageLeft != null) {
                                     damageLeftWidth = damageLeft.getWidth();
                                     @Pc(1374) int iconHeight = damageLeft.getHeight();
@@ -453,7 +468,7 @@ public final class OverlayManager {
                                     damageLeftOffsetX = Static167.hitmarkOffsets[0];
                                 }
 
-                                @Pc(1449) Sprite damageRight = ScaledHitsplatSprite.wrap(damageType.getRight(Toolkit.active));
+                                @Pc(1449) Sprite damageRight = damageType.getRight(Toolkit.active);
                                 if (damageRight != null) {
                                     damageRightWidth = damageRight.getWidth();
                                     @Pc(1374) int iconHeight = damageRight.getHeight();
@@ -465,7 +480,7 @@ public final class OverlayManager {
                                 }
 
                                 if (soakType != null) {
-                                    soakIcon = ScaledHitsplatSprite.wrap(soakType.getIcon(Toolkit.active));
+                                    soakIcon = soakType.getIcon(Toolkit.active);
 
                                     if (soakIcon != null) {
                                         soakIconWidth = soakIcon.getWidth();
@@ -477,7 +492,7 @@ public final class OverlayManager {
                                         soakIconOffsetX = Static167.hitmarkOffsets[0];
                                     }
 
-                                    soakInner = ScaledHitsplatSprite.wrap(soakType.getInner(Toolkit.active));
+                                    soakInner = soakType.getInner(Toolkit.active);
                                     if (soakInner != null) {
                                         soakInnerWidth = soakInner.getWidth();
                                         @Pc(1374) int iconHeight = soakInner.getHeight();
@@ -488,7 +503,7 @@ public final class OverlayManager {
                                         soakInnerOffsetX = Static167.hitmarkOffsets[0];
                                     }
 
-                                    soakLeft = ScaledHitsplatSprite.wrap(soakType.getLeft(Toolkit.active));
+                                    soakLeft = soakType.getLeft(Toolkit.active);
                                     if (soakLeft != null) {
                                         soakLeftWidth = soakLeft.getWidth();
                                         @Pc(1374) int iconHeight = soakLeft.getHeight();
@@ -499,7 +514,7 @@ public final class OverlayManager {
                                         soakLeftOffsetX = Static167.hitmarkOffsets[0];
                                     }
 
-                                    soakRight = ScaledHitsplatSprite.wrap(soakType.getRight(Toolkit.active));
+                                    soakRight = soakType.getRight(Toolkit.active);
                                     if (soakRight != null) {
                                         soakRightWidth = soakRight.getWidth();
                                         @Pc(1374) int iconHeight = soakRight.getHeight();
@@ -546,11 +561,11 @@ public final class OverlayManager {
                                 @Pc(1658) String soakAmountText = null;
                                 @Pc(1662) int soakAmountWidth = 0;
 
-                                @Pc(1670) String damageTypeText = damageType.method6457(OldStyleHitsplatDisplay.value(entity.hitAmounts[j]));
+                                @Pc(1670) String damageTypeText = damageType.method6457(entity.hitAmounts[j]);
                                 @Pc(1675) int damageAmountWidth = hitFontMetrics.stringWidth(damageTypeText);
 
                                 if (soakType != null) {
-                                    soakAmountText = soakType.method6457(OldStyleHitsplatDisplay.value(entity.soakAmounts[j]));
+                                    soakAmountText = soakType.method6457(entity.soakAmounts[j]);
                                     soakAmountWidth = soakFontMetrics.stringWidth(soakAmountText);
                                 }
 
@@ -566,10 +581,9 @@ public final class OverlayManager {
 
                                 @Pc(1719) int local1719 = 0;
                                 if (damageIconWidth > 0) {
-                                    // The 2 px gap separates an icon from the splat; without an icon it only pushed the
-                                    // splat off-centre (owner 2026-09-18: hitsplats must be centred like OSRS).
-                                    local1719 = damageIconWidth + 2;
+                                    local1719 = damageIconWidth;
                                 }
+                                local1719 += 2;
 
                                 @Pc(1730) int local1730 = local1719;
                                 if (damageLeftWidth > 0) {
@@ -627,16 +641,11 @@ public final class OverlayManager {
                                 @Pc(1831) int timeRemaining = entity.hitmarkEndTimes[j] - TimeUtils.clock;
                                 @Pc(1871) int local1871 = damageType.offsetX - damageType.offsetX * timeRemaining / damageType.duration;
                                 @Pc(1884) int local1884 = timeRemaining * damageType.offsetY / damageType.duration - damageType.offsetY;
-                                // RSPS (owner 2026-09-19, AGS / dragon dagger specs): centre the splat BODY (left + inner +
-                                // right) on the anchor, not the whole icon + splat + soak group. Centring the group put every
-                                // splat that carries a style icon or a soak part off-centre by half their width, so stacked
-                                // hits of different types no longer lined up. Icon and soak stay beside the centred body.
-                                @Pc(1897) int bodyWidth = local1752 - local1730 + Math.max(damageRightWidth, 0);
-                                @Pc(1898) int local1898 = screenX + hitmarkpos[0] + local1871 - local1730 - (bodyWidth >> 1);
-                                @Pc(1908) int local1908 = hitmarkpos[1] + screenY + local1884 - (maxHeight >> 1); // vertically centred on the anchor at any splat size
+                                @Pc(1898) int local1898 = screenX + hitmarkpos[0] + local1871 - (local1719 >> 1);
+                                @Pc(1908) int local1908 = hitmarkpos[1] + screenY + local1884 - 12;
                                 @Pc(1910) int local1910 = local1908;
                                 @Pc(1915) int local1915 = local1908 + maxHeight;
-                                @Pc(1922) int local1922 = OldStyleHitsplatDisplay.size(damageType.anInt7178 + 15) + local1908;
+                                @Pc(1922) int local1922 = damageType.anInt7178 + 15 + local1908;
 
                                 @Pc(1928) int local1928 = local1922 - hitFontMetrics.paddingTop;
                                 if (local1928 < local1908) {
@@ -652,7 +661,7 @@ public final class OverlayManager {
                                 @Pc(1963) int local1963;
                                 @Pc(1969) int local1969;
                                 if (soakType != null) {
-                                    local1949 = OldStyleHitsplatDisplay.size(soakType.anInt7178 + 15) + local1908;
+                                    local1949 = soakType.anInt7178 + 15 + local1908;
                                     local1963 = local1949 - soakFontMetrics.paddingTop;
                                     local1969 = local1949 + soakFontMetrics.paddingBottom;
                                     if (local1910 > local1963) {
@@ -690,7 +699,7 @@ public final class OverlayManager {
                                         damageRight.render(local1898 + local1752 - damageRightOffsetX, local1908, 0, local2017, 1);
                                     }
 
-                                    hitFont.render(damageTypeText, local1898 + local1743, local1922, 0, local1969 | damageType.textColour);
+                                    hitFont.render(damageTypeText, local1898 + local1743, local1922, local1969, local1969 | damageType.textColour); // OSRS: black shadow
 
                                     if (soakType != null) {
                                         if (soakIcon != null) {
@@ -707,7 +716,7 @@ public final class OverlayManager {
                                         if (soakRight != null) {
                                             soakRight.render(local1898 + local1790 - soakRightOffsetX, local1908, 0, local2017, 1);
                                         }
-                                        soakFont.render(soakAmountText, local1792 + local1898, local1949, 0, soakType.textColour | local1969);
+                                        soakFont.render(soakAmountText, local1792 + local1898, local1949, local1969, soakType.textColour | local1969);
                                     }
                                 } else {
                                     if (damageIcon != null) {
@@ -725,7 +734,7 @@ public final class OverlayManager {
                                         damageRight.render(local1752 + local1898 - damageRightOffsetX, local1908);
                                     }
 
-                                    hitFont.render(damageTypeText, local1898 + local1743, local1922, 0, damageType.textColour | 0xFF000000);
+                                    hitFont.render(damageTypeText, local1898 + local1743, local1922, 0xFF000000, damageType.textColour | 0xFF000000); // OSRS: black shadow
 
                                     if (soakType != null) {
                                         if (soakIcon != null) {
@@ -742,12 +751,11 @@ public final class OverlayManager {
                                         if (soakRight != null) {
                                             soakRight.render(local1790 + local1898 - soakRightOffsetX, local1908);
                                         }
-                                        soakFont.render(soakAmountText, local1792 + local1898, local1949, 0, soakType.textColour | 0xFF000000);
+                                        soakFont.render(soakAmountText, local1792 + local1898, local1949, 0xFF000000, soakType.textColour | 0xFF000000);
                                     }
                                 }
 
                                 OrthoMode.method8927(local1898, local1719 + local1898, local1910, local1915 + 1);
-                                renderedHitmarkIndex++;
                             }
                         }
                     }

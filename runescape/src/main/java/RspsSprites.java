@@ -33,25 +33,16 @@ final class RspsSprites {
     static final int ARROW_DOWN = 1518;
     /**
      * Damage-over-time infoboxes carry the hitsplat the damage lands as (RuneLite PoisonPlugin uses the poison / venom hitsplat
-     * sprites): poison = the cache's own poison hitmark (type 6) inner sprite, venom / burn = the OSRS hitsplat art the client
-     * already ships in /hitsplats (VenomHitmarkType). Negative ids name those resources.
+     * sprites): poison = the revision-667 poison hitmark art (sprite 4475, the 667 hitmark 6 inner tile, kept in the sprite
+     * archive when the OSRS hitsplats replaced the hitmark definitions on 2026-10-09), venom / burn = the OSRS hitsplat art in
+     * /hitsplats. Negative ids name those resources.
      */
-    static final int POISON_HITMARK_TYPE = 6;
+    static final int POISON_HITMARK_SPRITE = 4475;
     static final int RES_VENOM = -1001;
     static final int RES_BURN = -1002;
 
     static int poisonSprite() {
-        try {
-            com.jagex.game.runetek6.config.hitmarktype.HitmarkTypeList list =
-                com.jagex.game.runetek6.config.hitmarktype.HitmarkTypeList.instance;
-            if (list == null) {
-                return -1;
-            }
-            com.jagex.game.runetek6.config.hitmarktype.HitmarkType type = list.list(POISON_HITMARK_TYPE);
-            return type == null ? -1 : type.inner;
-        } catch (RuntimeException notLoaded) {
-            return -1;
-        }
+        return POISON_HITMARK_SPRITE;
     }
 
     private static Sprite resource(Toolkit toolkit, int id) {
