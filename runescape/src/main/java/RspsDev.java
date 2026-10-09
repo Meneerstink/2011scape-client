@@ -153,9 +153,9 @@ public final class RspsDev {
     public static String[] status = new String[0];
 
     private static final String[] KEY_HELP = {
-        "Left/Right along the wall   Up/Down height   PgUp/PgDn distance to the wall",
-        "+/- size   Q/E angle   R quarter turn   F other side of the wall   T fine/coarse step",
-        "Enter save   Esc cancel   C copy   Del remove   U undo last",
+        "Left/Right along the wall   Up/Down height   PgUp/PgDn distance to the wall   (hold to repeat)",
+        "+/- size   Q/E angle   R quarter turn   F other side of the wall   T step size (fine/medium/coarse)",
+        "ENTER = SAVE   Esc cancel   C save + copy   Del remove   U undo last save",
     };
 
     /** Jagex key codes (SimpleKeyboardMonitor.KEY_MAP). */
@@ -358,10 +358,17 @@ public final class RspsDev {
             String command = special(log.getKeyCode());
             if (command != null) {
                 // One physical press arrives as a PRESSED record plus the same log as HELD (SimpleKeyboardMonitor.record),
-                // and auto-repeat as more HELD logs: act once, on the press, swallow the rest (2026-10-06: every arrow
-                // step counted twice before this).
+                // and auto-repeat as more HELD logs: act on the press, skip its HELD twin (2026-10-06: every arrow step
+                // counted twice), and while the key stays held repeat the step at most every REPEAT_MS (owner 2026-10-09:
+                // one step per press took hundreds of presses). Enter / Esc / Del never repeat.
+                long now = System.currentTimeMillis();
                 if (type == KeyLog.TYPE_PRESSED) {
                     send("devdeco " + command);
+                    repeatKey = log.getKeyCode();
+                    repeatAt = now + REPEAT_DELAY_MS;
+                } else if (log.getKeyCode() == repeatKey && now >= repeatAt && repeats(command)) {
+                    send("devdeco " + command);
+                    repeatAt = now + REPEAT_MS;
                 }
                 return true;
             }
@@ -394,6 +401,19 @@ public final class RspsDev {
      */
     static boolean ownsKeyCode(int keyCode) {
         return placing && enabled && !debugconsole.isOpen() && special(keyCode) != null;
+    }
+
+    /** Held-key repeat in place mode: the key being repeated and when its next step may go. */
+    private static int repeatKey = -1;
+
+    private static long repeatAt;
+
+    private static final long REPEAT_DELAY_MS = 350;
+
+    private static final long REPEAT_MS = 120;
+
+    private static boolean repeats(String command) {
+        return command.startsWith("along") || command.startsWith("up") || command.startsWith("out");
     }
 
     private static String special(int keyCode) {
