@@ -84,6 +84,16 @@ public final class Static276 {
         // hid a roof whenever one lay on the line from the camera to the player, so turning the camera outside a building
         // took its roof away; that camera test below is switched off.
         if (RspsGraphicsProfile.ROOFS_HIDE_ONLY_UNDER_PLAYER) {
+            // Owner 2026-10-09 "rare camera issues" in the mansion: with the line test off, a camera swung into a building
+            // (player outside, zoomed out or turned along the wall) drew its rooms and the roof's underside from inside.
+            // Jagex's own rule for a camera standing in a building (the non-follow camera branch above): the camera tile is
+            // roofed (or in the wall ring beside a roofed tile) and the camera is below roof height -> hide that building's
+            // levels above, as the line test would. The roof stays visible from every camera outside the building (owner
+            // 2026-09-26 / 2026-10-06).
+            int start = RspsGraphicsProfile.cameraBuildingTile();
+            if (start >= 0) {
+                Static409.method5656(start & 0xFFFF, Static334.activeTiles, 1, start >> 16, false);
+            }
             return;
         }
         if (Camera.pitch >= 2560) {

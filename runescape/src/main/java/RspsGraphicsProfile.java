@@ -14,6 +14,47 @@ public final class RspsGraphicsProfile {
      */
     public static final boolean ROOFS_HIDE_ONLY_UNDER_PLAYER = true;
 
+    /** Last {@link #cameraBuildingTile()} result (inside or not), for the enter/leave trace. */
+    private static boolean cameraWasInside;
+
+    /** The camera tile first, then its eight neighbours (the wall ring). */
+    private static final int[] RING_DX = {0, -1, 0, 1, -1, 1, -1, 0, 1};
+    private static final int[] RING_DZ = {0, -1, -1, -1, 0, 0, 1, 1, 1};
+
+    /**
+     * Jagex's camera-in-building test (Static276, non-follow camera branch): the camera is less than 3200 units above the
+     * ground and its tile on the rendered level is roofed (0x4). A camera in the wall ring counts too: the walls stand on the
+     * unflagged ring around the roofed floor (Lumbridge castle, the Royal Hall), which the roof flood (Static409) hides with
+     * the building; the flood then starts from the roofed floor tile beside it. Returns that start tile as x << 16 | z
+     * (scene tiles), or -1 when the camera is outside every building. Traced as {@code [camtrace]} on every change with
+     * C:/RSPS/trace.on (owner 2026-10-09: mansion camera).
+     */
+    public static int cameraBuildingTile() {
+        int level = Camera.renderingLevel;
+        int tx = Camera.x >> 9;
+        int tz = Camera.z >> 9;
+        int start = -1;
+        if (level >= 0 && level < 4 && Static102.averageHeight(level, Camera.x, Camera.z) - Camera.y < 3200) {
+            for (int d = 0; d < RING_DX.length && start < 0; d++) {
+                int x = tx + RING_DX[d];
+                int z = tz + RING_DZ[d];
+                if (x >= 0 && z >= 0 && x < Static720.mapWidth && z < Static501.mapLength && (Static280.tileFlags[level][x][z] & 0x4) != 0) {
+                    start = x << 16 | z;
+                }
+            }
+        }
+        boolean inside = start >= 0;
+        if (inside != cameraWasInside) {
+            cameraWasInside = inside;
+            if (com.jagex.core.util.RspsTrace.ENABLED) {
+                System.out.println("[camtrace " + System.currentTimeMillis() + "] camera " + (inside ? "entered" : "left") + " a building at "
+                    + (tx + WorldMap.areaBaseX) + "," + (tz + WorldMap.areaBaseZ) + "," + level + " height " + (Static102.averageHeight(level, Camera.x, Camera.z) - Camera.y)
+                    + (inside ? " - levels above hidden from " + ((start >> 16) + WorldMap.areaBaseX) + "," + ((start & 0xFFFF) + WorldMap.areaBaseZ) : ""));
+            }
+        }
+        return start;
+    }
+
     /**
      * First map z north of the surface world (map square row 65): every underground map - dungeons at z 4400..10000, God Wars
      * at 5184, Barrows tunnels at 9664 - lies above it, the surface (Weiss, Lunar Isle, the Wilderness) below 4100.
