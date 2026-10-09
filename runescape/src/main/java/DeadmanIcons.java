@@ -75,6 +75,14 @@ final class DeadmanIcons {
     private static Toolkit builtFor;
     private static Sprite[][] headSkulls;
     private static Sprite[][] plainHeadSkulls;
+
+    /**
+     * The same skulls above the player's head at {@link #OVERHEAD_SCALE} (owner 2026-10-09 212436: "make the lootkeys above our
+     * head when killing a player 5 percent bigger ... without losing quality"); the skull-timer HUD keeps the OSRS size.
+     */
+    private static Sprite[][] overheadSkulls;
+    private static Sprite[][] plainOverheadSkulls;
+    static final double OVERHEAD_SCALE = 1.05;
     private static Sprite skullSprite;
     private static Sprite guardedSprite;
     private static Sprite exclamationSprite;
@@ -121,6 +129,49 @@ final class DeadmanIcons {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * {@code image} resized by {@code factor} without blur or jagged steps: every target pixel averages an 8 x 8 grid of
+     * point samples of the source (alpha-weighted, so the edge pixels blend into transparency instead of darkening).
+     */
+    static Image scaled(Image image, double factor) {
+        int width = (int) Math.round(image.width * factor);
+        int height = (int) Math.round(image.height * factor);
+        int samples = 8;
+        int[] pixels = new int[width * height];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                long a = 0;
+                long r = 0;
+                long g = 0;
+                long b = 0;
+                for (int sy = 0; sy < samples; sy++) {
+                    int srcY = (int) ((y + (sy + 0.5) / samples) / factor);
+                    for (int sx = 0; sx < samples; sx++) {
+                        int srcX = (int) ((x + (sx + 0.5) / samples) / factor);
+                        if (srcX >= image.width || srcY >= image.height) {
+                            continue;
+                        }
+                        int px = image.pixels[srcX + srcY * image.width];
+                        int alpha = px >>> 24;
+                        a += alpha;
+                        r += ((px >> 16) & 0xFF) * alpha;
+                        g += ((px >> 8) & 0xFF) * alpha;
+                        b += (px & 0xFF) * alpha;
+                    }
+                }
+                if (a == 0) {
+                    continue;
+                }
+                int alpha = (int) (a / (samples * samples));
+                if (alpha == 0) {
+                    continue;
+                }
+                pixels[x + y * width] = (alpha << 24) | (int) (r / a) << 16 | (int) (g / a) << 8 | (int) (b / a);
+            }
+        }
+        return new Image(width, height, pixels);
     }
 
     /** Drops fully transparent rows below the artwork; the width (and so the x alignment) is kept. */
@@ -218,6 +269,8 @@ final class DeadmanIcons {
 
         headSkulls = new Sprite[TIER_PALETTES.length][MAX_KEYS + 1];
         plainHeadSkulls = new Sprite[PLAIN_TIER_PALETTES.length][MAX_KEYS + 1];
+        overheadSkulls = new Sprite[TIER_PALETTES.length][MAX_KEYS + 1];
+        plainOverheadSkulls = new Sprite[PLAIN_TIER_PALETTES.length][MAX_KEYS + 1];
         for (int keys = 0; keys <= MAX_KEYS; keys++) {
             Image base = loadPng("pk_keys_" + keys);
             if (base == null) {
@@ -227,6 +280,8 @@ final class DeadmanIcons {
             for (int tier = 0; tier < TIER_PALETTES.length; tier++) {
                 headSkulls[tier][keys] = sprite(toolkit, recolour(base, TIER_PALETTES[tier]));
                 plainHeadSkulls[tier][keys] = sprite(toolkit, recolour(base, PLAIN_TIER_PALETTES[tier]));
+                overheadSkulls[tier][keys] = sprite(toolkit, scaled(recolour(base, TIER_PALETTES[tier]), OVERHEAD_SCALE));
+                plainOverheadSkulls[tier][keys] = sprite(toolkit, scaled(recolour(base, PLAIN_TIER_PALETTES[tier]), OVERHEAD_SCALE));
             }
         }
 
@@ -250,11 +305,20 @@ final class DeadmanIcons {
      * the default skull can never appear. {@code skulled} picks the yellow-eyed variant.
      */
     static Sprite headSkull(int pkIcon, int keys, boolean skulled) {
+        return pick(false, pkIcon, keys, skulled);
+    }
+
+    /** {@link #headSkull} at {@link #OVERHEAD_SCALE}, for above the player's head. */
+    static Sprite overheadSkull(int pkIcon, int keys, boolean skulled) {
+        return pick(true, pkIcon, keys, skulled);
+    }
+
+    private static Sprite pick(boolean overhead, int pkIcon, int keys, boolean skulled) {
         if (pkIcon < 0) {
             return null;
         }
         ensure();
-        Sprite[][] set = skulled ? headSkulls : plainHeadSkulls;
+        Sprite[][] set = overhead ? (skulled ? overheadSkulls : plainOverheadSkulls) : (skulled ? headSkulls : plainHeadSkulls);
         if (set == null) {
             return null;
         }

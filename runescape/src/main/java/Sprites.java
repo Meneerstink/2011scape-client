@@ -81,6 +81,11 @@ public final class Sprites {
         return DeadmanIcons.headSkull(pkIcon, keys, skulled);
     }
 
+    /** {@link #deadmanSkull} 5 % larger, for above the player's head (owner 2026-10-09 212436). */
+    public static Sprite deadmanOverheadSkull(int pkIcon, int keys, boolean skulled) {
+        return DeadmanIcons.overheadSkull(pkIcon, keys, skulled);
+    }
+
     @OriginalMember(owner = "client!pj", name = "a", descriptor = "[Lclient!st;")
     public static Sprite[] headiconsPrayer;
 

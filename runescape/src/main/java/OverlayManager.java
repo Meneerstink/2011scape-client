@@ -273,11 +273,12 @@ public final class OverlayManager {
                         // their own 25x25 canvas, so the keys sit exactly where OSRS puts them).
                         // The cache's default skull is never drawn; the skull-timer HUD
                         // (DeadmanSkullHud) draws the same sprite, so the colour always matches.
-                        Sprite pkSkull = Sprites.deadmanSkull(player.pkIcon, player.pkKeys, player.pkSkulled);
+                        // Drawn 5 % larger than the HUD skull (owner 2026-10-09 212436), centred on the same point.
+                        Sprite pkSkull = Sprites.deadmanOverheadSkull(player.pkIcon, player.pkKeys, player.pkSkulled);
                         if (pkSkull != null) {
                             y -= pkSkull.getHeight();
 
-                            int iconX = hitmarkpos[0] + screenX - 12;
+                            int iconX = hitmarkpos[0] + screenX - (pkSkull.getWidth() >> 1);
                             pkSkull.render(iconX, y);
                             OrthoMode.method8927(iconX, iconX + pkSkull.scaleWidth(), y, pkSkull.scaleHeight() + y);
 
