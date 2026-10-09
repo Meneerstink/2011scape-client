@@ -95,6 +95,9 @@ public final class RspsDev {
 
     public static final int ACTION_COPY_DECO = 1940;
 
+    /** Place mode on a bare tile, lying flat on the floor (1941-1943: logo, wide banner, flag; owner 2026-10-09). */
+    public static final int ACTION_PLACE_FLOOR = 1941;
+
     /** pickKind of a loc picked as teleport start. */
     public static final int PICK_TELE = 3;
 
@@ -155,6 +158,7 @@ public final class RspsDev {
     private static final String[] KEY_HELP = {
         "Left/Right along the wall   Up/Down height   PgUp/PgDn distance to the wall   (hold to repeat)",
         "+/- size   Q/E angle   R quarter turn   F other side of the wall   T step size (fine/medium/coarse)",
+        "L lay flat on the floor / stand up   Z/X tilt",
         "ENTER = SAVE   Esc cancel   C save + copy   Del remove   U undo last save",
     };
 
@@ -205,7 +209,7 @@ public final class RspsDev {
     }
 
     public static boolean isDevAction(int action) {
-        return action >= ACTION_TAG_LOC && action <= ACTION_COPY_DECO;
+        return action >= ACTION_TAG_LOC && action <= ACTION_PLACE_FLOOR + 2;
     }
 
     public static boolean isNpcAction(int action) {
@@ -304,6 +308,8 @@ public final class RspsDev {
                     send("devdeco start " + PLACE_LOCS[action - ACTION_PLACE_WALL] + " " + at + " " + locId);
                 } else if (action >= ACTION_PLACE_TILE && action <= ACTION_PLACE_TILE + 2) {
                     send("devdeco start " + PLACE_LOCS[action - ACTION_PLACE_TILE] + " " + at);
+                } else if (action >= ACTION_PLACE_FLOOR && action <= ACTION_PLACE_FLOOR + 2) {
+                    send("devdeco start " + PLACE_LOCS[action - ACTION_PLACE_FLOOR] + " " + at + " floor");
                 }
                 break;
         }
@@ -463,6 +469,12 @@ public final class RspsDev {
                 return "copy";
             case 'u':
                 return "undo";
+            case 'l':
+                return "flat";
+            case 'z':
+                return "pitch -";
+            case 'x':
+                return "pitch +";
             case 't':
                 // Tab is an AWT focus-traversal key and does not always reach the canvas, so T toggles the step too.
                 return "step";

@@ -37,6 +37,9 @@ public final class LocTypeCustomisation {
 
     public int fitYaw;
 
+    /** Tilt about the loc's own left-right axis (flag 0x20, 16384 = full turn; owner 2026-10-09: flat on a floor). */
+    public int fitPitch;
+
     @OriginalMember(owner = "client!gp", name = "<init>", descriptor = "(J[I[S[S)V")
     public LocTypeCustomisation(@OriginalArg(0) long id, @OriginalArg(1) int[] models, @OriginalArg(2) short[] arg2, @OriginalArg(3) short[] arg3) {
         this.models = models;
@@ -50,6 +53,6 @@ public final class LocTypeCustomisation {
     }
 
     public boolean hasFit() {
-        return this.fitX != 0 || this.fitY != 0 || this.fitZ != 0 || this.fitScale != 128 || (this.fitYaw & 0x3FFF) != 0;
+        return this.fitX != 0 || this.fitY != 0 || this.fitZ != 0 || this.fitScale != 128 || (this.fitYaw & 0x3FFF) != 0 || (this.fitPitch & 0x3FFF) != 0;
     }
 }

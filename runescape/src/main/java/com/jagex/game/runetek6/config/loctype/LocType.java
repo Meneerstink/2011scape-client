@@ -1072,7 +1072,34 @@ public final class LocType {
         // the copy in the loc's own frame before its quarter-turn: +x along the wall, -z away from it, -y up. A wall
         // decoration (shapes 4-8) scales and turns about its wall contact (its own max z) at mid height, scenery about
         // the tile centre on the ground; the offsets come last. Only this copy changes, never the shared base model.
-        if (customisation != null && customisation.hasFit()) {
+        if (customisation != null && customisation.hasFit() && (customisation.fitPitch & 0x3FFF) != 0) {
+            // A tilted fit (owner 2026-10-09: flat on a floor, angled to a slanted surface): scale, tilt about the
+            // left-right axis and turn about the model's own centre; a loc standing on its tile then rests with its
+            // lowest point on the ground in the middle of the tile, a wall decoration keeps its centre where it was.
+            boolean onWall = shape >= 4 && shape <= 8;
+            int cx = (result.V() + result.RA()) / 2;
+            int cy = (result.fa() + result.EA()) / 2;
+            int cz = (result.HA() + result.G()) / 2;
+            result.H(-cx, -cy, -cz);
+            if (customisation.fitScale != 128) {
+                result.O(customisation.fitScale, customisation.fitScale, customisation.fitScale);
+            }
+            result.FA(customisation.fitPitch & 0x3FFF);
+            int yaw = customisation.fitYaw & 0x3FFF;
+            if (yaw != 0) {
+                result.k(yaw);
+            }
+            if (onWall) {
+                result.H(cx, cy, cz);
+            } else {
+                // Lowest point (largest y: the client's y grows downward) one unit above the ground, centred on the tile.
+                result.H(-(result.V() + result.RA()) / 2, -result.EA() - 1, -(result.HA() + result.G()) / 2);
+            }
+            result.H(customisation.fitX, customisation.fitY, customisation.fitZ);
+            if (com.jagex.core.util.ModelTrace.ENABLED) {
+                System.out.println("[fittrace] loc tilt applied id=" + this.id + " shape=" + shape + " rot=" + rotation + " pitch=" + customisation.fitPitch + " yaw=" + yaw + " scale=" + customisation.fitScale + " off=" + customisation.fitX + "," + customisation.fitY + "," + customisation.fitZ + " bounds x=" + result.V() + ".." + result.RA() + " y=" + result.fa() + ".." + result.EA() + " z=" + result.HA() + ".." + result.G());
+            }
+        } else if (customisation != null && customisation.hasFit()) {
             boolean onWall = shape >= 4 && shape <= 8;
             int pivotY = onWall ? (result.fa() + result.EA()) / 2 : 0;
             int pivotZ = onWall ? result.G() : 0;

@@ -362,6 +362,9 @@ public final class MiniMenu {
                         addEntryInner(false, -1, 0L, local140, local142, "Teleport here", RspsDev.ACTION_TELE_TILE, true, -1, here, (local142 | local140 << 0) + 0x45000000L, true);
                         // Place mode (owner 2026-10-06): the Legacy Deadman logo / wide banner / flag free on this tile.
                         for (int place = RspsDev.PLACE_LOCS.length - 1; place >= 0; place--) {
+                            addEntryInner(false, -1, 0L, local140, local142, RspsDev.PLACE_NAMES[place] + " on floor", RspsDev.ACTION_PLACE_FLOOR + place, true, -1, here, (local142 | local140 << 0) + (0x4B000000L + place * 0x1000000L), true);
+                        }
+                        for (int place = RspsDev.PLACE_LOCS.length - 1; place >= 0; place--) {
                             addEntryInner(false, -1, 0L, local140, local142, RspsDev.PLACE_NAMES[place] + " here", RspsDev.ACTION_PLACE_TILE + place, true, -1, here, (local142 | local140 << 0) + (0x48000000L + place * 0x1000000L), true);
                         }
                     }

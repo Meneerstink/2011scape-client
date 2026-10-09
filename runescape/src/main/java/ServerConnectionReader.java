@@ -2595,7 +2595,11 @@ public final class ServerConnectionReader {
                     customisation.fitZ = bitPacket.g2s();
                     customisation.fitScale = bitPacket.g2();
                     customisation.fitYaw = bitPacket.g2();
-                    AvTrace.log("loc fit id=" + id + " zone=" + zoneX + "," + zoneY + " level=" + Static87.updateZoneLevel + " shape=" + shape + " dx=" + customisation.fitX + " dy=" + customisation.fitY + " dz=" + customisation.fitZ + " scale=" + customisation.fitScale + " yaw=" + customisation.fitYaw);
+                    // flag 0x20: a tilt follows (only sent when there is one, so untilted fits read as before).
+                    if ((flags & 0x20) == 0x20) {
+                        customisation.fitPitch = bitPacket.g2();
+                    }
+                    AvTrace.log("loc fit id=" + id + " zone=" + zoneX + "," + zoneY + " level=" + Static87.updateZoneLevel + " shape=" + shape + " dx=" + customisation.fitX + " dy=" + customisation.fitY + " dz=" + customisation.fitZ + " scale=" + customisation.fitScale + " yaw=" + customisation.fitYaw + " pitch=" + customisation.fitPitch);
                 }
                 Static296.customiseLocation(customisation, Static87.updateZoneLevel, layer, zoneX, zoneY);
             }
