@@ -83,6 +83,9 @@ final class RspsHud {
             } else if (kind.equals("grave")) {
                 // The player's own gravestone on the world map (owner 2026-10-04 031637).
                 GraveWorldMapMarker.update(rest);
+            } else if (kind.equals("npcicons")) {
+                // World-map icons of npcs with a map element, at their live posts (owner 2026-10-09 214334).
+                NpcWorldMapIcons.update(rest);
             } else if (kind.equals("dmmz") || kind.equals("dmmt")) {
                 // Deadman HUD state (E16, owner 2026-10-03: "DE DMM HUD MAG NOOOIT VERDWIJNEN"): the HUD is no interface any more.
                 DeadmanSkullHud.update(kind, rest);
@@ -100,6 +103,7 @@ final class RspsHud {
         RspsHudGroundItems.reset();
         DeadmanSkullHud.reset();
         GraveWorldMapMarker.reset();
+        NpcWorldMapIcons.reset();
         RspsLootTracker.reset(LoginManager.username);
         RspsQuestHelper.reset();
         RspsQuestHelperHints.reset();

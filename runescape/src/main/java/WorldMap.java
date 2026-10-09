@@ -1430,6 +1430,8 @@ public final class WorldMap {
                 elements.addLast(entry);
             }
         }
+        // Npcs with a map element at their live posts (NpcWorldMapIcons, owner 2026-10-09: icons move with the npc).
+        NpcWorldMapIcons.addTo();
     }
 
     @OriginalMember(owner = "client!baa", name = "a", descriptor = "(Lclient!ha;II)V")
