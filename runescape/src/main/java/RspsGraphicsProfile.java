@@ -10,9 +10,10 @@ public final class RspsGraphicsProfile {
 
     /**
      * Owner 2026-09-26: a selectively hidden roof disappears only when the player walks in under it, never because it
-     * stands between the camera and the player (Static276).
+     * stands between the camera and the player (Static276). Owner 2026-10-09 (Q1 = A): back to normal RS - Jagex's
+     * camera-to-player line test is on again, so a roof between the camera and the player hides; this flag is off.
      */
-    public static final boolean ROOFS_HIDE_ONLY_UNDER_PLAYER = true;
+    public static final boolean ROOFS_HIDE_ONLY_UNDER_PLAYER = false;
 
     /** Last {@link #cameraBuildingTile()} result (inside or not), for the enter/leave trace. */
     private static boolean cameraWasInside;

@@ -82,7 +82,8 @@ public final class Static276 {
         }
         // RSPS owner 2026-09-26: "the roof only need to dissappear when entering the building". The original client also
         // hid a roof whenever one lay on the line from the camera to the player, so turning the camera outside a building
-        // took its roof away; that camera test below is switched off.
+        // took its roof away; that camera test below was switched off. Owner 2026-10-09 (Q1 = A): back to normal RS, the
+        // flag is off again and the line test below runs (a roof between the camera and the player hides).
         if (RspsGraphicsProfile.ROOFS_HIDE_ONLY_UNDER_PLAYER) {
             // Owner 2026-10-09 "rare camera issues" in the mansion: with the line test off, a camera swung into a building
             // (player outside, zoomed out or turned along the wall) drew its rooms and the roof's underside from inside.
