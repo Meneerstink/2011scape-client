@@ -25,11 +25,10 @@ final class RspsInfoBoxes {
     private static final int SEPARATOR = 3;
     /** First row of a numbered icon's art: just inside the outside and inside border strokes. */
     private static final int ICON_TOP = 2;
-    /** p11 digits: ink starts 1 px right of the pen and 1 row below the glyph top, 8 rows tall; 1 px advance after the last one. */
+    /** p11 digits: ink starts 1 px right of the pen and 1 row below the glyph top, 8 rows tall. */
     private static final int DIGIT_INK_LEFT = 1;
     private static final int DIGIT_INK_TOP = 1;
     private static final int DIGIT_INK_HEIGHT = 8;
-    private static final int DIGIT_TRAILING_ADVANCE = 1;
 
     static final class Box {
         final int sprite;
@@ -141,9 +140,18 @@ final class RspsInfoBoxes {
         font.render(number, tx, ty, 0, 0xFFFFFFFF);
     }
 
-    /** Width of the digits' pixels: the advance widths without the first glyph's left bearing and the last one's trailing gap. */
+    /** p11 digit ink widths 0-9 (cache p11_full glyph sprites, each drawn 1 px right of its pen position). */
+    private static final int[] DIGIT_INK_WIDTHS = {5, 3, 5, 4, 4, 4, 5, 4, 5, 5};
+
+    /** Width of the digits' pixels: every advance but the last, then the last digit's own ink (non-digits: the advance). */
     private static int inkWidth(FontMetrics metrics, String number) {
-        return Math.max(1, RspsHud.width(metrics, number) - DIGIT_INK_LEFT - DIGIT_TRAILING_ADVANCE);
+        if (number.isEmpty()) {
+            return 1;
+        }
+        String head = number.substring(0, number.length() - 1);
+        char last = number.charAt(number.length() - 1);
+        int lastInk = last >= '0' && last <= '9' ? DIGIT_INK_WIDTHS[last - '0'] : RspsHud.width(metrics, String.valueOf(last)) - DIGIT_INK_LEFT;
+        return Math.max(1, (head.isEmpty() ? 0 : RspsHud.width(metrics, head)) + lastInk);
     }
 
     /** The hovered box's tooltip, drawn after every overlay (RuneLite TooltipOverlay, under the cursor). */

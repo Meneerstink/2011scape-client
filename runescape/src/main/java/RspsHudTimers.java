@@ -99,9 +99,12 @@ final class RspsHudTimers {
                 + (!venom && ends[7] > 0L ? "</br>Time until cure: " + RspsHud.countdown(ends[7]) : "");
             RspsInfoBoxes.add(venom ? RspsSprites.OSRS_VENOM_SPLAT : RspsSprites.OSRS_POISON_SPLAT, next, RED, tooltip, Integer.toString(dotDamage));
         }
-        // RuneLite Timers & Buffs "Burn damage next hit": the next hit's size, white, no countdown.
+        // RuneLite Timers & Buffs "Burn damage next hit" (the next hit's size), laid out like the poison box (owner 2026-10-09: "check
+        // burn venom poison" - the number in the splat, the time to that hit neatly below it).
         if (burns > 0 && RspsHudConfig.bool("timers.showBurn")) {
-            RspsInfoBoxes.add(RspsSprites.OSRS_BURN_SPLAT, Integer.toString(burns), WHITE, "Burn damage next hit");
+            String next = ends[6] > 0L ? RspsHud.countdown(ends[6]) : "0:00";
+            RspsInfoBoxes.add(RspsSprites.OSRS_BURN_SPLAT, next, WHITE, "Burn damage next hit: <col=ff0000>" + burns + "</col></br>Time until damage: " + next,
+                Integer.toString(burns));
         }
         if (RspsHudConfig.bool("timers.showAntiPoison")) {
             // Immunity after an antipoison / antivenom (server POISON_IMMUNITY / VENOM_IMMUNITY), on the potion it came from.
