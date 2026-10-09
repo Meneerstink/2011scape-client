@@ -50,6 +50,10 @@ public final class Static208 {
         if (!Static581.aBoolean657) {
             return false;
         }
+        // RSPS owner 2026-10-09: a 78 decoration on the outside of the building whose roof is hidden goes with the roof.
+        if (RspsRoofDecor.hidden(arg0, arg2, arg4)) {
+            return true;
+        }
         @Pc(9) int local9 = arg0.x >> EnvironmentLight.anInt1066;
         @Pc(11) int local11 = local9;
         @Pc(16) int local16 = arg0.z >> EnvironmentLight.anInt1066;
