@@ -199,3 +199,15 @@ val summoningNpcAudioRegression by tasks.registering(JavaExec::class) {
 }
 
 tasks.check { dependsOn(summoningNpcAudioRegression) }
+
+val rspsRoofFloodRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks the roof flood (Static409) around the Royal Hall balconies (0x20): no floating ring wall columns."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("RspsRoofFloodRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
+tasks.check { dependsOn(rspsRoofFloodRegression) }

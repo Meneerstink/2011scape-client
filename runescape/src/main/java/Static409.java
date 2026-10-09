@@ -129,7 +129,7 @@ public final class Static409 {
                     }
                     local100++;
                     if (local100 < Static501.mapLength) {
-                        if (local78 - 1 >= 0 && local21 != Static328.aByteArrayArrayArray4[Camera.renderingLevel][local78 - 1][local100] && (Static280.tileFlags[Camera.renderingLevel][local78][local100] & 0x4) == 0 && (Static280.tileFlags[Camera.renderingLevel][local78 - 1][local100 - 1] & 0x4) == 0) {
+                        if (local78 - 1 >= 0 && local21 != Static328.aByteArrayArrayArray4[Camera.renderingLevel][local78 - 1][local100] && RspsGraphicsProfile.outsideBuilding(local78, local100) && RspsGraphicsProfile.outsideBuilding(local78 - 1, local100 - 1)) {
                             Static278.anIntArray351[local61] = local78 - 1 | 0x120000 | 0x52000000;
                             Static98.anIntArray176[local61] = local100 | 0x130000;
                             local61 = local61 + 1 & 0xFFF;
@@ -141,7 +141,7 @@ public final class Static409 {
                             Static328.aByteArrayArrayArray4[Camera.renderingLevel][local78][local100] = local21;
                             local61 = local61 + 1 & 0xFFF;
                         }
-                        if (Static720.mapWidth > local78 + 1 && local21 != Static328.aByteArrayArrayArray4[Camera.renderingLevel][local78 + 1][local100] && (Static280.tileFlags[Camera.renderingLevel][local78][local100] & 0x4) == 0 && (Static280.tileFlags[Camera.renderingLevel][local78 + 1][local100 - 1] & 0x4) == 0) {
+                        if (Static720.mapWidth > local78 + 1 && local21 != Static328.aByteArrayArrayArray4[Camera.renderingLevel][local78 + 1][local100] && RspsGraphicsProfile.outsideBuilding(local78, local100) && RspsGraphicsProfile.outsideBuilding(local78 + 1, local100 - 1)) {
                             Static278.anIntArray351[local61] = 0x92000000 | 0x520000 | local78 + 1;
                             Static98.anIntArray176[local61] = local100 | 0x530000;
                             Static328.aByteArrayArrayArray4[Camera.renderingLevel][local78 + 1][local100] = local21;
@@ -157,7 +157,7 @@ public final class Static409 {
                     }
                     local100--;
                     if (local100 >= 0) {
-                        if (local78 - 1 >= 0 && Static328.aByteArrayArrayArray4[Camera.renderingLevel][local78 - 1][local100] != local21 && (Static280.tileFlags[Camera.renderingLevel][local78][local100] & 0x4) == 0 && (Static280.tileFlags[Camera.renderingLevel][local78 - 1][local100 + 1] & 0x4) == 0) {
+                        if (local78 - 1 >= 0 && Static328.aByteArrayArrayArray4[Camera.renderingLevel][local78 - 1][local100] != local21 && RspsGraphicsProfile.outsideBuilding(local78, local100) && RspsGraphicsProfile.outsideBuilding(local78 - 1, local100 + 1)) {
                             Static278.anIntArray351[local61] = local78 - 1 | 0xD20000 | 0x12000000;
                             Static98.anIntArray176[local61] = local100 | 0xD30000;
                             local61 = local61 + 1 & 0xFFF;
@@ -169,7 +169,7 @@ public final class Static409 {
                             Static328.aByteArrayArrayArray4[Camera.renderingLevel][local78][local100] = local21;
                             local61 = local61 + 1 & 0xFFF;
                         }
-                        if (local78 + 1 < Static720.mapWidth && Static328.aByteArrayArrayArray4[Camera.renderingLevel][local78 + 1][local100] != local21 && (Static280.tileFlags[Camera.renderingLevel][local78][local100] & 0x4) == 0 && (Static280.tileFlags[Camera.renderingLevel][local78 + 1][local100 + 1] & 0x4) == 0) {
+                        if (local78 + 1 < Static720.mapWidth && Static328.aByteArrayArrayArray4[Camera.renderingLevel][local78 + 1][local100] != local21 && RspsGraphicsProfile.outsideBuilding(local78, local100) && RspsGraphicsProfile.outsideBuilding(local78 + 1, local100 + 1)) {
                             Static278.anIntArray351[local61] = local78 + 1 | 0x920000 | 0xD2000000;
                             Static98.anIntArray176[local61] = local100 | 0x930000;
                             Static328.aByteArrayArrayArray4[Camera.renderingLevel][local78 + 1][local100] = local21;

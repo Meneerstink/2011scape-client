@@ -75,6 +75,16 @@ public final class RspsGraphicsProfile {
         return level <= 3 && (Static280.tileFlags[level][x][z] & BELOW_BUILDING) != 0;
     }
 
+    /**
+     * Outside test for the roof flood's diagonal steps (Static409): a BELOW_BUILDING tile counts as roofed there too, like in
+     * its straight steps. Otherwise the flood runs out over a balcony row and steps diagonally into a walled ring tile from
+     * outside, Jagex's edge-wall check keeps that tile's upper walls, and whole wall columns float inside the hall (owner
+     * 2026-10-09 17:47, every storey). Only the Royal Hall has 0x20, so every other building is unchanged.
+     */
+    public static boolean outsideBuilding(int x, int z) {
+        return (Static280.tileFlags[Camera.renderingLevel][x][z] & 0x4) == 0 && !belongsToBuildingBelow(x, z);
+    }
+
     private RspsGraphicsProfile() { }
 
     public static void apply(ClientOptions options) {
