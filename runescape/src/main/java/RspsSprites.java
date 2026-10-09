@@ -40,17 +40,36 @@ final class RspsSprites {
     static final int POISON_HITMARK_SPRITE = 4475;
     static final int RES_VENOM = -1001;
     static final int RES_BURN = -1002;
+    /** RuneLite Boosts' own infobox images (plugins/boosts/debuffed.png, buffed.png), in /boosts. */
+    static final int RES_DEBUFFED = -1003;
+    static final int RES_BUFFED = -1004;
+
+    /**
+     * The OSRS hitsplat sprites RuneLite's infoboxes use, as OsrsHitsplatImportTool put them in this cache (tx-20261009-035259):
+     * OSRS 1360 HITSPLAT_GREEN_POISON -> 8405, 1632 HITSPLAT_DARK_GREEN_VENOM -> 8415, 4767 BURN_DAMAGE -> 8443.
+     */
+    static final int OSRS_POISON_SPLAT = 8405;
+    static final int OSRS_VENOM_SPLAT = 8415;
+    static final int OSRS_BURN_SPLAT = 8443;
+
+    /** Item icons (RuneLite GameTimer ITEM images): {@link #item(int)} encodes an item id below this. */
+    private static final int ITEM_BASE = -100_000;
+
+    static int item(int itemId) {
+        return ITEM_BASE - itemId;
+    }
 
     static int poisonSprite() {
         return POISON_HITMARK_SPRITE;
     }
 
     private static Sprite resource(Toolkit toolkit, int id) {
-        String name = id == RES_VENOM ? "venom" : id == RES_BURN ? "burn" : null;
+        String name = id == RES_VENOM ? "hitsplats/venom" : id == RES_BURN ? "hitsplats/burn"
+            : id == RES_DEBUFFED ? "boosts/debuffed" : id == RES_BUFFED ? "boosts/buffed" : null;
         if (name == null) {
             return null;
         }
-        try (java.io.InputStream in = RspsSprites.class.getResourceAsStream("/hitsplats/" + name + ".png")) {
+        try (java.io.InputStream in = RspsSprites.class.getResourceAsStream("/" + name + ".png")) {
             if (in == null) {
                 return null;
             }
@@ -96,6 +115,19 @@ final class RspsSprites {
             builtFor = toolkit;
         }
         Sprite sprite = sprites.get(id);
+        if (sprite == null && id <= ITEM_BASE) {
+            // The inventory icon without a count, as RuneLite's ItemManager.getImage (DeadmanSkullHud draws emblems the same way).
+            try {
+                sprite = com.jagex.game.runetek6.config.objtype.ObjTypeList.instance == null ? null
+                    : com.jagex.game.runetek6.config.objtype.ObjTypeList.instance.getCachedSprite(null, toolkit, com.jagex.game.runetek6.config.objtype.ObjNumMode.SHOWCOUNT_NEVER, ITEM_BASE - id, 1, 1, 0xFF000000);
+            } catch (RuntimeException notLoaded) {
+                sprite = null;
+            }
+            if (sprite != null) {
+                sprites.put(id, sprite);
+            }
+            return sprite;
+        }
         if (sprite == null && id < 0) {
             sprite = resource(toolkit, id);
             if (sprite != null) {
@@ -115,6 +147,53 @@ final class RspsSprites {
             }
         }
         return sprite;
+    }
+
+    private static final Map<Integer, int[]> contents = new HashMap<Integer, int[]>();
+
+    /**
+     * Where the visible pixels of cache sprite [id] lie on its canvas: x, y, width, height - or null for resources and items (and
+     * while the archive is not loaded). The OSRS splats are 25 x 25 canvases holding 24 x 23 of art at the top left, so centring the
+     * canvas puts the art half a pixel off; the poison infobox centres the art itself.
+     */
+    static int[] content(int id) {
+        if (id < 0) {
+            return null;
+        }
+        int[] known = contents.get(id);
+        if (known != null) {
+            return known;
+        }
+        try {
+            IndexedImage image = IndexedImage.loadFirst(js5.SPRITES, id);
+            if (image == null) {
+                return null;
+            }
+            int minX = Integer.MAX_VALUE;
+            int minY = Integer.MAX_VALUE;
+            int maxX = -1;
+            int maxY = -1;
+            for (int y = 0; y < image.height; y++) {
+                for (int x = 0; x < image.width; x++) {
+                    int index = y * image.width + x;
+                    boolean visible = image.alpha != null ? (image.alpha[index] & 0xFF) != 0 : image.raster[index] != 0;
+                    if (visible) {
+                        minX = Math.min(minX, x);
+                        minY = Math.min(minY, y);
+                        maxX = Math.max(maxX, x);
+                        maxY = Math.max(maxY, y);
+                    }
+                }
+            }
+            if (maxX < 0) {
+                return null;
+            }
+            int[] bounds = {image.offX1 + minX, image.offY1 + minY, maxX - minX + 1, maxY - minY + 1};
+            contents.put(id, bounds);
+            return bounds;
+        } catch (RuntimeException notLoaded) {
+            return null;
+        }
     }
 
     /** The same icon as a Java image (the sidebar), or null when the sprite archive is not loaded yet. */

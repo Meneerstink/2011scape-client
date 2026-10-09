@@ -80,6 +80,18 @@ public final class ImageUtil
 			| clamp((int) ((argb & 0xFF) * scale)));
 	}
 
+	/** RuneLite ImageUtil.alphaOffset(Image, int): the alpha channel plus [offset] (RescaleOp offset), clamped; colours kept. */
+	public static BufferedImage alphaOffset(BufferedImage image, int offset)
+	{
+		return map(image, argb -> (clamp(((argb >>> 24) & 0xFF) + offset) << 24) | (argb & 0xFFFFFF));
+	}
+
+	/** RuneLite ImageUtil.alphaOffset(Image, float): the alpha channel times [percentage], clamped; colours kept. */
+	public static BufferedImage alphaOffset(BufferedImage image, float percentage)
+	{
+		return map(image, argb -> (clamp((int) (((argb >>> 24) & 0xFF) * percentage)) << 24) | (argb & 0xFFFFFF));
+	}
+
 	/** Every colour channel plus [offset], alpha kept. */
 	public static BufferedImage luminanceOffset(BufferedImage image, int offset)
 	{

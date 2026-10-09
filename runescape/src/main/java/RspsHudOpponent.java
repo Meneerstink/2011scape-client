@@ -136,24 +136,13 @@ final class RspsHudOpponent {
         RspsHud.text(font, label, barX + (barWidth - labelWidth) / 2, barY + (BAR_HEIGHT - RspsHud.LINE) / 2 + RspsHud.LINE, TITLE, false);
     }
 
-    /** RuneLite's progress bar label: "cur/max", "pct%" or both - the exact value only when it is known (monsters). */
+    /**
+     * RuneLite's progress bar label: "cur/max", "pct%" or both - the exact value only when it is known (monsters). The percentage is
+     * ProgressBarComponent's DecimalFormat("0.0") (e.g. "57.3%"), with a decimal point like every number in this client.
+     */
     static String healthText() {
-        int percent;
-        if (maximum > 0) {
-            percent = (int) Math.round(100.0 * Math.min(current, maximum) / maximum);
-            if (percent == 0 && current > 0) {
-                percent = 1;
-            } else if (percent == 100 && current < maximum) {
-                percent = 99;
-            }
-        } else {
-            percent = (int) Math.round(100.0 * ratio / 255.0);
-            if (percent == 0 && ratio > 0) {
-                percent = 1;
-            } else if (percent == 100 && ratio < 255) {
-                percent = 99;
-            }
-        }
+        double fraction = maximum > 0 ? (double) Math.min(current, maximum) / maximum : ratio / 255.0;
+        String percent = String.format(java.util.Locale.ENGLISH, "%.1f", fraction * 100.0);
         String style = RspsHudConfig.get("opponent.hitpointsDisplayStyle");
         if (maximum <= 0 || style.equals("PERCENTAGE")) {
             return percent + "%";

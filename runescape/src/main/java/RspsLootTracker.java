@@ -62,20 +62,37 @@ final class RspsLootTracker {
     static final ImageIcon PANEL_ICON;
     private static final ImageIcon SINGLE_LOOT_ICON;
     private static final ImageIcon SINGLE_LOOT_ICON_FADED;
+    private static final ImageIcon SINGLE_LOOT_ICON_HOVER;
     private static final ImageIcon GROUPED_LOOT_ICON;
     private static final ImageIcon GROUPED_LOOT_ICON_FADED;
+    private static final ImageIcon GROUPED_LOOT_ICON_HOVER;
+    private static final ImageIcon VISIBLE_ICON;
+    private static final ImageIcon VISIBLE_ICON_HOVER;
+    private static final ImageIcon INVISIBLE_ICON;
+    private static final ImageIcon INVISIBLE_ICON_HOVER;
     private static final ImageIcon COLLAPSE_ICON;
     private static final ImageIcon EXPAND_ICON;
+
+    /** LootTrackerPanel.hideIgnoredItems (starts true): hidden sources and ignored items are left out until the eye shows them. */
+    private static boolean hideIgnoredItems = true;
 
     static {
         PANEL_ICON = new ImageIcon(ImageUtil.load("loot_panel_icon.png"));
         BufferedImage single = ImageUtil.load("loot_single_loot_icon.png");
         BufferedImage grouped = ImageUtil.load("loot_grouped_loot_icon.png");
-        // LootTrackerPanel: the unselected view buttons are the same icons faded (alphaOffset 0.2 -> here luminance).
+        // LootTrackerPanel: the unselected view buttons are the same icons at alphaOffset -180, hovered -220.
         SINGLE_LOOT_ICON = new ImageIcon(single);
-        SINGLE_LOOT_ICON_FADED = new ImageIcon(ImageUtil.luminanceScale(single, 0.4f));
+        SINGLE_LOOT_ICON_FADED = new ImageIcon(ImageUtil.alphaOffset(single, -180));
+        SINGLE_LOOT_ICON_HOVER = new ImageIcon(ImageUtil.alphaOffset(single, -220));
         GROUPED_LOOT_ICON = new ImageIcon(grouped);
-        GROUPED_LOOT_ICON_FADED = new ImageIcon(ImageUtil.luminanceScale(grouped, 0.4f));
+        GROUPED_LOOT_ICON_FADED = new ImageIcon(ImageUtil.alphaOffset(grouped, -180));
+        GROUPED_LOOT_ICON_HOVER = new ImageIcon(ImageUtil.alphaOffset(grouped, -220));
+        BufferedImage visible = ImageUtil.load("loot_visible_icon.png");
+        BufferedImage invisible = ImageUtil.load("loot_invisible_icon.png");
+        VISIBLE_ICON = new ImageIcon(visible);
+        VISIBLE_ICON_HOVER = new ImageIcon(ImageUtil.alphaOffset(visible, -220));
+        INVISIBLE_ICON = new ImageIcon(invisible);
+        INVISIBLE_ICON_HOVER = new ImageIcon(ImageUtil.alphaOffset(invisible, -220));
         COLLAPSE_ICON = new ImageIcon(ImageUtil.load("loot_collapsed.png"));
         EXPAND_ICON = new ImageIcon(ImageUtil.load("loot_expanded.png"));
     }
@@ -402,42 +419,60 @@ final class RspsLootTracker {
         return copies;
     }
 
-    /** The whole loot tracker view (RuneLite LootTrackerPanel), rebuilt on every change. */
+    /**
+     * The whole loot tracker view (RuneLite LootTrackerPanel), rebuilt on every change: 6 px border, a BorderLayout whose NORTH holds
+     * the actions bar, the overall panel and the boxes' own container (logsContainer); the "no loot yet" panel in its centre. The
+     * owner's 2026-10-09 "weird layout" came from one flat BoxLayout with left-aligned, 225-wide boxes beside centred panels.
+     */
     static JPanel build(final Runnable rebuild) {
+        final JPanel root = new JPanel(new BorderLayout());
+        root.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        root.setBorder(new EmptyBorder(6, 6, 6, 6));
         final JPanel layout = new JPanel();
         layout.setLayout(new BoxLayout(layout, BoxLayout.Y_AXIS));
         layout.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        layout.setBorder(new EmptyBorder(10, 10, 10, 10));
+        root.add(layout, BorderLayout.NORTH);
 
-        // Actions: view controls (single / grouped, collapse all).
+        // Actions: view controls (collapse all, grouped / single, show ignored) - LootTrackerPanel.buildActionsPanel order.
         JPanel actions = new JPanel(new BorderLayout());
         actions.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         actions.setPreferredSize(new Dimension(0, 30));
-        actions.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
         actions.setBorder(new EmptyBorder(5, 5, 5, 10));
         JPanel viewControls = new JPanel(new GridLayout(1, 3, 10, 0));
         viewControls.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        final JButton collapseBtn = plain(allCollapsed ? EXPAND_ICON : COLLAPSE_ICON, allCollapsed ? "Expand All" : "Collapse All");
+        // RuneLite: icon EXPAND_ICON, selected icon COLLAPSE_ICON, selected while every box is collapsed.
+        final JButton collapseBtn = plain(allCollapsed ? COLLAPSE_ICON : EXPAND_ICON, allCollapsed ? "Expand All" : "Collapse All");
         collapseBtn.addActionListener(e -> {
             allCollapsed = !allCollapsed;
             collapsed.clear();
             rebuild.run();
         });
         viewControls.add(collapseBtn);
-        JToggleButton singleLootBtn = new JToggleButton(groupLoot ? SINGLE_LOOT_ICON_FADED : SINGLE_LOOT_ICON);
-        styleToggle(singleLootBtn, "Show each kill separately");
-        singleLootBtn.addActionListener(e -> {
-            groupLoot = false;
-            rebuild.run();
-        });
         JToggleButton groupedLootBtn = new JToggleButton(groupLoot ? GROUPED_LOOT_ICON : GROUPED_LOOT_ICON_FADED);
         styleToggle(groupedLootBtn, "Group loot by source");
+        groupedLootBtn.setRolloverIcon(groupLoot ? GROUPED_LOOT_ICON : GROUPED_LOOT_ICON_HOVER);
         groupedLootBtn.addActionListener(e -> {
             groupLoot = true;
             rebuild.run();
         });
-        viewControls.add(singleLootBtn);
+        JToggleButton singleLootBtn = new JToggleButton(groupLoot ? SINGLE_LOOT_ICON_FADED : SINGLE_LOOT_ICON);
+        styleToggle(singleLootBtn, "Show each kill separately");
+        singleLootBtn.setRolloverIcon(groupLoot ? SINGLE_LOOT_ICON_HOVER : SINGLE_LOOT_ICON);
+        singleLootBtn.addActionListener(e -> {
+            groupLoot = false;
+            rebuild.run();
+        });
         viewControls.add(groupedLootBtn);
+        viewControls.add(singleLootBtn);
+        // The eye: selected (= hiding) shows INVISIBLE_ICON; tooltip "Show ignored items" / "Hide ignored items".
+        JToggleButton viewHiddenBtn = new JToggleButton(hideIgnoredItems ? INVISIBLE_ICON : VISIBLE_ICON);
+        styleToggle(viewHiddenBtn, hideIgnoredItems ? "Show ignored items" : "Hide ignored items");
+        viewHiddenBtn.setRolloverIcon(hideIgnoredItems ? VISIBLE_ICON_HOVER : INVISIBLE_ICON_HOVER);
+        viewHiddenBtn.addActionListener(e -> {
+            hideIgnoredItems = !hideIgnoredItems;
+            rebuild.run();
+        });
+        viewControls.add(viewHiddenBtn);
         actions.add(viewControls, BorderLayout.EAST);
         layout.add(actions);
 
@@ -445,6 +480,9 @@ final class RspsLootTracker {
         long overallKills = 0;
         long overallGe = 0;
         long overallHa = 0;
+        if (hideIgnoredItems) {
+            records.removeIf(r -> hiddenEvents.contains(r.name));
+        }
         for (Record r : records) {
             if (hiddenEvents.contains(r.name)) {
                 continue;
@@ -496,27 +534,54 @@ final class RspsLootTracker {
         });
         overallMenu.add(resetAll);
         overall.setComponentPopupMenu(overallMenu);
+        // LootTrackerPanel: the actions bar and the overall panel only appear with the first loot.
+        actions.setVisible(!records.isEmpty());
         overall.setVisible(!records.isEmpty());
         layout.add(overall);
 
+        JPanel logsContainer = new JPanel();
+        logsContainer.setLayout(new BoxLayout(logsContainer, BoxLayout.Y_AXIS));
+        logsContainer.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        layout.add(logsContainer);
+
         if (records.isEmpty()) {
-            JLabel empty = new JLabel("<html><div style='text-align:center'>Loot tracker<br><br>You have not received any loot yet.</div></html>", SwingConstants.CENTER);
-            empty.setName("lootEmpty");
-            empty.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-            empty.setFont(FontManager.getRunescapeSmallFont());
-            empty.setAlignmentX(0.5f);
-            empty.setBorder(new EmptyBorder(20, 0, 0, 0));
-            layout.add(empty);
+            root.add(errorPanel("Loot tracker", "You have not received any loot yet."), BorderLayout.CENTER);
         }
 
         int shown = 0;
         for (Record r : records) {
+            JPanel box = box(r, rebuild);
+            if (box == null) {
+                continue;
+            }
             if (shown++ >= MAX_LOOT_BOXES) {
                 break;
             }
-            layout.add(box(r, rebuild));
+            logsContainer.add(box);
         }
-        return layout;
+        return root;
+    }
+
+    /**
+     * RuneLite PluginErrorPanel: border (50, 10, 0, 10); the title white in the regular font, the description centred below it in
+     * the small font, grey.
+     */
+    private static JPanel errorPanel(String title, String description) {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setName("lootEmpty");
+        panel.setBorder(new EmptyBorder(50, 10, 0, 10));
+        panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(FontManager.getRunescapeFont());
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        JLabel descriptionLabel = new JLabel("<html><body style='text-align:center'>" + description + "</body></html>");
+        descriptionLabel.setFont(FontManager.getRunescapeSmallFont());
+        descriptionLabel.setForeground(Color.GRAY);
+        descriptionLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(titleLabel, BorderLayout.NORTH);
+        panel.add(descriptionLabel, BorderLayout.CENTER);
+        return panel;
     }
 
     private static JButton plain(ImageIcon icon, String tooltip) {
@@ -542,9 +607,15 @@ final class RspsLootTracker {
         box.setName("lootBox:" + record.name);
         box.setBorder(new EmptyBorder(5, 0, 0, 0));
         box.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        box.setAlignmentX(0f);
 
         List<Item> items = new ArrayList<Item>(record.items.values());
+        if (hideIgnoredItems) {
+            items.removeIf(item -> ignoredItems.contains(item.id));
+        }
+        // LootTrackerBox: a box without items left is not shown.
+        if (items.isEmpty()) {
+            return null;
+        }
         final boolean highAlch = ha();
         // Sorted by price, highest first (LootTrackerBox.buildItems).
         items.sort((a, b) -> Long.compare(highAlch ? b.totalHa() : b.totalGe(), highAlch ? a.totalHa() : a.totalGe()));
@@ -630,7 +701,7 @@ final class RspsLootTracker {
                     JLabel label = new JLabel();
                     label.setName("lootItem:" + item.id);
                     if (image != null) {
-                        label.setIcon(new ImageIcon(ignored ? ImageUtil.luminanceScale(image, 0.3f) : image));
+                        label.setIcon(new ImageIcon(ignored ? ImageUtil.alphaOffset(image, .3f) : image));
                     } else {
                         label.setText(stackSize(item.quantity));
                         label.setForeground(Color.YELLOW);
@@ -657,7 +728,6 @@ final class RspsLootTracker {
             }
             box.add(grid, BorderLayout.CENTER);
         }
-        box.setMaximumSize(new Dimension(RspsSidebar.PANEL_WIDTH, box.getPreferredSize().height));
         return box;
     }
 

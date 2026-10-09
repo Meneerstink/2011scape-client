@@ -373,10 +373,10 @@ final class RspsHudConfig {
 
     private static final String[] TIER_KEYS = {null, "low", "medium", "high", "insane"};
 
-    /** The highest tier [value] reaches (0 = none). */
+    /** The highest tier [value] reaches (0 = none): strictly above the tier's price, as GroundItemsPlugin's price checks. */
     static int tier(long value) {
         for (int tier = TIER_INSANE; tier >= TIER_LOW; tier--) {
-            if (value >= integer("grounditems." + TIER_KEYS[tier] + "ValuePrice")) {
+            if (value > integer("grounditems." + TIER_KEYS[tier] + "ValuePrice")) {
                 return tier;
             }
         }

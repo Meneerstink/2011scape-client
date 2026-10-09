@@ -196,7 +196,8 @@ final class RspsHud {
             RspsHudTimers.addInfoboxes();
         }
         if (RspsInfoBoxes.count() > 0) {
-            panel(RspsInfoBoxes.ID, RspsInfoBoxes.width(), RspsInfoBoxes.SIZE, x, y, width, height, stackY);
+            panel(RspsInfoBoxes.ID, RspsInfoBoxes.width(), RspsInfoBoxes.height(), x, y, width, height, stackY);
+            RspsInfoBoxes.drawTooltip(x, y, width, height);
         }
         // Developer place mode (owner 2026-10-06): the selected decoration's values and keys.
         if (RspsDev.placing) {
@@ -231,10 +232,10 @@ final class RspsHud {
         return ticks <= 0 ? -1L : now() + ticks * TICK_MS;
     }
 
-    /** m:ss until {@code endMs}, rounded up like a countdown (never below 0:00) - RuneLite Timer "%d:%02d". */
+    /** m:ss until {@code endMs} (never below 0:00) - RuneLite Timer "%d:%02d", seconds truncated like Timer.getText. */
     static String countdown(long endMs) {
         long left = Math.max(0L, endMs - now());
-        long seconds = (left + 999L) / 1000L;
+        long seconds = left / 1000L;
         long s = seconds % 60L;
         return (seconds / 60L) + ":" + (s < 10L ? "0" : "") + s;
     }
@@ -262,6 +263,68 @@ final class RspsHud {
         } else {
             font.render(text, x, y, SHADOW, colour);
         }
+    }
+
+    /** RuneLite TooltipOverlay.UNDER_OFFSET and TooltipComponent.OFFSET. */
+    private static final int TOOLTIP_UNDER = 24;
+    private static final int TOOLTIP_PADDING = 4;
+
+    /**
+     * RuneLite TooltipComponent under the cursor (TooltipOverlay, "under cursor"): the overlay background, 4 px padding, one
+     * line per {@code </br>}, white text with {@code <col=rrggbb>} colour changes, kept inside the game view.
+     */
+    static void tooltip(String text, int mouseX, int mouseY, int viewX, int viewY, int viewWidth, int viewHeight) {
+        Font font = font();
+        FontMetrics metrics = metrics();
+        String[] lines = text.split("</?br>");
+        int lineHeight = metrics == null ? 14 : metrics.verticalSpacing;
+        int textWidth = 0;
+        for (String line : lines) {
+            textWidth = Math.max(textWidth, width(metrics, stripTags(line)));
+        }
+        int boxWidth = textWidth + TOOLTIP_PADDING * 2;
+        int boxHeight = lines.length * lineHeight + TOOLTIP_PADDING * 2;
+        int bx = Math.max(viewX, Math.min(viewX + viewWidth - boxWidth, mouseX));
+        int by = Math.max(viewY, Math.min(viewY + viewHeight - boxHeight, mouseY + TOOLTIP_UNDER));
+        box(bx, by, boxWidth, boxHeight);
+        int descent = metrics == null ? 3 : Math.max(0, lineHeight - metrics.paddingTop);
+        for (int i = 0; i < lines.length; i++) {
+            int lx = bx + TOOLTIP_PADDING;
+            int ly = by + TOOLTIP_PADDING + (i + 1) * lineHeight - descent;
+            int colour = 0xFFFFFFFF;
+            String line = lines[i];
+            int at = 0;
+            while (at < line.length()) {
+                int tag = line.indexOf('<', at);
+                String part = tag < 0 ? line.substring(at) : line.substring(at, tag);
+                if (part.length() > 0) {
+                    text(font, part, lx, ly, colour, false);
+                    lx += width(metrics, part);
+                }
+                if (tag < 0) {
+                    break;
+                }
+                int end = line.indexOf('>', tag);
+                if (end < 0) {
+                    break;
+                }
+                String name = line.substring(tag + 1, end);
+                if (name.startsWith("col=")) {
+                    try {
+                        colour = 0xFF000000 | Integer.parseInt(name.substring(4), 16);
+                    } catch (NumberFormatException ignored) {
+                        // a broken tag keeps the colour
+                    }
+                } else if (name.equals("/col")) {
+                    colour = 0xFFFFFFFF;
+                }
+                at = end + 1;
+            }
+        }
+    }
+
+    private static String stripTags(String line) {
+        return line.replaceAll("<[^>]*>", "");
     }
 
     /** RuneLite BackgroundComponent: the fill, an outside stroke on the edge and an inside stroke one pixel in. */

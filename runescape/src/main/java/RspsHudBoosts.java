@@ -165,7 +165,8 @@ final class RspsHudBoosts {
         if (end <= 0L) {
             return -1;
         }
-        return (int) ((Math.max(0L, end - RspsHud.now()) + 999L) / 1000L);
+        // BoostsPlugin.getChangeTime: whole seconds, truncated.
+        return (int) (Math.max(0L, end - RspsHud.now()) / 1000L);
     }
 
     /** The threshold notification (once per frame, from the render pass). */
@@ -190,17 +191,33 @@ final class RspsHudBoosts {
         for (int skill : displayed()) {
             int boost = boost(skill);
             if (boost != 0) {
-                RspsInfoBoxes.add(RspsSprites.skillIcon(skill), text(skill, false), colour(boost));
+                RspsInfoBoxes.add(RspsSprites.skillIcon(skill), text(skill, false), colour(boost), SKILL_NAMES[skill] + " boost");
             }
         }
+        // RuneLite StatChangeIndicator: debuffed.png / buffed.png, "%02d", bright red under 10 ticks, its tooltip.
         int up = nextDebuffSeconds();
         if (up >= 0) {
-            RspsInfoBoxes.add(RspsSprites.ARROW_UP, Integer.toString(up), NORMAL);
+            RspsInfoBoxes.add(RspsSprites.RES_DEBUFFED, String.format("%02d", up), changeColour(restoreEnd), "Next debuff change");
         }
         int down = nextBuffSeconds();
         if (down >= 0) {
-            RspsInfoBoxes.add(RspsSprites.ARROW_DOWN, Integer.toString(down), NORMAL);
+            RspsInfoBoxes.add(RspsSprites.RES_BUFFED, String.format("%02d", down), changeColour(buffEnd()), "Next buff change");
         }
+    }
+
+    /** Under 10 ticks to the change: Color.RED.brighter(), else white (StatChangeIndicator.getTextColor). */
+    private static int changeColour(long end) {
+        return end > 0L && end - RspsHud.now() < 10L * RspsHud.TICK_MS ? 0xFFFF0000 : NORMAL;
+    }
+
+    /** The decay end nextBuffSeconds counts to. */
+    private static long buffEnd() {
+        for (int skill : displayed()) {
+            if (boost(skill) > 0 && isCombat(skill)) {
+                return decayEnd;
+            }
+        }
+        return nonCombatDecayEnd;
     }
 
     private static int changedRows() {
@@ -236,6 +253,18 @@ final class RspsHudBoosts {
         // RuneLite LineComponent: text at the line's full font height, left at the border, right-aligned at the border.
         int baseline = y + BORDER + LINE;
         int right = x + width - BORDER;
+        // BoostsOverlay: the two change timers come first - "Next + restore in" is the boosted stats' next drop (changeDownTicks,
+        // "Next buff change"), "Next - restore in" the drained stats' next restore (changeUpTicks).
+        int down = nextBuffSeconds();
+        if (down >= 0) {
+            line(font, metrics, compact ? "+" : "Next + restore in", Integer.toString(down), x, right, baseline);
+            baseline += LINE;
+        }
+        int up = nextDebuffSeconds();
+        if (up >= 0) {
+            line(font, metrics, compact ? "-" : "Next - restore in", Integer.toString(up), x, right, baseline);
+            baseline += LINE;
+        }
         for (int skill : displayed()) {
             int boost = boost(skill);
             if (boost == 0) {
@@ -250,17 +279,17 @@ final class RspsHudBoosts {
                 RspsHud.text(font, SKILL_NAMES[skill], x + BORDER, baseline, NORMAL, false);
             }
             String value = text(skill, true);
-            RspsHud.text(font, value, right - RspsHud.width(metrics, value), baseline, colour(boost), false);
+            int slash = value.indexOf('/');
+            int vx = right - RspsHud.width(metrics, value);
+            if (slash > 0) {
+                // ColorUtil.prependColorTag: the boosted level in its colour, "/base" white.
+                String level = value.substring(0, slash);
+                RspsHud.text(font, level, vx, baseline, colour(boost), false);
+                RspsHud.text(font, value.substring(slash), vx + RspsHud.width(metrics, level), baseline, NORMAL, false);
+            } else {
+                RspsHud.text(font, value, vx, baseline, colour(boost), false);
+            }
             baseline += LINE;
-        }
-        int up = nextDebuffSeconds();
-        if (up >= 0) {
-            line(font, metrics, compact ? "+" : "Next + restore in", Integer.toString(up), x, right, baseline);
-            baseline += LINE;
-        }
-        int down = nextBuffSeconds();
-        if (down >= 0) {
-            line(font, metrics, compact ? "-" : "Next - restore in", Integer.toString(down), x, right, baseline);
         }
     }
 

@@ -87,8 +87,11 @@ final class RspsHudGroundItems {
         long value;
         long count;
         boolean hidden;
+        /** On the hidden list (not merely under the value threshold): RuneLite gives such an item no loot beam. */
+        boolean listedHidden;
         boolean highlighted;
         boolean beam;
+        int beamColour;
         int row;
     }
 
@@ -135,7 +138,10 @@ final class RspsHudGroundItems {
         return ((long) id << 32) | tileKey;
     }
 
-    /** {@code level,x,z,id,ticks,ge,ha,flags;...} - ticks -1 = never despawns, -2 = none of these left on the tile. */
+    /**
+     * {@code level,x,z,id,ticks,ge,ha,flags,amount;...} - ticks -1 = never despawns, -2 = none of these left on the tile; amount =
+     * the server's real total (the OBJ_ADD packet's count is 16-bit, so stacks over 65 535 arrive wrapped).
+     */
     static void update(String rest) {
         for (String entry : rest.split(";")) {
             String[] f = entry.split(",");
@@ -151,7 +157,8 @@ final class RspsHudGroundItems {
                 long end = ticks < 0 ? -1L : RspsHud.now() + ticks * RspsHud.TICK_MS;
                 long ha = f.length > 6 ? Long.parseLong(f[6]) : 0L;
                 long flags = f.length > 7 ? Long.parseLong(f[7]) : 0L;
-                SERVER.put(key, new long[]{end, Long.parseLong(f[5]), ha, flags});
+                long amount = f.length > 8 ? Long.parseLong(f[8]) : -1L;
+                SERVER.put(key, new long[]{end, Long.parseLong(f[5]), ha, flags, amount});
                 if ((flags & FLAG_FRESH) != 0 && (flags & FLAG_MINE) != 0) {
                     freshDrops.add(key);
                 }
@@ -311,6 +318,9 @@ final class RspsHudGroundItems {
             String name = names.apply(id);
             long serverKey = serverKey(key, id);
             long[] server = SERVER.get(serverKey);
+            if (server != null && server.length > 4 && server[4] > 0L) {
+                count = server[4];
+            }
             long ge = server == null ? 0L : server[1] * count;
             long ha = server == null ? 0L : server[2] * count;
             long flags = server == null ? 0L : server[3];
@@ -327,7 +337,8 @@ final class RspsHudGroundItems {
             label.highlighted = RspsHudConfig.isHighlighted(name);
             boolean underValue = hideUnder > 0L && server != null && Math.max(ge, ha) < hideUnder
                 && !((flags & FLAG_UNTRADEABLE) != 0 && keepUntradeables);
-            label.hidden = !label.highlighted && (RspsHudConfig.isHidden(name) || underValue);
+            label.listedHidden = !label.highlighted && RspsHudConfig.isHidden(name);
+            label.hidden = label.listedHidden || (!label.highlighted && underValue);
             if (onlyHighlighted && !label.highlighted) {
                 label.hidden = true;
             }
@@ -342,10 +353,10 @@ final class RspsHudGroundItems {
             } else {
                 label.colour = RspsHudConfig.tierColour(tier);
             }
-            label.beam = !label.hidden && ((label.highlighted && beamHighlighted) || tier >= beamTier);
             StringBuilder text = new StringBuilder(name);
+            // GroundItemsOverlay: "Name (quantity)".
             if (count > 1L) {
-                text.append(" x").append(RspsHud.formatValue(count));
+                text.append(" (").append(RspsHud.formatValue(count)).append(")");
             }
             if (!coins && server != null) {
                 if (prices.equals("BOTH")) {
@@ -358,7 +369,7 @@ final class RspsHudGroundItems {
                 } else if (prices.equals("GE") && ge > 0L) {
                     text.append(" (").append(RspsHud.formatValue(ge)).append(" gp)");
                 } else if (prices.equals("HA") && ha > 0L) {
-                    text.append(" (HA: ").append(RspsHud.formatValue(ha)).append(" gp)");
+                    text.append(" (").append(RspsHud.formatValue(ha)).append(" gp)");
                 }
             }
             label.text = text.toString();
@@ -369,6 +380,35 @@ final class RspsHudGroundItems {
         }
         if (tile.isEmpty()) {
             return;
+        }
+        // GroundItemsPlugin.handleLootbeam: one beam per tile - a highlighted item (when "Show lootbeam for highlighted items" is on)
+        // in the highlight colour, else the most valuable item not on the hidden list when it is above the beam tier, in its tier's
+        // colour. Under-value hiding and the label overlay do not matter.
+        Label beam = null;
+        if (beamHighlighted) {
+            for (Label label : tile) {
+                if (label.highlighted) {
+                    beam = label;
+                    beam.beamColour = RspsHudConfig.colour("grounditems.highlightedColor");
+                    break;
+                }
+            }
+        }
+        if (beam == null) {
+            for (Label label : tile) {
+                if (!label.listedHidden && (beam == null || label.value > beam.value)) {
+                    beam = label;
+                }
+            }
+            int tier = beam == null ? RspsHudConfig.TIER_NONE : RspsHudConfig.tier(beam.value);
+            if (beam != null && tier != RspsHudConfig.TIER_NONE && tier >= beamTier) {
+                beam.beamColour = RspsHudConfig.tierColour(tier);
+            } else {
+                beam = null;
+            }
+        }
+        if (beam != null) {
+            beam.beam = true;
         }
         // Most valuable at the bottom, nearest the item, like RuneLite's stacking.
         Collections.sort(tile, new Comparator<Label>() {
@@ -389,18 +429,15 @@ final class RspsHudGroundItems {
         if (label.highlighted && RspsHudConfig.bool("grounditems.notifyHighlightedDrops")) {
             kind = "highlighted";
         } else if (tier >= RspsHudConfig.tierSetting("grounditems.notifyTier")) {
-            String[] tiers = {"", "low", "medium", "high", "insane"};
-            kind = tiers[tier] + " value";
+            kind = "valuable";
         }
         if (kind == null) {
             return;
         }
+        // GroundItemsPlugin.notifyHighlightedItem: "You received a highlighted / valuable drop: Name (quantity)", no price.
         StringBuilder message = new StringBuilder("You received a ").append(kind).append(" drop: ").append(label.name);
         if (label.count > 1L) {
-            message.append(" x").append(RspsHud.formatValue(label.count));
-        }
-        if (label.value > 0L) {
-            message.append(" (").append(RspsHud.formatValue(label.value)).append(" gp)");
+            message.append(" (").append(RspsHud.formatValue(label.count)).append(")");
         }
         RspsHud.notify(message.toString());
     }
@@ -541,6 +578,8 @@ final class RspsHudGroundItems {
         String mode = RspsHudConfig.get("grounditems.itemHighlightMode");
         boolean overlay = (mode.equals("OVERLAY") || mode.equals("BOTH")) && !hideAll;
         boolean tiles = RspsHudConfig.bool("grounditems.highlightTiles") && !hideAll;
+        // Loot beams first: RuneLite's are scene objects, there whatever the label overlay or the double-tap hide does.
+        drawBeams(screenX, screenY);
         if (!overlay && !tiles && !hotkey) {
             return;
         }
@@ -566,9 +605,6 @@ final class RspsHudGroundItems {
                 int fineZ = (localZ << 9) + 256;
                 if (row == 0 && tiles) {
                     tileOutline(label.level, localX, localZ, label.colour, screenX, screenY);
-                }
-                if (label.beam && overlay && row == 0) {
-                    lootbeam(label.level, fineX, fineZ, label.colour, screenX, screenY);
                 }
                 if (!overlay && !hotkey) {
                     row++;
@@ -663,6 +699,24 @@ final class RspsHudGroundItems {
             int[] a = corners[i];
             int[] b = corners[(i + 1) % 4];
             Toolkit.active.line(a[0], a[1], b[0], b[1], colour, 1);
+        }
+    }
+
+    /** Every tile's loot beam on the player's level (GroundItemsPlugin.handleLootbeam picked it in buildTile). */
+    private static void drawBeams(int screenX, int screenY) {
+        int selfLevel = PlayerEntity.self.level;
+        for (List<Label> tile : labels.values()) {
+            for (Label label : tile) {
+                if (!label.beam || label.level != selfLevel) {
+                    continue;
+                }
+                int localX = label.x - WorldMap.areaBaseX;
+                int localZ = label.z - WorldMap.areaBaseZ;
+                if (localX < 0 || localZ < 0 || localX >= Static720.mapWidth || localZ >= Static501.mapLength) {
+                    continue;
+                }
+                lootbeam(label.level, (localX << 9) + 256, (localZ << 9) + 256, label.beamColour, screenX, screenY);
+            }
         }
     }
 
