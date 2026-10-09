@@ -358,9 +358,6 @@ public final class MiniMenu {
                             addEntryInner(false, -1, 0L, local140, local142, "Copy " + RspsDev.pickName + " here", RspsDev.ACTION_COPY_HERE, true, -1, here, (local142 | local140 << 0) + 0x44000000L, true);
                             addEntryInner(false, -1, 0L, local140, local142, "Move " + RspsDev.pickName + " here", RspsDev.ACTION_MOVE_HERE, true, -1, here, (local142 | local140 << 0) + 0x43000000L, true);
                         }
-                        addEntryInner(false, -1, 0L, local140, local142, "78 small", RspsDev.ACTION_SMALL_TILE, true, -1, here, (local142 | local140 << 0) + 0x46000000L, true);
-                        addEntryInner(false, -1, 0L, local140, local142, "78 standard", RspsDev.ACTION_STANDARD_TILE, true, -1, here, (local142 | local140 << 0) + 0x42000000L, true);
-                        addEntryInner(false, -1, 0L, local140, local142, "78 banner", RspsDev.ACTION_BANNER_TILE, true, -1, here, (local142 | local140 << 0) + 0x41000000L, true);
                         addEntryInner(false, -1, 0L, local140, local142, "Tag tile", RspsDev.ACTION_TAG_TILE, true, -1, here, (local142 | local140 << 0) + 0x40000000L, true);
                         addEntryInner(false, -1, 0L, local140, local142, "Teleport here", RspsDev.ACTION_TELE_TILE, true, -1, here, (local142 | local140 << 0) + 0x45000000L, true);
                         // Place mode (owner 2026-10-06): the Legacy Deadman logo / wide banner / flag free on this tile.
@@ -609,8 +606,6 @@ public final class MiniMenu {
                                     addEntryInner(false, -1, locV1, local186, local584, "Remove teleport", RspsDev.ACTION_UNTELE, true, -1, locLabel, local1654.hashCode(), false);
                                     addEntryInner(false, -1, locV1, local186, local584, "Teleport from", RspsDev.ACTION_TELE_FROM, true, -1, locLabel, local1654.hashCode(), false);
                                     addEntryInner(false, -1, locV1, local186, local584, "Walk-through on/off", RspsDev.ACTION_PASSABLE, true, -1, locLabel, local1654.hashCode(), false);
-                                    addEntryInner(false, -1, locV1, local186, local584, "Hang 78 small", RspsDev.ACTION_HANG_SMALL, true, -1, locLabel, local1654.hashCode(), false);
-                                    addEntryInner(false, -1, locV1, local186, local584, "Hang 78 banner", RspsDev.ACTION_HANG_BANNER, true, -1, locLabel, local1654.hashCode(), false);
                                     for (int nudge = 3; nudge >= 0; nudge--) {
                                         addEntryInner(false, -1, locV1, local186, local584, "Nudge " + RspsDev.NUDGE_NAMES[nudge], RspsDev.ACTION_NUDGE_LOC + nudge, true, -1, locLabel, local1654.hashCode(), false);
                                     }
