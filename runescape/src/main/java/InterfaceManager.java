@@ -191,6 +191,18 @@ public final class InterfaceManager {
 
     private static final int[] fitCorner = new int[3];
 
+    /**
+     * The fit per preview component, computed once per shown item / npc: {key, scale, centreX - offsetX, centreY - offsetY,
+     * width, height}. Owner 2026-10-10: pets are previewed as their npc in its idle animation, whose bounding box changes every
+     * frame - fitting every frame made the model pump in and out, so the first frame's fit is kept while the same model shows.
+     */
+    private static final java.util.HashMap<Integer, int[]> fitCache = new java.util.HashMap<>();
+
+    /** A preview component that shows an item or an npc model (Component.OBJ_TYPE_NPCMODEL, set by the store's clientscript). */
+    private static boolean hasFittedModel(Component child) {
+        return child.invObject != -1 || child.objType == Component.OBJ_TYPE_NPCMODEL;
+    }
+
     private static boolean isFittedPreview(Component child) {
         int interfaceId = child.slot >>> 16; // slot = (interface << 16) | component (InterfaceList); id is unrelated
         for (int id : FITTED_PREVIEW_INTERFACES) {
@@ -207,6 +219,12 @@ public final class InterfaceManager {
      * scale for both axes, so the item is never stretched.
      */
     private static void fitModelToBox(Component child, Model model, int offsetX, int offsetY) {
+        int key = child.invObject != -1 ? child.invObject : 0x40000000 | child.obj;
+        int[] cached = fitCache.get(child.slot);
+        if (cached != null && cached[0] == key && cached[4] == child.width && cached[5] == child.height) {
+            Toolkit.active.DA(offsetX + cached[2], offsetY + cached[3], cached[1], cached[1]);
+            return;
+        }
         int[] xs = { model.V(), model.RA() };
         int[] ys = { model.fa(), model.EA() };
         int[] zs = { model.HA(), model.G() };
@@ -240,6 +258,7 @@ public final class InterfaceManager {
         }
         int centreX = offsetX + child.width / 2 - (int) ((minX + maxX) / 2.0F * scale);
         int centreY = offsetY + child.height / 2 - (int) ((minY + maxY) / 2.0F * scale);
+        fitCache.put(child.slot, new int[] { key, scale, centreX - offsetX, centreY - offsetY, child.width, child.height });
         Toolkit.active.DA(centreX, centreY, scale, scale);
     }
 
@@ -983,7 +1002,7 @@ public final class InterfaceManager {
 
                             child.method3384(Toolkit.active, model, Static59.aMatrix_5, TimeUtils.clock);
 
-                            if (!child.orthoView && child.invObject != -1 && isFittedPreview(child)) {
+                            if (!child.orthoView && hasFittedModel(child) && isFittedPreview(child)) {
                                 fitModelToBox(child, model, offsetX, offsetY);
                             }
 
