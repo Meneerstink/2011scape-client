@@ -20,9 +20,10 @@ import java.util.Map;
  * drawn after the whole interface tree (DeadmanSkullHud.drawOverlay) and so is never hidden (owner: it may never
  * disappear). The mouse-over text and the RSPS overlays (RspsHud) are skipped too.
  * <p>
- * Owner: the scene in "HD, max settings, beautiful graphics". On {@code cine|1} the player's own settings are kept
- * ({@link ClientOptions#encode}), every graphics option goes to the highest value its own validate() allows and the
- * hardware toolkit is used; {@code cine|0} puts the kept settings and toolkit back. Both are applied at the client's safe
+ * Owner 2026-10-08: the scene in HD. On {@code cine|1} the player's own settings are kept ({@link ClientOptions#encode}),
+ * the hardware toolkit is used with the 78 medium preset ({@link RspsGraphicsProfile#apply}, the Graphics menu's "medium") -
+ * owner 2026-10-10: "HD, maar niet max", max settings made the intro lag on his laptop; {@code cine|0} puts the kept settings
+ * and toolkit back. Both are applied at the client's safe
  * point ({@link #process}, next to RspsGraphicsProfile.processPendingRestore) and the scene values are never saved.
  */
 public final class RspsCinematic {
@@ -33,6 +34,8 @@ public final class RspsCinematic {
     private static final int CHATBOX = 752;
     private static final int CHATBOX_DIALOGUE = 13;
     private static final int CHAT_HISTORY = 137;
+    /** The world map top level. */
+    private static final int WORLD_MAP = 755;
     /** Sub-interfaces the game frame may still show: the chatbox, fade to black, fade from black. */
     private static final int[] FRAME_SUBS = {CHATBOX, 115, 170};
 
@@ -89,9 +92,8 @@ public final class RspsCinematic {
             }
             int hardware = ToolkitType.isHardware(keptToolkit) ? keptToolkit : ToolkitType.GL;
             options.update(hardware, options.toolkit);
-            maxOut(options);
+            RspsGraphicsProfile.apply(options);
             Static32.setToolkit(hardware, false);
-            maxOut(options);
             Static77.method1561();
         } else if (kept != null) {
             Packet own = new Packet(kept);
@@ -105,30 +107,11 @@ public final class RspsCinematic {
         }
     }
 
-    /** Every graphics option at its highest legal value (each option's validate() range; unsupported ones fall back). */
-    private static void maxOut(ClientOptions options) {
-        options.antialiasingMode.setSafeValue(2);
-        options.antialiasingQuality.setSafeValue(2);
-        options.bloom.setSafeValue(1);
-        options.buildArea.setSafeValue(2);
-        options.spotShadows.setSafeValue(1);
-        options.hardShadows.setSafeValue(2);
-        options.lightDetail.setSafeValue(1);
-        options.waterDetail.setSafeValue(2);
-        options.fog.setSafeValue(1);
-        options.skydetail.setSafeValue(1);
-        options.idleAnimations.setSafeValue(2);
-        options.groundDecor.setSafeValue(1);
-        options.groundBlending.setSafeValue(1);
-        options.textures.setSafeValue(1);
-        options.flickeringEffects.setSafeValue(1);
-        options.particles.setSafeValue(2);
-        options.validate();
-    }
-
     /** InterfaceManager.draw: true when [child] is not drawn this frame. */
     static boolean hide(Component child) {
-        if (!active || child == null) {
+        if (!active || child == null || InterfaceManager.topLevelInterface == WORLD_MAP) {
+            // The guard scene's world map is shown in scene mode (owner 2026-10-10): leaving it (cine|0) switched the client
+            // back to the player's own graphics and the map stood on "Loading - please wait" for 8 of its 10 seconds.
             return false;
         }
         int iface = child.slot >>> 16;
