@@ -1,5 +1,12 @@
 import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.security.MessageDigest;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
@@ -46,7 +53,72 @@ public final class MansionMusic {
     /** The MIDI track that was playing when the player walked in; restored once the mansion music has faded out. */
     private static int savedMidi = -1;
 
+    /**
+     * The player client no longer carries the track (owner 2026-10-11: the 27 MB client could not be sent over Discord - this mp3
+     * was 13.7 MB of it). It is downloaded once from the website on the first visit, checked against [TRACK_SHA256] and kept
+     * next to the client's cache; the owner's dev client still finds it on the classpath (runescape resources).
+     */
+    private static final String TRACK_URL = "https://78legacy.com/downloads/mansion.mp3";
+    private static final String TRACK_SHA256 = "e793db41f3cfaf429666d55d7b8a6b5320c03e9c4cbd999da3a49c193b9bd34a";
+
     private MansionMusic() {
+    }
+
+    private static File trackFile() {
+        return new File(new File(System.getProperty("user.home"), ".jagex_cache_32"), "78-mansion.mp3");
+    }
+
+    /** The track: classpath (dev client), else the downloaded copy, else downloaded now. Null when it cannot be had. */
+    private static InputStream openTrack() throws Exception {
+        InputStream resource = MansionMusic.class.getResourceAsStream("/music/mansion.mp3");
+        if (resource != null) {
+            return resource;
+        }
+        File file = trackFile();
+        if (!file.isFile() || !TRACK_SHA256.equals(sha256(file))) {
+            download(file);
+        }
+        return file.isFile() ? new FileInputStream(file) : null;
+    }
+
+    private static void download(File file) throws Exception {
+        file.getParentFile().mkdirs();
+        File part = new File(file.getPath() + ".part");
+        HttpURLConnection connection = (HttpURLConnection) new URL(TRACK_URL).openConnection();
+        connection.setConnectTimeout(10_000);
+        connection.setReadTimeout(30_000);
+        try (InputStream in = connection.getInputStream(); OutputStream out = new FileOutputStream(part)) {
+            byte[] buffer = new byte[64 * 1024];
+            for (int n; (n = in.read(buffer)) != -1; ) {
+                out.write(buffer, 0, n);
+            }
+        } finally {
+            connection.disconnect();
+        }
+        if (!TRACK_SHA256.equals(sha256(part))) {
+            part.delete();
+            throw new IllegalStateException("mansion.mp3 download does not match its checksum");
+        }
+        file.delete();
+        if (!part.renameTo(file)) {
+            part.delete();
+            throw new IllegalStateException("mansion.mp3 could not be saved");
+        }
+    }
+
+    private static String sha256(File file) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (InputStream in = new FileInputStream(file)) {
+            byte[] buffer = new byte[64 * 1024];
+            for (int n; (n = in.read(buffer)) != -1; ) {
+                digest.update(buffer, 0, n);
+            }
+        }
+        StringBuilder hex = new StringBuilder();
+        for (byte b : digest.digest()) {
+            hex.append(String.format("%02x", b));
+        }
+        return hex.toString();
     }
 
     public static boolean contains(int x, int z, int level) {
@@ -71,7 +143,8 @@ public final class MansionMusic {
                 now = contains(x, z, self.level);
             }
             inside = now;
-            if (now) {
+            // No track (download failed) or no audio device: the area's MIDI keeps playing instead of silence.
+            if (now && !failed) {
                 if (!running) {
                     start();
                 }
@@ -115,7 +188,7 @@ public final class MansionMusic {
         SourceDataLine line = null;
         try {
             while (true) {
-                InputStream resource = MansionMusic.class.getResourceAsStream("/music/mansion.mp3");
+                InputStream resource = openTrack();
                 if (resource == null) {
                     failed = true;
                     return;

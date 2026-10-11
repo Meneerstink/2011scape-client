@@ -33,6 +33,17 @@ tasks.named<JavaExec>("run") {
 
 // Configure the JAR task to include dependencies
 tasks.named<Jar>("jar") {
+    // The BouncyCastle packages the client's RSA key reading needs (a local value: the configuration cache cannot hold script fields).
+    val bouncyCastleKeep = listOf(
+        Regex("org/bouncycastle/LICENSE\\.class"),
+        Regex("org/bouncycastle/asn1/[^/]+"),
+        Regex("org/bouncycastle/asn1/(pkcs|x509|x9)/[^/]+"),
+        Regex("org/bouncycastle/crypto/[^/]+"),
+        Regex("org/bouncycastle/crypto/params/[^/]+"),
+        Regex("org/bouncycastle/math/.+"),
+        Regex("org/bouncycastle/util/.+"),
+    )
+
     from(sourceSets.main.get().output)
 
     // Include runtime dependencies while excluding META-INF
@@ -40,7 +51,18 @@ tasks.named<Jar>("jar") {
         configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) }
     }) {
         exclude("META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA")
+        // Owner 2026-10-11: the 27 MB player client could not be sent over Discord. Left out of the player jar:
+        // - the mansion soundtrack (13.7 MB): MansionMusic downloads it once from the website on the first visit;
+        // - META-INF/versions: Java 9+ copies of library classes, never read (this manifest is not Multi-Release);
+        // - BouncyCastle beyond what com.jagex.crypto reaches (jdeps closure 2026-10-11: 264 classes in asn1, asn1.pkcs/x509/x9,
+        //   crypto, crypto.params, math, util; no reflection there). The rest (post-quantum, CMS, TLS ...) was ~8 MB.
+        exclude("music/mansion.mp3", "META-INF/versions/**")
+        exclude { element ->
+            val path = element.path
+            !element.isDirectory && path.startsWith("org/bouncycastle/") && bouncyCastleKeep.none { it.matches(path) }
+        }
     }
+    includeEmptyDirs = false
 
     manifest {
         attributes["Main-Class"] = "RS2Loader" // Replace with your actual main class
