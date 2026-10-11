@@ -22,7 +22,7 @@ public final class Base37RegressionTest {
         check(Base37.decode(6582952005840035280L) != null, "37^12 - 1 (twelve 9s) is the largest name");
         check(Base37.encode("abcdefghijklmnop") == Base37.encode("abcdefghijkl"), "names stop at twelve symbols");
         // The display form joins words with the 2011 non-breaking space (NameTools.isWhitespace counts it).
-        check("Mod Ash".equals(Base37.decodeName(Base37.encode("mod ash"))), "display form: " + Base37.decodeName(Base37.encode("mod ash")));
+        check("Mod\u00A0Ash".equals(Base37.decodeName(Base37.encode("mod ash"))), "display form: " + Base37.decodeName(Base37.encode("mod ash")));
         check("Nighttest".equals(NameTools.normalise("nighttest")), "NameTools.normalise: " + NameTools.normalise("nighttest"));
         System.out.println("Base37 regression checks passed: " + assertions);
     }
