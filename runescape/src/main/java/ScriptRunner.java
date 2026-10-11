@@ -7663,7 +7663,12 @@ public final class ScriptRunner {
                 }
             } else if (opcode < 7100) {
                 if (opcode == AUTOSETUP_DOSETUP) {
+                    int levelBefore = ClientOptions.instance.graphicsQuality.getValue();
                     @Pc(192) int local192 = Static519.autosetup();
+                    // Owner D3 2026-10-11 ("settings reset to max on every start"): name every auto setup and who ran it.
+                    System.out.println("[78] graphics auto setup ran from script " + currentScriptId
+                        + ": level " + levelBefore + " -> " + ClientOptions.instance.graphicsQuality.getValue() + " (benchmark level " + local192
+                        + "), toolkit " + ClientOptions.instance.toolkit.getValue());
                     intStack[intStackPointer++] = Static165.anInt2810 = ClientOptions.instance.toolkit.getValue();
                     intStack[intStackPointer++] = local192;
                     MainLogicManager.mapBuild();

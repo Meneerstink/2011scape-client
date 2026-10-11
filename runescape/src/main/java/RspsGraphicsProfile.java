@@ -116,6 +116,33 @@ public final class RspsGraphicsProfile {
         options.graphicsQuality.setSafeValue(3); // Rev-667 MID.
     }
 
+    /** Client variables of the login screen's first-start graphics flow (scripts 1129, 3384, 3385, 3411). */
+    static final int VARC_CUSTOM_CURSORS = 987;
+    static final int VARC_FIRST_START_SETUP = 1240;
+    static final int VARC_FIRST_START_PROMPT = 1277;
+
+    /**
+     * Owner D3 2026-10-11 ("settings reset to max on every start"; owner rule: a first start is MEDIUM, players raise it
+     * themselves). With no saved client variables the login screen ran Jagex's first start: script 1129 switched custom
+     * cursors ON (varc 987 -1 -> 1), which marked this MID profile "Custom", and script 3385 opened "This is your first time
+     * playing - Auto Setup", whose benchmark (3384) picks the best level - HIGH on any recent PC. A first start now counts
+     * as the player having chosen "Leave Alone" (script 3411: varc 1240 = 3, 1277 = 0) on the 78 profile, custom cursors off
+     * (owner requirement). "Re-run auto setup" in Graphics Options still runs the benchmark when a player asks for it.
+     */
+    static void firstStartVarcs() {
+        int[] varcs = Static511.varcs;
+        if (varcs == null || varcs.length <= VARC_FIRST_START_SETUP || varcs[VARC_FIRST_START_SETUP] != -1) {
+            return;
+        }
+        varcs[VARC_FIRST_START_SETUP] = 3;
+        varcs[VARC_FIRST_START_PROMPT] = 0;
+        if (varcs[VARC_CUSTOM_CURSORS] == -1) {
+            varcs[VARC_CUSTOM_CURSORS] = 0;
+        }
+        Static624.varcSaveRecommended = true;
+        System.out.println("[78] graphics: first start - " + NAME + " profile kept, no auto setup prompt, custom cursors off");
+    }
+
     /** Called by the AWT menu; actual changes belong on the game thread. */
     public static void requestRestore() {
         restoreRequested.set(true);

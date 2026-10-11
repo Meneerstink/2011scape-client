@@ -166,7 +166,23 @@ public final class ClientOptions extends Node {
     int windowHeight;
     int cameraZoom = CameraZoomController.DEFAULT_ZOOM;
 
-    public void markCustom() { graphicsQuality.setValue(0); }
+    public void markCustom() {
+        traceCustom("markCustom");
+        graphicsQuality.setValue(0);
+    }
+
+    /** Owner D3 2026-10-11: every switch of the graphics level to Custom is named in the client log, with its cause. */
+    private void traceCustom(String why) {
+        if (graphicsQuality != null && graphicsQuality.getValue() != 0) {
+            StackTraceElement caller = new Throwable().getStackTrace()[2];
+            // The HIGH / LOW / MIN presets set every option and then their own level: not a switch to Custom.
+            if (caller.getClassName().equals("Static395") || caller.getClassName().equals("Static75") || caller.getClassName().equals("Static468")) {
+                return;
+            }
+            System.out.println("[78] graphics level " + graphicsQuality.getValue() + " -> Custom: " + why + " from "
+                + caller.getClassName() + "." + caller.getMethodName() + ":" + caller.getLineNumber() + " (script " + ScriptRunner.currentScriptId + ")");
+        }
+    }
 
     int startupWindowMode() {
         return preferredWindowMode == 0 ? screenSizeDefault.getValue() : preferredWindowMode;
@@ -501,15 +517,21 @@ public final class ClientOptions extends Node {
     @OriginalMember(owner = "client!kv", name = "a", descriptor = "(IILclient!ta;)V")
     public void update(@OriginalArg(1) int value, @OriginalArg(2) Option option) {
         int previous = option.value;
+        if (option == graphicsQuality && value == 0) {
+            traceCustom("level set to Custom");
+        }
         option.setSafeValue(value);
         option.validate();
         if (option == antialiasingQuality) antialiasingMode.value = option.value;
         if (option == antialiasingMode) antialiasingQuality.value = option.value;
-        if (previous != option.value && option != graphicsQuality && option != toolkit
+        // The renderer is no quality level (toolkit was already left out): a first start picks OpenGL through toolkitDefault
+        // (Loading, needsDefaultRenderer), which turned the 78 profile into "Custom" (owner D3 2026-10-11).
+        if (previous != option.value && option != graphicsQuality && option != toolkit && option != toolkitDefault
             && option != safeMode && option != loadingSequence && option != stereoSound
             && !(option instanceof VolumeOption) && option != animateBackground
             && option != removeRoofsOverride && option != screenSize) {
-            markCustom();
+            traceCustom(option.getClass().getSimpleName() + " " + previous + " -> " + option.value);
+            graphicsQuality.setValue(0);
         }
         if (option == maxScreenSize) Fullscreen.modes = null;
     }

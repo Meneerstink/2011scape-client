@@ -35,7 +35,10 @@ public final class GraphicsDisplayRegressionTest {
             Map<String, Integer> before = snapshot(options);
             options.update(values[i], option(options, names[i]));
             check(option(options, names[i]).value == values[i], "Changed " + names[i]);
-            check(options.graphicsQuality.getValue() == 0, "CUSTOM after " + names[i]);
+            // The renderer default is no quality level (owner D3 2026-10-11): a first start / auto setup sets it without making the
+            // level Custom; the Software / OpenGL / DirectX buttons still mark Custom themselves (DETAIL_TOOLKIT -> markCustom).
+            boolean renderer = names[i].equals("toolkitDefault");
+            check(options.graphicsQuality.getValue() == (renderer ? 3 : 0), (renderer ? "MID kept after " : "CUSTOM after ") + names[i]);
             for (Map.Entry<String, Integer> field : before.entrySet()) {
                 String name = field.getKey();
                 if (name.equals(names[i]) || name.equals("graphicsQuality")) continue;
@@ -65,6 +68,18 @@ public final class GraphicsDisplayRegressionTest {
         check(custom.encode().pos == 35 && custom.encode().data[0] == 25, "Server remains v25 / 35 bytes");
         for (int length = 35; length < saved.length; length++)
             check(Arrays.equals(packet(custom), packet(read(Arrays.copyOf(saved, length)))), "Partial local trailer at " + length);
+        // Owner D3 2026-10-11: a first start counts as "Leave Alone" (script 3411) - no "first time playing / Auto Setup" prompt
+        // that would benchmark the PC up to HIGH, custom cursors off; saved client variables are never touched.
+        int[] savedVarcs = Static511.varcs;
+        Static511.varcs = new int[2000];
+        Arrays.fill(Static511.varcs, -1);
+        RspsGraphicsProfile.firstStartVarcs();
+        check(Static511.varcs[1240] == 3 && Static511.varcs[1277] == 0 && Static511.varcs[987] == 0, "First start: Leave Alone, cursors off");
+        Static511.varcs[987] = 1;
+        Static511.varcs[1240] = 2;
+        RspsGraphicsProfile.firstStartVarcs();
+        check(Static511.varcs[1240] == 2 && Static511.varcs[987] == 1, "Saved client variables are kept");
+        Static511.varcs = savedVarcs;
         int sky = custom.skydetail.getValue();
         RspsGraphicsProfile.apply(custom);
         check(custom.skydetail.getValue() == sky && custom.cameraZoom == 485, "MID preserves sky and camera");

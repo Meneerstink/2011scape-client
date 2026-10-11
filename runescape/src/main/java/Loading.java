@@ -539,6 +539,7 @@ public final class Loading {
                 Static511.varcs[local12] = -1;
             }
             Static218.readVarcs();
+            RspsGraphicsProfile.firstStartVarcs();
             js5.MAPS.clearNames(false, true);
             js5.MIDI_SONGS.clearNames(true, true);
             js5.SPRITES.clearNames(true, true);
