@@ -812,9 +812,7 @@ public final class GlToolkit extends Toolkit {
 
     @OriginalMember(owner = "client!qha", name = "v", descriptor = "(I)V")
     public void method6969() {
-        // RSPS: the fog keeps its distance from the player when the camera zooms out past the 667 default
-        // (CameraZoomController.fogExtraDistance); otherwise a fogged area (underground: black fog) went fully black.
-        this.aFloat134 = (float) (this.anInt8018 - this.anInt8009) - this.aFloat147 + CameraZoomController.fogExtraDistance;
+        this.aFloat134 = (float) (this.anInt8018 - this.anInt8009) - this.aFloat147;
         this.aFloat132 = this.aFloat134 - this.aFloat139 * (float) this.anInt8008;
         if (this.aFloat132 < (float) this.anInt8010) {
             this.aFloat132 = (float) this.anInt8010;

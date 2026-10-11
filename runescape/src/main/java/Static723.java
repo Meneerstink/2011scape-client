@@ -9,7 +9,8 @@ public final class Static723 {
     @OriginalMember(owner = "client!wu", name = "c", descriptor = "(B)V")
     public static void method9451() {
         @Pc(5) short local5 = 1024;
-        @Pc(7) short local7 = 3072;
+        // RuneLite Camera "Expand pitch limit" (pitch relaxer): 3072 = OSRS 383, relaxed 4096 = 512.
+        @Pc(7) int local7 = RspsCamera.maxPitch();
         if (OrthoMode.enabled) {
             if (Static129.orthoCameraLock) {
                 local5 = 2048;

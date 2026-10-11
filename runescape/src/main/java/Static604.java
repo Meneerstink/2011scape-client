@@ -49,8 +49,10 @@ public final class Static604 {
             }
             Static38.anInt920 += local76;
         }
-        Camera.playerCameraPitch += Camera.angleAxisY * (float) arg0 / 6.0F;
-        Camera.playerCameraYaw += (float) arg0 * Camera.angleAxisX / 6.0F;
+        // OSRS (Client.java camAngleY += camAngleDY / 2 per 20 ms cycle, x8 here): the same rate as follow mode (Static349).
+        // The 2011 client divided by 6 - the camera turned at 5/6 of OSRS's speed (owner 2026-10-11: rotation speed off).
+        Camera.playerCameraPitch += Camera.angleAxisY * (float) arg0 / 40.0F * 8.0F;
+        Camera.playerCameraYaw += Camera.angleAxisX * (float) arg0 / 40.0F * 8.0F;
         Static723.method9451();
     }
 

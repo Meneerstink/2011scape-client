@@ -63,7 +63,8 @@ public final class CompleteMouseMonitor extends MouseMonitor implements MouseLis
     @OriginalMember(owner = "client!ht", name = "mouseReleased", descriptor = "(Ljava/awt/event/MouseEvent;)V")
     @Override
     public synchronized void mouseReleased(@OriginalArg(0) MouseEvent event) {
-        @Pc(4) int type = this.getClickType(event);
+        // RuneLite Camera plugin: a remapped press is released as the button it was turned into.
+        @Pc(4) int type = com.jagex.CameraMouse.release(this.getClickType(event));
         if ((this.clickState & type) == 0) {
             type = this.clickState;
         }
@@ -186,7 +187,8 @@ public final class CompleteMouseMonitor extends MouseMonitor implements MouseLis
     @OriginalMember(owner = "client!ht", name = "mousePressed", descriptor = "(Ljava/awt/event/MouseEvent;)V")
     @Override
     public synchronized void mousePressed(@OriginalArg(0) MouseEvent event) {
-        @Pc(4) int type = this.getClickType(event);
+        // RuneLite Camera plugin: "Right-click moves camera" / "Middle-button opens menu".
+        @Pc(4) int type = com.jagex.CameraMouse.press(this.getClickType(event));
 
         if (type == CLICK_TYPE_LEFT) {
             this.log(com.jagex.StretchedMode.mouseY(event.getY()), com.jagex.StretchedMode.mouseX(event.getX()), MouseLog.TYPE_PRESS_LEFT, event.getClickCount());

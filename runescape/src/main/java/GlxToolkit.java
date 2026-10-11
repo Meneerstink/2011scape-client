@@ -261,8 +261,7 @@ public final class GlxToolkit extends NativeToolkit {
     @OriginalMember(owner = "client!tca", name = "t", descriptor = "(B)V")
     @Override
     protected void method8150() {
-        // RSPS: see GlToolkit.method6969 (fog keeps its distance from the player on an extended zoom).
-        super.aFloat192 = (float) (super.anInt9167 - super.anInt9185) + CameraZoomController.fogExtraDistance;
+        super.aFloat192 = (float) (super.anInt9167 - super.anInt9185);
         super.aFloat189 = super.aFloat192 - (float) super.anInt9175;
         if ((float) super.anInt9181 > super.aFloat189) {
             super.aFloat189 = (float) super.anInt9181;

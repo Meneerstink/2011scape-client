@@ -227,7 +227,7 @@ public final class Camera {
         if (Static188.anInt3103 >> 8 > local28) {
             local28 = Static188.anInt3103 >> 8;
         }
-        if (Shake.enabled[4] && local28 < Shake.amplitude[4] + 128) {
+        if (RspsCamera.shake(4) && local28 < Shake.amplitude[4] + 128) {
             local28 = Shake.amplitude[4] + 128;
         }
 
@@ -260,10 +260,8 @@ public final class Camera {
             local7 = 100;
         }
         @Pc(33) int local33 = local7 * (zoom - Static228.aShort45) / 100 + Static228.aShort45;
-        @Pc(33) int unscaled = local33;
-        // Keep script-controlled projection separate from persistent player wheel zoom.
-        local33 = CameraZoomController.scaleDistance(local33);
-        CameraZoomController.updateFogExtra((local33 - unscaled) * arg1 >> 8);
+        // The player's wheel zoom is OSRS's: a projection scale (CameraZoomController.projectionScale, Static294), so the
+        // camera keeps OSRS's distance - (pitch * 3 + 600) * zoomHeight..zoomWidth / 256 - at every zoom.
         OrthoMode.renderZoom = OrthoMode.zoom * local33 >> 8;
 
         @Pc(45) int local45 = local33 * arg1 >> 8;
@@ -511,7 +509,7 @@ public final class Camera {
     @OriginalMember(owner = "client!su", name = "b", descriptor = "(B)V")
     public static void increaseY() {
         if (!angleChangingY) {
-            angleAxisY += (12.0F - angleAxisY) / 2.0F;
+            angleAxisY += (12.0F * RspsCamera.speed() - angleAxisY) / 2.0F;
             angleChangingY = true;
             angleUpdated = true;
         }
@@ -521,7 +519,7 @@ public final class Camera {
     public static void decreaseY() {
         if (!angleChangingY) {
             angleUpdated = true;
-            angleAxisY += (-12.0F - angleAxisY) / 2.0F;
+            angleAxisY += (-12.0F * RspsCamera.speed() - angleAxisY) / 2.0F;
             angleChangingY = true;
         }
     }
@@ -531,14 +529,14 @@ public final class Camera {
         if (!angleChangingX) {
             angleUpdated = true;
             angleChangingX = true;
-            angleAxisX += (24.0F - angleAxisX) / 2.0F;
+            angleAxisX += (24.0F * RspsCamera.speed() - angleAxisX) / 2.0F;
         }
     }
 
     @OriginalMember(owner = "client!or", name = "d", descriptor = "(B)V")
     public static void decreaseX() {
         if (!angleChangingX) {
-            angleAxisX += (-angleAxisX - 24.0F) / 2.0F;
+            angleAxisX += (-angleAxisX - 24.0F * RspsCamera.speed()) / 2.0F;
             angleChangingX = true;
             angleUpdated = true;
         }

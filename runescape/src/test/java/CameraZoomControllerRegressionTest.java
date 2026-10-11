@@ -9,7 +9,8 @@ public final class CameraZoomControllerRegressionTest {
         check(CameraZoomController.adjustedZoom(150, 20) == 128, "Outer limit clamps at 128");
         check(CameraZoomController.adjustedZoom(880, -20) == 896, "Inner limit clamps at 896");
         check(CameraZoomController.adjustedZoom(512, Integer.MAX_VALUE) == 128, "Large wheel input cannot overflow");
-        check(CameraZoomController.scaleDistance(1000) == 1000, "512 is the client's normal camera distance");
+        // OSRS viewport_setfov: the zoom scales the projection by 2^((zoom - 512) / 256); the camera distance never changes.
+        check(CameraZoomController.projectionScale(1000) == 1000, "512 is the client's own projection");
 
         // Plugin on: RuneLite CameraConfig items.
         RspsHudConfig.put("zoom.enabled", "true");

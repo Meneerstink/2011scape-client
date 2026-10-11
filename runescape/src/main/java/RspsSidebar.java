@@ -775,6 +775,30 @@ final class RspsSidebar extends JPanel {
                 row.add(spinner, BorderLayout.EAST);
                 break;
             }
+            case RspsHudConfig.DECIMAL: {
+                // RuneLite ConfigPanel: a double item is a spinner of decimals.
+                final JSpinner spinner = new JSpinner(new SpinnerNumberModel(RspsHudConfig.decimal(key, 1.0), -Double.MAX_VALUE, Double.MAX_VALUE, 0.1));
+                spinner.setName(key);
+                Component editor = spinner.getEditor();
+                if (editor instanceof JSpinner.DefaultEditor) {
+                    ((JSpinner.DefaultEditor) editor).getTextField().setColumns(SPINNER_FIELD_WIDTH);
+                }
+                spinner.addChangeListener(e -> {
+                    String value = Double.toString(((Number) spinner.getValue()).doubleValue());
+                    if (!value.equals(RspsHudConfig.get(key))) {
+                        set(key, value);
+                    }
+                });
+                refreshers.put(key, () -> {
+                    double value = RspsHudConfig.decimal(key, 1.0);
+                    if (((Number) spinner.getValue()).doubleValue() != value) {
+                        spinner.setValue(value);
+                    }
+                });
+                row.add(name, BorderLayout.CENTER);
+                row.add(spinner, BorderLayout.EAST);
+                break;
+            }
             case RspsHudConfig.ENUM: {
                 final JComboBox<String> combo = new JComboBox<String>(setting.optionNames);
                 combo.setName(key);

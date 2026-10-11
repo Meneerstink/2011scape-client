@@ -178,7 +178,7 @@ public final class ClientOptions extends Node {
             update(mode, screenSizeDefault);
             update(mode, screenSize);
         }
-        markCustom();
+        // Not a graphics level option (update() leaves screenSize out of markCustom too): the chosen level stays.
         save();
     }
 

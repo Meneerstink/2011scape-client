@@ -12,9 +12,8 @@
  *  - "Control function": Hold to zoom (the wheel only zooms while Ctrl is down, "scrollWheelZoom") / Reset zoom (releasing
  *    Ctrl zooms to "Reset zoom position", CameraPlugin.keyReleased -> CAMERA_DO_ZOOM, clamped to the limits).
  *
- * The 667 camera zooms by distance, not by projection scale, so {@link #scaleDistance} turns the OSRS value into a
- * distance factor: 512 is this client's normal distance and the standard OSRS range 128..896 lands on this client's old
- * validated range (x2.06 out .. x0.48 in, the former 150..660 of 320), each 25 step the same relative change.
+ * The zoom acts as on OSRS: it scales the 3D projection ({@link #projectionScale}, viewport_setfov), the camera keeps its
+ * OSRS distance.
  */
 public final class CameraZoomController {
     static final int DEFAULT_ZOOM = 512;
@@ -97,27 +96,14 @@ public final class CameraZoomController {
     }
 
     /**
-     * How much further the camera stands than the 667 distance (world units, never negative). The GL fog range is measured
-     * from the camera, so the toolkits add this to the fog start / end (GlToolkit.method6969, GlxToolkit.method8150): the fog
-     * stays where it was around the player. Owner 2026-10-04 (031449 / 032935): zoomed fully out in the Barrows crypt the
-     * whole scene was fogged black - everything near the player lay beyond the fog end.
+     * OSRS's zoom (owner 2026-10-11): script 42 camera_do_zoom gives viewport_setfov the zoom value v, and the client turns
+     * it into the projection scale 2^(7 + v / 256) - 512 at the default 512. This client's scene projection (Static498:
+     * fov * viewport height / 334, the same formula as OSRS's viewportZoom) is that default, so the zoom multiplies it by
+     * 2^((v - 512) / 256). The camera itself stays at OSRS's distance; the 2011-era port moved the camera instead, so a
+     * far zoom put the scene behind the fog / far plane (black in Barrows, GWD) and a close one put the camera inside walls.
      */
-    static volatile int fogExtraDistance;
-
-    static void updateFogExtra(int extra) {
-        int value = Math.max(0, extra);
-        if (value == fogExtraDistance) {
-            return;
-        }
-        fogExtraDistance = value;
-        com.jagex.graphics.Toolkit toolkit = com.jagex.graphics.Toolkit.active;
-        if (toolkit instanceof GlToolkit) {
-            ((GlToolkit) toolkit).method6969();
-        }
-    }
-
-    static int scaleDistance(int distance) {
-        return (int) Math.round(distance * Math.pow(2.0, (DEFAULT_ZOOM - getZoom()) / UNITS_PER_DOUBLING));
+    static int projectionScale(int scale) {
+        return (int) Math.round(scale * Math.pow(2.0, (getZoom() - DEFAULT_ZOOM) / 256.0));
     }
 
     public static boolean applyWheelRotation(
@@ -143,7 +129,7 @@ public final class CameraZoomController {
     private static void setZoom(int zoom) {
         userZoom = zoom;
         if (ClientOptions.instance != null) {
-            ClientOptions.instance.markCustom();
+            // The zoom is no graphics option: the Graphics level (Low / Medium / High ...) stays as the player chose it.
             ClientOptions.instance.cameraZoom = userZoom;
             ClientOptions.save();
         }

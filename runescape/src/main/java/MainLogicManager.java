@@ -622,6 +622,10 @@ public final class MainLogicManager {
         RspsChatbox.tick();
         // RuneLite Camera: Ctrl for "Control function" (Hold to zoom / Reset zoom on release).
         CameraZoomController.tickControl(KeyboardMonitor.instance.isPressed(82), com.jagex.game.runetek6.client.GameShell.focus);
+        // RuneLite Camera plugin (mouse remapping, menu state) and OSRS's mouse camera, once per 20 ms cycle.
+        RspsCamera.tick();
+        rs2.client.event.mouse.MouseMonitor mouse = rs2.client.event.mouse.MouseMonitor.instance;
+        RspsCamera.mouseCamera(RspsCamera.middleForCamera(mouse.isMiddleDown(), mouse.isRightDown()), mouse.getRecordedX(), mouse.getRecordedY());
         // RuneLite Minimap "Zoom": the wheel over the minimap zooms the minimap, not the camera.
         if (RspsMinimapZoom.wheel(Static611.mouseWheelRotation)) {
             Static611.mouseWheelRotation = 0;

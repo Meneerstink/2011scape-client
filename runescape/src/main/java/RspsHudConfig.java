@@ -18,6 +18,8 @@ final class RspsHudConfig {
     static final int INT = 1;
     static final int ENUM = 2;
     static final int COLOR = 3;
+    /** RuneLite's double config items (CameraConfig.cameraSpeed). */
+    static final int DECIMAL = 4;
     static final int LIST = 4;
 
     /** One config item as the sidebar shows it. */
@@ -55,8 +57,8 @@ final class RspsHudConfig {
         {"opponent", "Opponent Information", "Show name and hitpoints information about the NPC you are fighting"},
         {"grounditems", "Ground Items", "Highlight ground items and/or show price information"},
         {"timers", "Timers & Buffs", "Show various timers in an infobox"},
-        // Owner 2026-09-30. RuneLite's Camera plugin keeps its old config group "zoom"; only its zoom items are imported.
-        {"zoom", "Camera", "Expands zoom limit"},
+        // Owner 2026-09-30. RuneLite's Camera plugin keeps its old config group "zoom"; owner 2026-10-11: the whole plugin.
+        {"zoom", "Camera", "Expands zoom limit, provides vertical camera, and remaps mouse input keys"},
         {"minimap", "Minimap", "Zoom the minimap"},
         {"loottracker", "Loot Tracker", "Tracks loot from monsters and minigames"},
         // Owner 2026-10-01: the resizable/fullscreen chatbox background (RspsChatbox).
@@ -102,6 +104,10 @@ final class RspsHudConfig {
 
     private static void choice(String plugin, String key, String name, String description, String def, String[] options, String[] names, String section) {
         add(plugin, key, ENUM, name, description, def, section, 0, options, names);
+    }
+
+    private static void decimal(String plugin, String key, String name, String description, double def, String section) {
+        add(plugin, key, DECIMAL, name, description, Double.toString(def), section, 0, null, null);
     }
 
     private static void colour(String plugin, String key, String name, String description, String def, String section) {
@@ -172,14 +178,27 @@ final class RspsHudConfig {
         choice(g, "lootbeamStyle", "Lootbeam style", "Style of lootbeam to use.", "MODERN", new String[]{"MODERN", "LEGACY"}, new String[]{"Modern", "Legacy"}, null);
         choice(g, "hotkey", "Hotkey", "Configures the hotkey used by the Ground Items plugin.", "ALT", new String[]{"ALT", "SHIFT", "CTRL"}, new String[]{"Alt", "Shift", "Ctrl"}, null);
 
-        // RuneLite CameraConfig (group "zoom"), the zoom items, positions 1..6.
+        // RuneLite CameraConfig (group "zoom"), every item in RuneLite's order (owner 2026-10-11: the whole plugin).
         String z = "zoom";
         bool(z, "inner", "Expand inner zoom limit", "Configures whether or not the inner zoom limit is reduced.", false, null);
         integer(z, "outerLimit", "Expand outer zoom limit", "Configures how much the outer zoom limit is adjusted.", 0, -400, 400, null);
+        bool(z, "relaxCameraPitch", "Expand pitch limit", "Relax the camera's upper and lower pitch limits. Allows vertical and horizontal camera movement.", false, null);
         choice(z, "controlFunction", "Control function", "Configures the zoom function when control is pressed.", "NONE",
             new String[]{"NONE", "CONTROL_TO_ZOOM", "CONTROL_TO_RESET"}, new String[]{"None", "Hold to zoom", "Reset zoom"}, null);
         integer(z, "ctrlZoomValue", "Reset zoom position", "Position of zoom when it is reset.", 512, -400, 1400, null);
         integer(z, "zoomIncrement", "Zoom speed", "Speed of zoom.", 25, 0, Integer.MAX_VALUE, null);
+        decimal(z, "cameraSpeed", "Camera speed", "Speed which the camera moves from input.", 1.0, null);
+        bool(z, "disableCameraShake", "Disable camera shake", "Disables camera shake.", false, null);
+        String mouse = "Mouse settings";
+        SECTION_DESCRIPTIONS.put(mouse, "Mouse settings.");
+        bool(z, "rightClickMovesCamera", "Right-click moves camera", "Remaps right-click to middle mouse click.", false, mouse);
+        bool(z, "rightClickObjects", "Right-click objects", "Right-clicking objects opens the menu when 'Right-click moves camera' is on.", true, mouse);
+        bool(z, "rightClickExamine", "Right-click examine", "Right-clicking examinable objects opens the menu when 'Right-click moves camera' is on.", false, mouse);
+        bool(z, "rightClickMenuBlocksCamera", "Right-click menu blocks camera", "Prevents camera movement when 'Right-click moves camera' is on and the right-click menu<br>"
+            + "is opened due to either 'Right-click objects' or 'Right-click examine' being on.", true, mouse);
+        bool(z, "middleClickMenu", "Middle-button opens menu", "Remaps middle mouse click to right-click.", false, mouse);
+        bool(z, "invertYaw", "Invert yaw", "Makes moving the camera horizontally with the mouse backwards.", false, mouse);
+        bool(z, "invertPitch", "Invert pitch", "Makes moving the camera vertically with the mouse backwards.", false, mouse);
 
         // RuneLite MinimapConfig: "Zoom".
         bool("minimap", "zoom", "Zoom", "Enables zooming on the minimap.", true, null);
@@ -287,6 +306,16 @@ final class RspsHudConfig {
             return Integer.parseInt(get(key));
         } catch (NumberFormatException notSet) {
             return 0;
+        }
+    }
+
+    /** A DECIMAL setting; [fallback] when it is not set (yet) or not a finite number. */
+    static double decimal(String key, double fallback) {
+        try {
+            double value = Double.parseDouble(get(key));
+            return Double.isNaN(value) || Double.isInfinite(value) ? fallback : value;
+        } catch (NumberFormatException notSet) {
+            return fallback;
         }
     }
 

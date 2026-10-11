@@ -74,7 +74,7 @@ public final class Static294 {
             if (Static188.anInt3103 >> 8 > local169) {
                 local169 = Static188.anInt3103 >> 8;
             }
-            if (Shake.enabled[4] && local169 < Shake.amplitude[4] + 128) {
+            if (RspsCamera.shake(4) && local169 < Shake.amplitude[4] + 128) {
                 local169 = Shake.amplitude[4] + 128;
             }
             local204 = Static288.anInt4621 + (int) Camera.playerCameraYaw & 0x3FFF;
@@ -84,7 +84,7 @@ public final class Static294 {
             if (Static188.anInt3103 >> 8 > local169) {
                 local169 = Static188.anInt3103 >> 8;
             }
-            if (Shake.enabled[4] && Shake.amplitude[4] + 128 > local169) {
+            if (RspsCamera.shake(4) && Shake.amplitude[4] + 128 > local169) {
                 local169 = Shake.amplitude[4] + 128;
             }
             local204 = (int) Camera.playerCameraYaw & 0x3FFF;
@@ -99,7 +99,7 @@ public final class Static294 {
         @Pc(329) int local329 = Camera.yaw;
         @Pc(375) int local375;
         for (@Pc(331) int local331 = 0; local331 < Shake.DIRECTIONS; local331++) {
-            if (Shake.enabled[local331]) {
+            if (RspsCamera.shake(local331)) { // RuneLite Camera "Disable camera shake"
                 local375 = (int) ((double) -Shake.center[local331] + (double) (Shake.center[local331] * 2 + 1) * Math.random() + Math.sin((double) Shake.frequency[local331] / 100.0D * (double) Shake.time[local331]) * (double) Shake.amplitude[local331]);
                 if (local331 == 3) {
                     Camera.yaw = local375 + Camera.yaw & 0x3FFF;
@@ -117,8 +117,8 @@ public final class Static294 {
                     Camera.pitch += local375;
                     if (Camera.pitch < 1024) {
                         Camera.pitch = 1024;
-                    } else if (Camera.pitch > 3072) {
-                        Camera.pitch = 3072;
+                    } else if (Camera.pitch > RspsCamera.maxPitch()) {
+                        Camera.pitch = RspsCamera.maxPitch();
                     }
                 }
             }
@@ -141,7 +141,9 @@ public final class Static294 {
         local375 = Static251.anInt4037;
         Static460.aMatrix_10.createCamera(Camera.x, Camera.y, Camera.z, -Camera.pitch & 0x3FFF, -Camera.yaw & 0x3FFF, -Camera.roll & 0x3FFF);
         Toolkit.active.setCamera(Static460.aMatrix_10);
-        Toolkit.active.DA(local155 / 2 + local153, local161 / 2 + local159, Static428.anInt6495 << 1, Static428.anInt6495 << 1);
+        // OSRS zoom (viewport_setfov, script 42): the wheel zoom scales the projection; the overlays below use the same scale.
+        @Pc(144) int projectionScale = CameraZoomController.projectionScale(Static428.anInt6495 << 1);
+        Toolkit.active.DA(local155 / 2 + local153, local161 / 2 + local159, projectionScale, projectionScale);
         if (OrthoMode.toolkitActive) {
             OrthoMode.method6448(Static251.anInt4037);
             if (Static162.anInt2800 != OrthoMode.renderZoom) {
@@ -159,7 +161,7 @@ public final class Static294 {
             Static456.aSkyBox_3.method3159(local159, Toolkit.active, Camera.yaw, local155, local375, Camera.roll, local161, local153, Static436.anInt3852 << 3, Camera.pitch);
         }
         Static557.method7331();
-        Static527.method7081(Static428.anInt6495 << 1, local161 / 2 + local159, Static428.anInt6495 << 1, local153 + local155 / 2);
+        Static527.method7081(projectionScale, local161 / 2 + local159, projectionScale, local153 + local155 / 2);
         Static620.method8324(-Camera.yaw & 0x3FFF, Camera.z, -Camera.roll & 0x3FFF, Camera.y, -Camera.pitch & 0x3FFF, Camera.x);
         Static159.method2575();
         @Pc(688) byte local688 = ClientOptions.instance.removeRoofsOverride.getValue() == 2 ? (byte) Static198.anInt3276 : 1;

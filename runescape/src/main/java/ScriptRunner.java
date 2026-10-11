@@ -3106,7 +3106,8 @@ public final class ScriptRunner {
 
             if (op == GET_MOUSEBUTTONS) {
                 intStack[intStackPointer++] = MouseMonitor.instance.isLeftDown() ? 1 : 0;
-                intStack[intStackPointer++] = MouseMonitor.instance.isMiddleDown() ? 1 : 0;
+                // RuneLite Camera setCameraMouseButtonMask: the right button may drag the camera too.
+                intStack[intStackPointer++] = RspsCamera.middleForCamera(MouseMonitor.instance.isMiddleDown(), MouseMonitor.instance.isRightDown()) ? 1 : 0;
                 intStack[intStackPointer++] = MouseMonitor.instance.isRightDown() ? 1 : 0;
                 return;
             }
@@ -6289,7 +6290,8 @@ public final class ScriptRunner {
 
             if (opcode == CAM_FORCEANGLE) {
                 intStackPointer -= 2;
-                Camera.forceAngle(intStack[intStackPointer], intStack[intStackPointer + 1], 0);
+                // The middle-mouse drag script only switches the OSRS mouse camera on (RspsCamera.mouseCamera).
+                RspsCamera.forceAngle(intStack[intStackPointer], intStack[intStackPointer + 1], currentScriptId);
                 return;
             }
 
