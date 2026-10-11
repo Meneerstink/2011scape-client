@@ -1207,6 +1207,11 @@ public final class GlToolkit extends Toolkit {
         @Pc(30) int local30 = this.anInt8032;
         @Pc(33) int local33 = this.anInt8012;
         this.la();
+        // RuneLite Stretched Mode: the front buffer holds the stretched picture; the real frame comes from the stretch buffer.
+        if (com.jagex.StretchedMode.glRestore(this.rspsStretchBlit == 1, false)) {
+            this.KA(local24, local30, local27, local33);
+            return;
+        }
         OpenGL.glReadBuffer(OpenGL.GL_FRONT);
         OpenGL.glDrawBuffer(OpenGL.GL_BACK);
         this.method6981();
@@ -3310,6 +3315,8 @@ public final class GlToolkit extends Toolkit {
             }
             com.jagex.StretchedMode.glPresent(this.rspsStretchBlit == 1, scissor);
             this.anOpenGL1.swapBuffers();
+            // The client's next partial redraw builds on the back buffer: give it the real-size frame, not the stretched one.
+            com.jagex.StretchedMode.glRestore(this.rspsStretchBlit == 1, scissor);
         } catch (@Pc(8) Exception local8) {
         }
     }

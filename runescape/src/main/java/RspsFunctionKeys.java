@@ -57,6 +57,18 @@ final class RspsFunctionKeys {
         return false;
     }
 
+    /**
+     * True for F1-F12 while the OSRS keybinding is on: they belong to this binding only. The 667 cache gives the gameframe's
+     * own tab buttons op keys F1-F5 (548:129,133-136 / 746:39,43-46, decoded from the cache 2026-10-11); left alone they
+     * clicked the stock 667 tab right after this binding opened the chosen one, so F1-F5 never opened what the player picked.
+     * OSRS has no such second binding, so InterfaceManager skips every component op key on F1-F12. Esc is not taken over:
+     * interface 642:200 closes itself on Esc.
+     */
+    static boolean ownsKeyCode(int code) {
+        return code >= 1 && code <= 12 && !"false".equals(RspsHudConfig.get("keybinding.enabled"))
+            && MainLogicStep.isAtGameScreen(MainLogicManager.step);
+    }
+
     /** Called for every keyboard event before the game sees it; never swallows (the server still gets the key). */
     static boolean key(KeyLog log) {
         if (log.getType() != KeyLog.TYPE_PRESSED || debugconsole.isOpen() || !MainLogicStep.isAtGameScreen(MainLogicManager.step)) {

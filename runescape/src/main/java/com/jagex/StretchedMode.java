@@ -222,6 +222,31 @@ public final class StretchedMode {
         }
     }
 
+    /**
+     * After swapBuffers (and instead of the client's own front-to-back copy): puts the real-size frame kept in the framebuffer
+     * back into the bottom-left corner of the back buffer. The 2011 client redraws only its dirty rectangles and keeps the
+     * rest of the previous frame in the back buffer (and copies the front buffer back while a map builds); while stretching,
+     * that buffer held the stretched picture instead, so every partial redraw landed on stretched leftovers - the flicker,
+     * black and cut-off parts the owner saw (2026-10-11). RuneLite never has this: its GPU plugin keeps the game frame apart.
+     * True when the frame was put back.
+     */
+    public static boolean glRestore(boolean supported, boolean scissor) {
+        if (!active() || !supported || framebuffer == 0 || bufferWidth != realWidth || bufferHeight != realHeight) {
+            return false;
+        }
+        if (scissor) {
+            OpenGL.glDisable(GL_SCISSOR_TEST);
+        }
+        OpenGL.glBindFramebufferEXT(GL_READ_FRAMEBUFFER, framebuffer);
+        OpenGL.glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, 0);
+        OpenGL.glBlitFramebufferEXT(0, 0, realWidth, realHeight, 0, 0, realWidth, realHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        OpenGL.glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
+        if (scissor) {
+            OpenGL.glEnable(GL_SCISSOR_TEST);
+        }
+        return true;
+    }
+
     private static void createBuffer(int width, int height) {
         int[] ids = new int[1];
         if (framebuffer == 0) {

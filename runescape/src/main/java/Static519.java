@@ -35,6 +35,14 @@ public final class Static519 {
         if (Static449.aBoolean511) {
             local5 = false;
         }
+        // RSPS (owner 2026-10-11: graphical bugs for new players after auto setup): auto setup follows the same renderer policy
+        // as a fresh install (GraphicsRendererPolicy.defaultRenderer) - OpenGL whenever it can run. Jagex's benchmark could
+        // switch a new player to DirectX or the native software renderer, which none of the 78 visual work (OSRS models,
+        // Stretched Mode, HUD) is built and tested on; it now only measures OpenGL for the quality level.
+        if (local7 && rs2.client.loading.library.LibraryManager.isLoaded("jaggl")) {
+            local5 = false;
+            local9 = false;
+        }
         if (!local5 && !local7 && !local9) {
             return Static625.method8337();
         }
