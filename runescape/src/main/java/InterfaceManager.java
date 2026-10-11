@@ -2589,7 +2589,11 @@ public final class InterfaceManager {
 
         // RSPS: fixed mode draws a 765 x 503 canvas, so the window fits it exactly (no black borders); back to
         // resizable, the window returns to its saved resizable size.
-        if (GameShell.fsframe == null && ClientOptions.instance != null) {
+        // Not while RuneLite Stretched Mode fills the window (owner 2026-10-11 A2 "fixed mode does not stretch at all"): every
+        // resize ends here 500 ms later (client.java nextWindowModeChange), so the fit pulled a stretched fixed window back to
+        // 765 x 503 at once. RuneLite (ClientUI) never sizes the frame on a mode change; a maximised window is left alone too.
+        if (GameShell.fsframe == null && ClientOptions.instance != null && !com.jagex.StretchedMode.fillsWindow()
+            && !(GameShell.frame != null && (GameShell.frame.getExtendedState() & java.awt.Frame.MAXIMIZED_BOTH) == java.awt.Frame.MAXIMIZED_BOTH)) {
             if (mode == WindowMode.FIXED) {
                 com.jagex.graphics.awt.DesktopDisplay.restoreWindowSize(Client.loadingScreenWidth, Client.loadingScreenHeight);
             } else if (mode == WindowMode.RESIZABLE && current == WindowMode.FIXED) {

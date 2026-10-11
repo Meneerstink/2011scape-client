@@ -53,6 +53,16 @@ public final class StretchedModeRegressionTest {
         window(900, 600, 900, 600);
         StretchedMode.layout(false);
         check(GameShell.canvasWid >= 765 && GameShell.canvasHei >= 503, "Resizable: the game never gets smaller than 765x503");
+        // 667 layout floor (2026-10-11): the two-row side panel needs 520 px under the minimap; truncation gave 502 before.
+        window(1254, 761, 1254, 761);
+        StretchedMode.configure(true, false, false, false, 58);
+        StretchedMode.layout(false);
+        check(GameShell.canvasHei == 520 && GameShell.canvasWid >= 765, "Resizable 58% in 1254x761: game 520 high, not 502");
+        check(StretchedMode.active() && StretchedMode.canvasHeight() == 761, "Resizable 58%: still drawn over the window");
+        // Fixed mode with stretching on fills any window, so the client must not shrink the window to 765x503 (A2).
+        check(StretchedMode.fillsWindow(), "Stretching on: the window is not fitted to the game");
+        StretchedMode.configure(false, false, false, false, 50);
+        check(!StretchedMode.fillsWindow(), "Stretching off: the fixed window fits the game again");
 
         // Mouse: scaled by the size the frame is drawn at (the canvas), so a click lands on what is shown.
         StretchedMode.configure(true, false, false, false, 50);

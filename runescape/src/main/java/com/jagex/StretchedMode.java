@@ -1,6 +1,7 @@
 package com.jagex;
 
 import com.jagex.game.runetek6.client.GameShell;
+import com.jagex.graphics.Toolkit;
 import jaggl.OpenGL;
 
 /**
@@ -22,6 +23,14 @@ public final class StretchedMode {
     /** RuneLite Constants.GAME_FIXED_WIDTH / HEIGHT. */
     private static final int FIXED_WIDTH = 765;
     private static final int FIXED_HEIGHT = 503;
+    /**
+     * RuneLite never makes the resizable game smaller than OSRS's 765x503, the size OSRS's resizable layout fits in. The
+     * 667 resizable layout (interface 746) is taller: below ~1000 px wide it puts the tabs in two rows, and the side panel
+     * with both tab rows (345 px) then needs the minimap and its orbs (174 px) above it - measured 2026-10-11 in an
+     * unstretched 850x561 client. At 503 px the panel covered the summoning orb and the world map button (owner A2:
+     * "resizable: interfaces too big / cut off"), so the stretched resizable game is never lower than this.
+     */
+    static final int RESIZABLE_MIN_HEIGHT = 520;
 
     private static boolean enabled;
     private static boolean keepAspectRatio;
@@ -93,10 +102,32 @@ public final class StretchedMode {
     }
 
     /**
+     * Stretching is switched on and the current toolkit can draw it: the game is stretched over whatever size the window has,
+     * so the client must not size the window to the game (InterfaceManager.changeWindowMode).
+     */
+    public static boolean fillsWindow() {
+        return enabled && toolkitCanStretch && !glFailed;
+    }
+
+    /**
      * Called after the game picked its canvas size and margins for a window of frameWid x frameHei (fixed or resizable):
      * replaces them by RuneLite's real size and works out the stretched size the canvas is drawn at.
      */
     public static void layout(boolean fixed) {
+        layoutSizes(fixed);
+        // One line per change, for every renderer (glPresent only logs OpenGL): the owner's log shows why it does not stretch.
+        String state = "stretch layout " + (fixed ? "fixed" : "resizable") + " enabled=" + enabled + " toolkitCanStretch=" + toolkitCanStretch
+            + " glFailed=" + glFailed + " toolkit=" + (Toolkit.active == null ? "none" : Toolkit.active.getClass().getSimpleName())
+            + " window=" + GameShell.frameWid + "x" + GameShell.frameHei + " real=" + realWidth + "x" + realHeight + " drawn=" + stretchedWidth + "x" + stretchedHeight;
+        if (!state.equals(lastLayout)) {
+            lastLayout = state;
+            System.out.println("[78] " + state);
+        }
+    }
+
+    private static String lastLayout = "";
+
+    private static void layoutSizes(boolean fixed) {
         if (!enabled || !toolkitCanStretch || glFailed) {
             realWidth = stretchedWidth = GameShell.canvasWid;
             realHeight = stretchedHeight = GameShell.canvasHei;
@@ -116,10 +147,11 @@ public final class StretchedMode {
         } else {
             int newWidth = (int) (parentWidth / scalingFactor);
             int newHeight = (int) (parentHeight / scalingFactor);
-            if (newWidth < FIXED_WIDTH || newHeight < FIXED_HEIGHT) {
-                double factor = Math.min((double) parentWidth / FIXED_WIDTH, (double) parentHeight / FIXED_HEIGHT);
-                newWidth = (int) (parentWidth / factor);
-                newHeight = (int) (parentHeight / factor);
+            if (newWidth < FIXED_WIDTH || newHeight < RESIZABLE_MIN_HEIGHT) {
+                double factor = Math.min((double) parentWidth / FIXED_WIDTH, (double) parentHeight / RESIZABLE_MIN_HEIGHT);
+                // Rounded up: a truncated 502 px left the game a pixel under its minimum.
+                newWidth = Math.max(FIXED_WIDTH, (int) Math.ceil(parentWidth / factor));
+                newHeight = Math.max(RESIZABLE_MIN_HEIGHT, (int) Math.ceil(parentHeight / factor));
             }
             realWidth = newWidth;
             realHeight = newHeight;

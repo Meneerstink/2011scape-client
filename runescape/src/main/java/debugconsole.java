@@ -890,6 +890,33 @@ public final class debugconsole {
                     Static363.method6234(local1621);
                 }
 
+                // Window mode test switch (night run 2026-10-11, A1/A2 test matrix): the same calls as the Graphics Options
+                // buttons (CS2 SETWINDOWMODE / FULLSCREEN_ENTER), so every fixed/resizable/fullscreen switch can be repeated.
+                if (command.startsWith("wm ")) {
+                    @Pc(2748) int mode = StringTools.parseDecimal(command.substring("wm ".length()));
+                    if (mode == com.jagex.core.constants.WindowMode.FULLSCREEN) {
+                        java.awt.Rectangle desktop = com.jagex.graphics.awt.DesktopDisplay.bounds();
+                        InterfaceManager.changeWindowMode(mode, desktop.width, desktop.height, false);
+                        if (GameShell.fsframe != null) ClientOptions.instance.rememberWindowMode(mode);
+                    } else if (mode == com.jagex.core.constants.WindowMode.FIXED || mode == com.jagex.core.constants.WindowMode.RESIZABLE) {
+                        InterfaceManager.changeWindowMode(mode, -1, -1, false);
+                        ClientOptions.instance.rememberWindowMode(mode);
+                    }
+                    addline("window mode=" + InterfaceManager.getWindowMode());
+                    return;
+                }
+                // Renderer test switch: the Custom graphics screen's renderer choice (CS2 DETAIL_TOOLKIT). 0 software, 1 OpenGL, 3 DirectX.
+                if (command.startsWith("tk ")) {
+                    @Pc(2748) int toolkit = StringTools.parseDecimal(command.substring("tk ".length()));
+                    if (toolkit >= ToolkitType.JAVA && toolkit <= ToolkitType.GLX) {
+                        ClientOptions.instance.update(toolkit, ClientOptions.instance.toolkitDefault);
+                        ClientOptions.instance.markCustom();
+                        Static32.setToolkit(toolkit, false);
+                    }
+                    addline("toolkit=" + ClientOptions.instance.toolkit.getValue() + " " + Toolkit.active.getClass().getSimpleName());
+                    return;
+                }
+
                 if (command.startsWith("zoom ")) {
                     // K-02: same 150-660 clamp as the mouse wheel (CameraZoomController); parse as int so that e.g.
                     // "zoom 70000" cannot wrap around through the short cast.

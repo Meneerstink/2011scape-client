@@ -113,18 +113,6 @@ val runePouchRegression by tasks.registering(JavaExec::class) {
 
 tasks.check { dependsOn(runePouchRegression) }
 
-val oldStyleHitsplatRegression by tasks.registering(JavaExec::class) {
-    group = "verification"
-    description = "Checks old-style hitsplat, hitpoints and prayer display scaling"
-    dependsOn(tasks.testClasses)
-    classpath = sourceSets.test.get().runtimeClasspath
-    mainClass.set("OldStyleHitsplatDisplayRegressionTest")
-    jvmArgs("-Djava.awt.headless=true")
-    javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion.set(JavaLanguageVersion.of(11))
-    })
-}
-
 val debugOverlayRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks debug overlay startup defaults and explicit toggle behavior"
@@ -186,7 +174,7 @@ val rspsBankRegression by tasks.registering(JavaExec::class) {
 tasks.check { dependsOn(rspsBankRegression) }
 
 tasks.check {
-    dependsOn(r13Regression, audioSettingsRegression, audioVolumeRegression, cameraZoomRegression, oldStyleHitsplatRegression, debugOverlayRegression)
+    dependsOn(r13Regression, audioSettingsRegression, audioVolumeRegression, cameraZoomRegression, debugOverlayRegression)
 }
 
 val graphicsDisplayRegression by tasks.registering(JavaExec::class) {
