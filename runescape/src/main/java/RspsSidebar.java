@@ -147,10 +147,13 @@ final class RspsSidebar extends JPanel {
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
         content.setBackground(ColorScheme.DARK_GRAY_COLOR);
         content.setPreferredSize(new Dimension(PANEL_WIDTH + SCROLLBAR_WIDTH, 10));
+        // RuneLite's PluginPanel has a fixed width: the window's minimum size counts all of it (revalidateMinimumSize).
+        content.setMinimumSize(new Dimension(PANEL_WIDTH + SCROLLBAR_WIDTH, 0));
         content.setVisible(false);
         navigation.setLayout(new BoxLayout(navigation, BoxLayout.Y_AXIS));
         navigation.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         navigation.setPreferredSize(new Dimension(NAV_WIDTH, 10));
+        navigation.setMinimumSize(new Dimension(NAV_WIDTH, 0));
         navigation.setBorder(new EmptyBorder(6, 0, 6, 0));
         JButton nav = iconButton(NAV_ICON, "78 Plugins");
         nav.setName("navigation");
@@ -249,14 +252,55 @@ final class RspsSidebar extends JPanel {
         }
         expanded = open;
         content.setVisible(open);
-        // RuneLite: the window grows by the panel so the game view keeps its size (not when maximised).
-        if (frame != null && (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == 0) {
-            Dimension size = frame.getSize();
+        // RuneLite ContainableFrame.expandBy / contractBy (ExpandResizeType KEEP_GAME_SIZE): the window grows by the panel
+        // so the game view keeps its size (not when maximised), and revalidateMinimumSize: the window's minimum size always
+        // leaves the game its 765x503. Without it the window could be made so small with the panel open that the game view
+        // was narrower than the game (owner 2026-10-11, Stretched Mode: 765 px drawn into 523 - cut off, clicks off).
+        if (frame != null) {
             int panel = PANEL_WIDTH + SCROLLBAR_WIDTH;
-            frame.setSize(size.width + (open ? panel : -panel), size.height);
+            boolean maximised = (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
+            if (open) {
+                if (!maximised) {
+                    expandBy(panel);
+                }
+                revalidateMinimumSize();
+            } else {
+                revalidateMinimumSize();
+                if (!maximised) {
+                    contractBy(panel);
+                }
+            }
         }
         revalidate();
         repaint();
+    }
+
+    /** The window grew to the left to stay on screen (RuneLite expandedClientOppositeDirection). */
+    private boolean expandedLeft;
+
+    /** RuneLite ContainableFrame.expandBy: wider by [value]; rather than through the screen's right edge it grows to the left. */
+    private void expandBy(int value) {
+        java.awt.Rectangle screen = frame.getGraphicsConfiguration().getBounds();
+        int width = frame.getWidth() + value;
+        int x = frame.getX();
+        if (x + width > screen.x + screen.width) {
+            x = Math.max(screen.x, screen.x + screen.width - width);
+            expandedLeft = true;
+        }
+        frame.setBounds(x, frame.getY(), width, frame.getHeight());
+    }
+
+    /** RuneLite ContainableFrame.contractBy: narrower by [value], back to the right when it grew to the left, never below the minimum. */
+    private void contractBy(int value) {
+        int x = frame.getX() + (expandedLeft ? value : 0);
+        int width = Math.max(frame.getWidth() - value, frame.getMinimumSize().width);
+        frame.setBounds(x, frame.getY(), width, frame.getHeight());
+        expandedLeft = false;
+    }
+
+    /** RuneLite ContainableFrame.revalidateMinimumSize: the minimum size of what the window holds now (game + sidebar). */
+    private void revalidateMinimumSize() {
+        frame.setMinimumSize(frame.getLayout().minimumLayoutSize(frame));
     }
 
     static String pluginName(String id) {

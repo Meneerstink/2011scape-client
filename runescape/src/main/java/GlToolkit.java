@@ -67,6 +67,8 @@ public final class GlToolkit extends Toolkit {
 
     @OriginalMember(owner = "client!gga", name = "a", descriptor = "(Lclient!d;Ljava/awt/Canvas;II)Lclient!ha;")
     public static Toolkit create(@OriginalArg(1) Canvas canvas, @OriginalArg(0) TextureSource textureSource, @OriginalArg(2) int antialiasing) {
+        // RuneLite Stretched Mode: a new GL context - the old one's offscreen framebuffer went with the old toolkit.
+        com.jagex.StretchedMode.glContextLost();
         return new GlToolkit(canvas, textureSource, antialiasing);
     }
 
@@ -1207,8 +1209,9 @@ public final class GlToolkit extends Toolkit {
         @Pc(30) int local30 = this.anInt8032;
         @Pc(33) int local33 = this.anInt8012;
         this.la();
-        // RuneLite Stretched Mode: the front buffer holds the stretched picture; the real frame comes from the stretch buffer.
-        if (com.jagex.StretchedMode.glRestore(this.rspsStretchBlit == 1, false)) {
+        // RuneLite Stretched Mode: the previous frame is still in the offscreen framebuffer (the front buffer holds the
+        // stretched picture), so there is nothing to copy back.
+        if (com.jagex.StretchedMode.glOwnsFrame()) {
             this.KA(local24, local30, local27, local33);
             return;
         }
@@ -2125,6 +2128,7 @@ public final class GlToolkit extends Toolkit {
             this.anInt7904 = local18.height;
         }
         if (this.anInterface14_2 == null) {
+            this.rspsStretchSync();
             this.anInt7869 = this.anInt7864;
             this.anInt7956 = this.anInt7904;
             this.method6986();
@@ -3301,6 +3305,40 @@ public final class GlToolkit extends Toolkit {
     /** RuneLite Stretched Mode: 0 = not asked yet, 1 = the driver can blit framebuffers, 2 = it cannot. */
     private int rspsStretchBlit;
 
+    /**
+     * RuneLite Stretched Mode needs an offscreen framebuffer and a scaled blit. Asked of the driver itself: the 2011 client
+     * switches its own framebuffer use off on every Intel card (aBoolean613, a workaround for its post-processing), but the
+     * owner's Intel driver has both extensions.
+     */
+    public boolean rspsStretchSupported() {
+        if (this.rspsStretchBlit == 0 && this.anOpenGL1 != null) {
+            this.rspsStretchBlit = this.anOpenGL1.a("GL_EXT_framebuffer_object") && this.anOpenGL1.a("GL_EXT_framebuffer_blit") ? 1 : 2;
+            if (this.rspsStretchBlit == 2) {
+                com.jagex.StretchedMode.glUnsupported();
+            }
+        }
+        return this.rspsStretchBlit == 1;
+    }
+
+    /**
+     * RuneLite Stretched Mode: this window's multisampling no longer matches - plain while stretching, the player's
+     * Anti-aliasing otherwise (StretchedMode.glPlainWindow). A window's pixel format is fixed, so the client makes the
+     * toolkit again on a new canvas, the same way a change of the Anti-aliasing option does.
+     */
+    public boolean rspsWindowNeedsRebuild() {
+        int wanted = com.jagex.StretchedMode.glPlainWindow() ? 0 : ClientOptions.instance.antialiasingQuality.getValue() * 2;
+        return this.anInt7986 != wanted;
+    }
+
+    /** Binds / resizes / drops the stretch framebuffer for the window surface; a new one means every interface is drawn again. */
+    private void rspsStretchSync() {
+        // Only the game canvas is stretched; any other canvas this toolkit draws on gets the window itself.
+        boolean gameCanvas = this.aCanvas11 != null && this.aCanvas11 == com.jagex.game.runetek6.client.GameShell.canvas;
+        if (com.jagex.StretchedMode.glSync(gameCanvas && this.rspsStretchSupported(), this.anInt7864, this.anInt7904)) {
+            InterfaceManager.redrawAll();
+        }
+    }
+
     @OriginalMember(owner = "client!qha", name = "e", descriptor = "(II)V")
     @Override
     public void flip(@OriginalArg(0) int x, @OriginalArg(1) int y) throws FlipException {
@@ -3308,15 +3346,12 @@ public final class GlToolkit extends Toolkit {
             // RuneLite Stretched Mode (GpuPlugin): blit the real-size frame over the stretched window. The scissor test is on
             // whenever the clip is not the whole surface (la() switches it off).
             boolean scissor = this.anInt8000 != 0 || this.anInt8032 != 0 || this.anInt8028 != this.anInt7869 || this.anInt8012 != this.anInt7956;
-            // Asked of the driver itself: the 2011 client switches its own framebuffer use off on every Intel card (aBoolean613,
-            // a workaround for its post-processing), but the owner's Intel driver has both extensions.
-            if (this.rspsStretchBlit == 0) {
-                this.rspsStretchBlit = this.anOpenGL1.a("GL_EXT_framebuffer_object") && this.anOpenGL1.a("GL_EXT_framebuffer_blit") ? 1 : 2;
-            }
-            com.jagex.StretchedMode.glPresent(this.rspsStretchBlit == 1, scissor);
+            com.jagex.StretchedMode.glPresent(scissor, this.aCanvas11 == null ? 0 : this.aCanvas11.getWidth(), this.aCanvas11 == null ? 0 : this.aCanvas11.getHeight());
             this.anOpenGL1.swapBuffers();
-            // The client's next partial redraw builds on the back buffer: give it the real-size frame, not the stretched one.
-            com.jagex.StretchedMode.glRestore(this.rspsStretchBlit == 1, scissor);
+            // The next frame is drawn into the offscreen framebuffer while stretching (made, resized or dropped here).
+            if (this.anInterface14_2 == null) {
+                this.rspsStretchSync();
+            }
         } catch (@Pc(8) Exception local8) {
         }
     }

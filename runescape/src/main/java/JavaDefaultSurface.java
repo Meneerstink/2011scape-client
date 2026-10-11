@@ -47,7 +47,7 @@ public final class JavaDefaultSurface extends JavaSurface {
             java.awt.Graphics2D g2 = (java.awt.Graphics2D) graphics;
             g2.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, com.jagex.StretchedMode.fast()
                 ? java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR : java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            graphics.drawImage(this.image, 0, 0, com.jagex.StretchedMode.stretchedWidth(), com.jagex.StretchedMode.stretchedHeight(), this.canvas);
+            graphics.drawImage(this.image, 0, 0, com.jagex.StretchedMode.drawnWidth(), com.jagex.StretchedMode.drawnHeight(), this.canvas);
             return;
         }
         graphics.setClip(this.clipBox);

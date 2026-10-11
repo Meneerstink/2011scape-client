@@ -714,6 +714,10 @@ public final class client extends GameShell {
         }
 
         if (MainLogicStep.method6445(MainLogicManager.step)) {
+            // RuneLite Stretched Mode switched on or off with Anti-aliasing on: OpenGL needs a window with other multisampling.
+            if (Toolkit.active instanceof GlToolkit && ((GlToolkit) Toolkit.active).rspsWindowNeedsRebuild()) {
+                Static32.setToolkit(ClientOptions.instance.toolkit.getValue(), false);
+            }
             if (Client.nextWindowModeChange != 0L && SystemTimer.safetime() > Client.nextWindowModeChange) {
                 InterfaceManager.changeWindowMode(InterfaceManager.getWindowMode(), Client.nextWindowModeWidth, Client.nextWindowModeHeight, false);
             } else if (!Toolkit.active.method8001() && GameShell.canvasReplaceRecommended) {

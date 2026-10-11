@@ -474,7 +474,8 @@ public abstract class NativeToolkit extends Toolkit {
             this.anObject15 = this.anObject16 = arg1;
             this.anInt9158 = arg4;
             this.aCanvas12 = this.aCanvas13 = arg0;
-            @Pc(313) Dimension local313 = arg0.getSize();
+            // RuneLite Stretched Mode: the game canvas renders at the real size (DirectX presents it stretched).
+            @Pc(313) Dimension local313 = com.jagex.StretchedMode.renderSize(arg0);
             this.anInt9178 = arg5;
             this.anInt9013 = this.anInt9021 = local313.height;
             this.anInt9122 = this.anInt8991 = local313.width;
@@ -1499,7 +1500,7 @@ public abstract class NativeToolkit extends Toolkit {
         if (this.aCanvas12 == null) {
             this.anInt8991 = this.anInt9021 = 1;
         } else {
-            @Pc(14) Dimension local14 = this.aCanvas12.getSize();
+            @Pc(14) Dimension local14 = com.jagex.StretchedMode.renderSize(this.aCanvas12);
             this.anInt9021 = local14.height;
             this.anInt8991 = local14.width;
         }

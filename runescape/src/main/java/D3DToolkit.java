@@ -418,8 +418,11 @@ public final class D3DToolkit extends NativeToolkit {
             @Pc(26) Class349 local26 = (Class349) this.anObject16;
             this.method8061();
             local26.method8178();
-            this.aD3DPRESENT_PARAMETERS1.BackBufferWidth = 0;
-            this.aD3DPRESENT_PARAMETERS1.BackBufferHeight = 0;
+            // RuneLite Stretched Mode: a back buffer at the game's real size, which Present scales over the whole stretched
+            // canvas (D3D9 windowed Present with no rectangles fills the window's client area); 0 = the window's own size.
+            boolean stretched = com.jagex.StretchedMode.active() && this.aCanvas13 == com.jagex.game.runetek6.client.GameShell.canvas;
+            this.aD3DPRESENT_PARAMETERS1.BackBufferWidth = stretched ? com.jagex.StretchedMode.realWidth() : 0;
+            this.aD3DPRESENT_PARAMETERS1.BackBufferHeight = stretched ? com.jagex.StretchedMode.realHeight() : 0;
             if (Static325.method4859(this.aD3DPRESENT_PARAMETERS1, this.anInt5369, this.anIDirect3D1, this.anInt5368, this.anInt9158)) {
                 @Pc(59) int local59 = this.anIDirect3DDevice1.Reset(this.aD3DPRESENT_PARAMETERS1);
                 if (lh.a((byte) 95, local59)) {

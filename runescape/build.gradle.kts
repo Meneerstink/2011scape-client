@@ -41,6 +41,16 @@ val rspsHudRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
+val stretchedModeRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks RuneLite Stretched Mode layout, toolkit gating and mouse scaling without a display or GL context."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("StretchedModeRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
 val r13Regression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks graphics preferences and renderer fallback without a game server or display."

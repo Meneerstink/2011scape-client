@@ -39,6 +39,12 @@ public final class Static595 {
                 toolkit, Static595::createWithHeap);
         Toolkit.active = created.value;
         toolkit = created.renderer;
+        // RuneLite Stretched Mode draws through the software renderer, OpenGL's offscreen framebuffer or DirectX's scaled
+        // Present; SSE, GLX and the orthographic toolkit draw straight into the canvas and stay unstretched (the layout
+        // follows below).
+        com.jagex.StretchedMode.toolkitChanged(!ClientOptions.instance.orthographic.isToolkitCompatible()
+            && (Toolkit.active instanceof JavaToolkit || Toolkit.active instanceof D3DToolkit
+                || Toolkit.active instanceof GlToolkit && ((GlToolkit) Toolkit.active).rspsStretchSupported()));
         if (toolkit != requested && requested == ToolkitType.SSE) {
             Static171.graphicsError = true;
         }
@@ -67,8 +73,10 @@ public final class Static595 {
     }
 
     private static Toolkit createWithHeap(int type) {
+        // RuneLite Stretched Mode: OpenGL gets a plain (not multisampled) window while stretching (GlToolkit.rspsWindowNeedsRebuild).
+        int antialiasing = type == ToolkitType.GL && com.jagex.StretchedMode.glPlainWindow() ? 0 : ClientOptions.instance.antialiasingQuality.getValue() * 2;
         Toolkit created = Static255.create(type, js5.SHADERS, GameShell.canvas,
-                Js5TextureSource.instance, ClientOptions.instance.antialiasingQuality.getValue() * 2);
+                Js5TextureSource.instance, antialiasing);
         boolean ready = false;
         try {
             if (type != ToolkitType.JAVA && created.method7949()) {

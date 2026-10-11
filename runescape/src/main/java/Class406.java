@@ -78,7 +78,7 @@ public final class Class406 implements Interface14 {
     @OriginalMember(owner = "client!wo", name = "c", descriptor = "(I)V")
     @Override
     public void method9358() {
-        OpenGL.glBindFramebufferEXT(OpenGL.GL_FRAMEBUFFER, 0);
+        OpenGL.glBindFramebufferEXT(OpenGL.GL_FRAMEBUFFER, com.jagex.StretchedMode.glWindow()); // the window: the stretch framebuffer while stretching
         this.anInt10830 &= 0xFFFFFFFB;
         this.anInt10825 = this.method9365();
     }
@@ -114,7 +114,7 @@ public final class Class406 implements Interface14 {
     @OriginalMember(owner = "client!wo", name = "a", descriptor = "(B)V")
     @Override
     public void method9357() {
-        OpenGL.glBindFramebufferEXT(OpenGL.GL_DRAW_FRAMEBUFFER, 0);
+        OpenGL.glBindFramebufferEXT(OpenGL.GL_DRAW_FRAMEBUFFER, com.jagex.StretchedMode.glWindow());
         this.anInt10830 &= 0xFFFFFFFD;
         this.anInt10825 = this.method9365();
     }
@@ -122,7 +122,7 @@ public final class Class406 implements Interface14 {
     @OriginalMember(owner = "client!wo", name = "a", descriptor = "(I)V")
     @Override
     public void method9361() {
-        OpenGL.glBindFramebufferEXT(OpenGL.GL_READ_FRAMEBUFFER, 0);
+        OpenGL.glBindFramebufferEXT(OpenGL.GL_READ_FRAMEBUFFER, com.jagex.StretchedMode.glWindow());
         this.anInt10830 &= 0xFFFFFFFE;
         this.anInt10825 = this.method9365();
     }

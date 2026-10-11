@@ -54,9 +54,42 @@ public final class StretchedMode {
         return changed;
     }
 
+    /**
+     * The active toolkit can draw a stretched frame: RuneLite has only its software renderer (Hooks.draw) and its GPU plugin
+     * (an offscreen framebuffer); here that is the Java toolkit and OpenGL with framebuffer objects + blit. DirectX, SSE and
+     * the GLX toolkit draw the real-size frame straight into the canvas, so stretching them cut the picture off while the
+     * mouse was still scaled (clicks landed next to what was shown) - for them stretching stays off.
+     */
+    private static boolean toolkitCanStretch = true;
+
+    /** A new main toolkit was made (Static595.setToolkit, which lays the window out again afterwards). */
+    public static void toolkitChanged(boolean canStretch) {
+        toolkitCanStretch = canStretch;
+        Client.changingWindowMode = true;
+    }
+
+    /** The plugin is switched on (whether or not the current toolkit can stretch). */
+    public static boolean enabled() {
+        return enabled;
+    }
+
+    /**
+     * OpenGL makes its window without multisampling while stretching: glBlitFramebuffer cannot write into a multisampled
+     * window (INVALID_OPERATION - a black screen with the game's Anti-aliasing on), and RuneLite's GPU plugin keeps its
+     * window plain as well. The player's own anti-aliasing setting is kept and comes back when stretching goes off.
+     */
+    public static boolean glPlainWindow() {
+        return enabled && !glFailed && !glNoFramebuffers;
+    }
+
+    /** The GL driver has no framebuffer objects / blit (stays so for this run): OpenGL is never stretched. */
+    public static void glUnsupported() {
+        glNoFramebuffers = true;
+    }
+
     /** Stretching is on and the window is laid out stretched. */
     public static boolean active() {
-        return enabled && stretchedWidth > 0 && (stretchedWidth != realWidth || stretchedHeight != realHeight);
+        return enabled && toolkitCanStretch && !glFailed && stretchedWidth > 0 && (stretchedWidth != realWidth || stretchedHeight != realHeight);
     }
 
     /**
@@ -64,7 +97,7 @@ public final class StretchedMode {
      * replaces them by RuneLite's real size and works out the stretched size the canvas is drawn at.
      */
     public static void layout(boolean fixed) {
-        if (!enabled) {
+        if (!enabled || !toolkitCanStretch || glFailed) {
             realWidth = stretchedWidth = GameShell.canvasWid;
             realHeight = stretchedHeight = GameShell.canvasHei;
             return;
@@ -159,115 +192,191 @@ public final class StretchedMode {
         return fast;
     }
 
-    /** TranslateMouseListener: a canvas x position in real (game) pixels. */
+    /**
+     * TranslateMouseListener: a canvas x position in real (game) pixels. Scaled by the canvas's own size - the area the frame
+     * is drawn over ({@link #glPresent}, JavaDefaultSurface) - so the mouse and the picture always use the same scale, also
+     * between a window resize and the next layout.
+     */
     public static int mouseX(int x) {
-        return active() ? (int) (x / ((double) stretchedWidth / realWidth)) : x;
+        return active() ? (int) (x / ((double) drawnWidth() / realWidth)) : x;
     }
 
     public static int mouseY(int y) {
-        return active() ? (int) (y / ((double) stretchedHeight / realHeight)) : y;
+        return active() ? (int) (y / ((double) drawnHeight() / realHeight)) : y;
     }
 
-    // ---- OpenGL (GpuPlugin: the frame is rendered at the real size, then blitted to the stretched size) ----------------
+    /** The width the frame is drawn at on screen: the canvas's own width. */
+    public static int drawnWidth() {
+        java.awt.Canvas canvas = GameShell.canvas;
+        return canvas != null && canvas.getWidth() > 0 ? canvas.getWidth() : stretchedWidth;
+    }
+
+    public static int drawnHeight() {
+        java.awt.Canvas canvas = GameShell.canvas;
+        return canvas != null && canvas.getHeight() > 0 ? canvas.getHeight() : stretchedHeight;
+    }
+
+    // ---- OpenGL (RuneLite GpuPlugin) ------------------------------------------------------------------------------------
+    //
+    // The game draws into an offscreen framebuffer at its real size, bound as the toolkit's "window"; every flip blits it
+    // over the stretched canvas. Before (until 2026-10-11) the frame was drawn into the window's own back buffer and copied
+    // out of it, which broke three ways: a window smaller than the game (78 Plugins sidebar open: 765x503 into 523 px) has
+    // no pixels for the rest of the frame - black / cut off parts and clicks on things not shown; a swap leaves the back
+    // buffer undefined, so the client's partial redraws landed on stale stretched pixels - flicker; and pixels of the window
+    // covered by another window are not owned by GL - black areas. The offscreen buffer keeps the whole real frame from one
+    // flip to the next, like the window buffer the 2011 client expects.
 
     private static final int GL_READ_FRAMEBUFFER = 0x8CA8;
     private static final int GL_DRAW_FRAMEBUFFER = 0x8CA9;
     private static final int GL_FRAMEBUFFER = 0x8D40;
     private static final int GL_RENDERBUFFER = 0x8D41;
     private static final int GL_COLOR_ATTACHMENT0 = 0x8CE0;
+    private static final int GL_DEPTH_ATTACHMENT = 0x8D00;
+    private static final int GL_FRAMEBUFFER_COMPLETE = 0x8CD5;
     private static final int GL_RGBA8 = 0x8058;
+    private static final int GL_DEPTH_COMPONENT24 = 0x81A6;
     private static final int GL_COLOR_BUFFER_BIT = 0x4000;
     private static final int GL_NEAREST = 0x2600;
     private static final int GL_LINEAR = 0x2601;
     private static final int GL_SCISSOR_TEST = 0x0C11;
 
     private static int framebuffer;
-    private static int renderbuffer;
+    private static int colourBuffer;
+    private static int depthBuffer;
     private static int bufferWidth;
     private static int bufferHeight;
+    /** The offscreen framebuffer is bound as the toolkit's window. */
+    private static boolean bound;
+    /** The driver refused the offscreen framebuffer: stretching stays off with OpenGL (for this run - the driver will not change). */
+    private static boolean glFailed;
+    /** The driver lacks GL_EXT_framebuffer_object / GL_EXT_framebuffer_blit (for this run). */
+    private static boolean glNoFramebuffers;
 
     /**
-     * Before swapBuffers: the frame sits in the bottom-left real-size corner of the window's back buffer. It is copied into
-     * an offscreen framebuffer (a blit cannot read and write the same buffer) and blitted back over the whole stretched
-     * window. Needs GL_EXT_framebuffer_object + GL_EXT_framebuffer_blit ([supported]); without them the frame stays unscaled.
+     * The framebuffer that stands for the window: the offscreen one while stretching, else the window itself (0). Every
+     * place the toolkit returns from one of its own render targets to "the window" binds this.
      */
+    public static int glWindow() {
+        return bound ? framebuffer : 0;
+    }
+
+    /** The real frame lives in the offscreen framebuffer (it survives swaps; nothing has to be copied back). */
+    public static boolean glOwnsFrame() {
+        return bound;
+    }
+
+    /** The GL toolkit could not make the offscreen framebuffer: stretching is off for it. */
+    public static boolean glFailed() {
+        return glFailed;
+    }
+
+    /**
+     * Matches the offscreen framebuffer to the layout: bound at the toolkit's surface size [width] x [height] while
+     * stretching, dropped when stretching goes off. Called after every resize of the GL surface and at every flip, before
+     * the client draws its next frame, with none of the toolkit's own render targets pushed. True when the buffer the
+     * client draws into changed, so every interface has to be drawn again.
+     */
+    public static boolean glSync(boolean supported, int width, int height) {
+        boolean want = supported && !glFailed && active() && width > 0 && height > 0;
+        if (!want) {
+            if (!bound) {
+                return false;
+            }
+            OpenGL.glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
+            deleteBuffer();
+            return true;
+        }
+        if (bound && bufferWidth == width && bufferHeight == height) {
+            return false;
+        }
+        if (!createBuffer(width, height)) {
+            // No offscreen buffer on this driver: lay the window out unstretched instead of drawing a broken picture.
+            glFailed = true;
+            System.out.println("[78] stretch: offscreen framebuffer incomplete at " + width + "x" + height + " - stretching off");
+            Client.changingWindowMode = true;
+            return true;
+        }
+        OpenGL.glBindFramebufferEXT(GL_FRAMEBUFFER, framebuffer);
+        bound = true;
+        return true;
+    }
+
     private static String lastPresent = "";
 
-    public static void glPresent(boolean supported, boolean scissor) {
-        String state = "stretch active=" + active() + " supported=" + supported + " real=" + realWidth + "x" + realHeight + " stretched=" + stretchedWidth + "x" + stretchedHeight;
+    /**
+     * Before swapBuffers: blits the real frame over the whole canvas ([canvasWidth] x [canvasHeight], its drawable), then
+     * binds the offscreen framebuffer again for the next frame. The scissor test clips blits, so it is off meanwhile.
+     */
+    public static void glPresent(boolean scissor, int canvasWidth, int canvasHeight) {
+        String state = "stretch active=" + active() + " offscreen=" + bound + " real=" + bufferWidth + "x" + bufferHeight + " drawn=" + canvasWidth + "x" + canvasHeight;
         if (!state.equals(lastPresent)) {
             lastPresent = state;
             System.out.println("[78] " + state);
         }
-        if (!active() || !supported) {
+        if (!bound || canvasWidth <= 0 || canvasHeight <= 0) {
             return;
         }
-        int rw = realWidth;
-        int rh = realHeight;
-        if (framebuffer == 0 || bufferWidth != rw || bufferHeight != rh) {
-            createBuffer(rw, rh);
-        }
-        if (scissor) {
-            OpenGL.glDisable(GL_SCISSOR_TEST);
-        }
-        OpenGL.glBindFramebufferEXT(GL_READ_FRAMEBUFFER, 0);
-        OpenGL.glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, framebuffer);
-        OpenGL.glBlitFramebufferEXT(0, 0, rw, rh, 0, 0, rw, rh, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-        OpenGL.glBindFramebufferEXT(GL_READ_FRAMEBUFFER, framebuffer);
-        OpenGL.glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, 0);
-        OpenGL.glBlitFramebufferEXT(0, 0, rw, rh, 0, 0, stretchedWidth, stretchedHeight, GL_COLOR_BUFFER_BIT, fast ? GL_NEAREST : GL_LINEAR);
-        OpenGL.glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
-        if (scissor) {
-            OpenGL.glEnable(GL_SCISSOR_TEST);
-        }
-    }
-
-    /**
-     * After swapBuffers (and instead of the client's own front-to-back copy): puts the real-size frame kept in the framebuffer
-     * back into the bottom-left corner of the back buffer. The 2011 client redraws only its dirty rectangles and keeps the
-     * rest of the previous frame in the back buffer (and copies the front buffer back while a map builds); while stretching,
-     * that buffer held the stretched picture instead, so every partial redraw landed on stretched leftovers - the flicker,
-     * black and cut-off parts the owner saw (2026-10-11). RuneLite never has this: its GPU plugin keeps the game frame apart.
-     * True when the frame was put back.
-     */
-    public static boolean glRestore(boolean supported, boolean scissor) {
-        if (!active() || !supported || framebuffer == 0 || bufferWidth != realWidth || bufferHeight != realHeight) {
-            return false;
-        }
         if (scissor) {
             OpenGL.glDisable(GL_SCISSOR_TEST);
         }
         OpenGL.glBindFramebufferEXT(GL_READ_FRAMEBUFFER, framebuffer);
         OpenGL.glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, 0);
-        OpenGL.glBlitFramebufferEXT(0, 0, realWidth, realHeight, 0, 0, realWidth, realHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-        OpenGL.glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
+        OpenGL.glBlitFramebufferEXT(0, 0, bufferWidth, bufferHeight, 0, 0, canvasWidth, canvasHeight, GL_COLOR_BUFFER_BIT, fast ? GL_NEAREST : GL_LINEAR);
+        OpenGL.glBindFramebufferEXT(GL_FRAMEBUFFER, framebuffer);
         if (scissor) {
             OpenGL.glEnable(GL_SCISSOR_TEST);
         }
-        return true;
     }
 
-    private static void createBuffer(int width, int height) {
+    private static boolean createBuffer(int width, int height) {
         int[] ids = new int[1];
         if (framebuffer == 0) {
             OpenGL.glGenFramebuffersEXT(1, ids, 0);
             framebuffer = ids[0];
             OpenGL.glGenRenderbuffersEXT(1, ids, 0);
-            renderbuffer = ids[0];
+            colourBuffer = ids[0];
+            OpenGL.glGenRenderbuffersEXT(1, ids, 0);
+            depthBuffer = ids[0];
         }
-        OpenGL.glBindRenderbufferEXT(GL_RENDERBUFFER, renderbuffer);
+        OpenGL.glBindRenderbufferEXT(GL_RENDERBUFFER, colourBuffer);
         OpenGL.glRenderbufferStorageEXT(GL_RENDERBUFFER, GL_RGBA8, width, height);
+        // The 3D scene needs a depth buffer like the window's (the client uses no stencil).
+        OpenGL.glBindRenderbufferEXT(GL_RENDERBUFFER, depthBuffer);
+        OpenGL.glRenderbufferStorageEXT(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height);
+        OpenGL.glBindRenderbufferEXT(GL_RENDERBUFFER, 0);
         OpenGL.glBindFramebufferEXT(GL_FRAMEBUFFER, framebuffer);
-        OpenGL.glFramebufferRenderbufferEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, renderbuffer);
+        OpenGL.glFramebufferRenderbufferEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colourBuffer);
+        OpenGL.glFramebufferRenderbufferEXT(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
+        int status = OpenGL.glCheckFramebufferStatusEXT(GL_FRAMEBUFFER);
         OpenGL.glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
         bufferWidth = width;
         bufferHeight = height;
+        if (status != GL_FRAMEBUFFER_COMPLETE) {
+            deleteBuffer();
+            return false;
+        }
+        return true;
+    }
+
+    private static void deleteBuffer() {
+        int[] ids = new int[1];
+        if (framebuffer != 0) {
+            ids[0] = framebuffer;
+            OpenGL.glDeleteFramebuffersEXT(1, ids, 0);
+            ids[0] = colourBuffer;
+            OpenGL.glDeleteRenderbuffersEXT(1, ids, 0);
+            ids[0] = depthBuffer;
+            OpenGL.glDeleteRenderbuffersEXT(1, ids, 0);
+        }
+        framebuffer = colourBuffer = depthBuffer = 0;
+        bufferWidth = bufferHeight = 0;
+        bound = false;
     }
 
     /** The GL context went away (toolkit change): its framebuffer ids are gone with it. */
     public static void glContextLost() {
-        framebuffer = 0;
-        renderbuffer = 0;
+        framebuffer = colourBuffer = depthBuffer = 0;
         bufferWidth = bufferHeight = 0;
+        bound = false;
     }
 }
