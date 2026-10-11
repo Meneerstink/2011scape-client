@@ -905,6 +905,15 @@ public final class debugconsole {
                     addline("window mode=" + InterfaceManager.getWindowMode());
                     return;
                 }
+                // Camera state for the Camera plugin tests (night run 2026-10-11, D1): angles in OSRS units (this client's / 8).
+                if (command.equals("camstate")) {
+                    addline("yaw=" + ((int) Camera.playerCameraYaw >> 3) + " pitch=" + ((int) Camera.playerCameraPitch >> 3) + " zoom=" + CameraZoomController.getZoom()
+                        + " limits=" + CameraZoomController.minZoom() + ".." + CameraZoomController.maxZoom() + " maxPitch=" + (RspsCamera.maxPitch() >> 3)
+                        + " camera=" + Camera.x + "," + Camera.y + "," + Camera.z);
+                    System.out.println("[78] camstate yaw=" + ((int) Camera.playerCameraYaw >> 3) + " pitch=" + ((int) Camera.playerCameraPitch >> 3) + " zoom=" + CameraZoomController.getZoom()
+                        + " limits=" + CameraZoomController.minZoom() + ".." + CameraZoomController.maxZoom() + " maxPitch=" + (RspsCamera.maxPitch() >> 3));
+                    return;
+                }
                 // Renderer test switch: the Custom graphics screen's renderer choice (CS2 DETAIL_TOOLKIT). 0 software, 1 OpenGL, 3 DirectX.
                 if (command.startsWith("tk ")) {
                     @Pc(2748) int toolkit = StringTools.parseDecimal(command.substring("tk ".length()));

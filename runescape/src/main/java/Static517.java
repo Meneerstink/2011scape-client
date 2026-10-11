@@ -24,6 +24,26 @@ public final class Static517 {
         Node_Sub6_Sub5.stereo = stereo;
     }
 
+    /**
+     * RSPS (night run 2026-10-11, D1 black screen): the on-screen entity lists were fixed at 10000 opaque / 5000 transparent
+     * entities, enough for the 2011 camera. OSRS's zoom (CameraZoomController.projectionScale) widens the view far beyond it -
+     * fully zoomed out in the Barrows crypt more than 10000 pieces of scenery were on screen, the frame threw
+     * ArrayIndexOutOfBoundsException, the client stopped with error_game_crash and stayed black. The lists grow instead.
+     */
+    private static void addOpaque(Entity entity) {
+        if (Static546.onscreenOpaqueEntityCount >= Static48.aEntityArray3.length) {
+            Static48.aEntityArray3 = java.util.Arrays.copyOf(Static48.aEntityArray3, Static48.aEntityArray3.length * 2);
+        }
+        Static48.aEntityArray3[Static546.onscreenOpaqueEntityCount++] = entity;
+    }
+
+    private static void addTransparent(Entity entity) {
+        if (Static645.onscreenTransparentEntityCount >= Static395.aEntityArray11.length) {
+            Static395.aEntityArray11 = java.util.Arrays.copyOf(Static395.aEntityArray11, Static395.aEntityArray11.length * 2);
+        }
+        Static395.aEntityArray11[Static645.onscreenTransparentEntityCount++] = entity;
+    }
+
     @OriginalMember(owner = "client!qea", name = "a", descriptor = "(Z[[[BIBIIZ)V")
     public static void method6823(@OriginalArg(0) boolean arg0, @OriginalArg(1) byte[][][] arg1, @OriginalArg(2) int arg2, @OriginalArg(3) byte arg3, @OriginalArg(4) int arg4, @OriginalArg(5) int arg5, @OriginalArg(6) boolean arg6) {
         @Pc(6) int local6 = arg0 ? 1 : 0;
@@ -36,7 +56,7 @@ public final class Static517 {
                 if (!Static208.method3107(local22, arg0, arg1, arg2, arg3)) {
                     method6824(local22);
                     if (local22.anInt10697 != -1) {
-                        Static48.aEntityArray3[Static546.onscreenOpaqueEntityCount++] = local22;
+                        addOpaque(local22);
                     }
                 }
             }
@@ -47,7 +67,7 @@ public final class Static517 {
                 if (!Static208.method3107(local22, arg0, arg1, arg2, arg3)) {
                     method6824(local22);
                     if (local22.anInt10697 != -1) {
-                        Static395.aEntityArray11[Static645.onscreenTransparentEntityCount++] = local22;
+                        addTransparent(local22);
                     }
                 }
             }
@@ -56,12 +76,12 @@ public final class Static517 {
                     if (local98.isTransparent(0)) {
                         method6824(local98);
                         if (local98.anInt10697 != -1) {
-                            Static395.aEntityArray11[Static645.onscreenTransparentEntityCount++] = local98;
+                            addTransparent(local98);
                         }
                     } else {
                         method6824(local98);
                         if (local98.anInt10697 != -1) {
-                            Static48.aEntityArray3[Static546.onscreenOpaqueEntityCount++] = local98;
+                            addOpaque(local98);
                         }
                     }
                 }
@@ -72,9 +92,9 @@ public final class Static517 {
                         method6824(Static679.aPositionEntity[local157]);
                         if (Static679.aPositionEntity[local157].anInt10697 != -1) {
                             if (Static679.aPositionEntity[local157].isTransparent(0)) {
-                                Static395.aEntityArray11[Static645.onscreenTransparentEntityCount++] = Static679.aPositionEntity[local157];
+                                addTransparent(Static679.aPositionEntity[local157]);
                             } else {
-                                Static48.aEntityArray3[Static546.onscreenOpaqueEntityCount++] = Static679.aPositionEntity[local157];
+                                addOpaque(Static679.aPositionEntity[local157]);
                             }
                         }
                     }
