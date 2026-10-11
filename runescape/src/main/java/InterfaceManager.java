@@ -262,6 +262,73 @@ public final class InterfaceManager {
         Toolkit.active.DA(centreX, centreY, scale, scale);
     }
 
+    /**
+     * Owner A4 2026-10-11 (foto\dy.png, Smol Heredit): some OSRS pet heads overflow the chat dialogue and the Follower Details
+     * frame. Every head is posed at one fixed scale (the classic head poses scale an OSRS head x2.5, PetChatheadRigTool), so an
+     * OSRS head modelled bigger than a person's (winged helmets, beasts) comes out bigger than the frame. Per head component a
+     * largest size, as a multiple of the component's own box (the projected bounding box of the posed head): the npc chat
+     * heads (241-244:2) draw past their small box on purpose - measured native 667 heads 2.7-3.1 wide, 3.1-3.6 high (GE clerk,
+     * Man, Pikkupstix) - so their limit sits above that; the Follower Details head (662:1) has to stay inside its panel (Smol Heredit, the
+     * owner's example, comes out at 0.74 in the chat and 0.81 in the panel).
+     * A head over the limit is drawn smaller around the same anchor; a head within it is never touched. Kept per component and
+     * npc like fitModelToBox, so the talking animation does not pump the size.
+     */
+    private static final int[][] NPC_HEAD_LIMITS = {
+        // interface, component, max width x100, max height x100
+        { 241, 2, 360, 440 }, { 242, 2, 360, 440 }, { 243, 2, 360, 440 }, { 244, 2, 360, 440 },
+        { 662, 1, 145, 175 },
+    };
+    private static final java.util.HashMap<Integer, int[]> headCapCache = new java.util.HashMap<>();
+    private static final java.util.HashSet<Long> headTraced = new java.util.HashSet<>();
+
+    private static void capNpcHead(Component child, Model model, int centreX, int centreY, int scaleX, int scaleY) {
+        int[] limit = null;
+        for (int[] l : NPC_HEAD_LIMITS) {
+            if (l[0] == child.slot >>> 16 && l[1] == (child.slot & 0xFFFF)) {
+                limit = l;
+            }
+        }
+        if (limit == null) {
+            return;
+        }
+        int[] cached = headCapCache.get(child.slot);
+        if (cached == null || cached[0] != child.obj || cached[1] != child.width || cached[2] != child.height) {
+            int[] xs = { model.V(), model.RA() };
+            int[] ys = { model.fa(), model.EA() };
+            int[] zs = { model.HA(), model.G() };
+            float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, minY = Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+            for (int x : xs) {
+                for (int y : ys) {
+                    for (int z : zs) {
+                        Static59.aMatrix_5.project(x, y, z, fitCorner);
+                        if (fitCorner[2] <= 16) {
+                            return;
+                        }
+                        float sx = (float) fitCorner[0] / fitCorner[2];
+                        float sy = (float) fitCorner[1] / fitCorner[2];
+                        minX = Math.min(minX, sx);
+                        maxX = Math.max(maxX, sx);
+                        minY = Math.min(minY, sy);
+                        maxY = Math.max(maxY, sy);
+                    }
+                }
+            }
+            float width = (maxX - minX) * scaleX / Math.max(1, child.width);
+            float height = (maxY - minY) * scaleY / Math.max(1, child.height);
+            float factor = Math.min(1.0F, Math.min(limit[2] / 100.0F / Math.max(width, 0.0001F), limit[3] / 100.0F / Math.max(height, 0.0001F)));
+            cached = new int[] { child.obj, child.width, child.height, (int) (factor * 4096) };
+            headCapCache.put(child.slot, cached);
+            if (headTraced.add(((long) child.slot << 32) | child.obj)) {
+                System.out.println("[78] npc head " + child.obj + " in " + (child.slot >>> 16) + ":" + (child.slot & 0xFFFF) + " size "
+                    + String.format(java.util.Locale.ROOT, "%.2f x %.2f", width, height) + " of its box -> scale "
+                    + String.format(java.util.Locale.ROOT, "%.2f", factor));
+            }
+        }
+        if (cached[3] < 4096) {
+            Toolkit.active.DA(centreX, centreY, scaleX * cached[3] >> 12, scaleY * cached[3] >> 12);
+        }
+    }
+
     @OriginalMember(owner = "client!ls", name = "j", descriptor = "I")
     public static volatile int topLevelInterface = -1;
 
@@ -1004,6 +1071,8 @@ public final class InterfaceManager {
 
                             if (!child.orthoView && hasFittedModel(child) && isFittedPreview(child)) {
                                 fitModelToBox(child, model, offsetX, offsetY);
+                            } else if (!child.orthoView && child.objType == Component.OBJ_TYPE_NPCHEAD && model != null) {
+                                capNpcHead(child, model, local779, local792, local1255, local777);
                             }
 
                             if (clipComponents || clipModelComponents && isFittedPreview(child)) {
