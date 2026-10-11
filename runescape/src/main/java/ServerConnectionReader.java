@@ -2310,6 +2310,9 @@ public final class ServerConnectionReader {
         } else if (context.currentProt == ServerProt.UPDATE_FRIENDCHAT_CHANNEL_FULL) {
             Static352.lastClanTransmit = World.tick;
             if (context.currentPacketSize == 0) {
+                if (AvTrace.ENABLED) {
+                    AvTrace.log("friendchat full size=0 (left the channel)");
+                }
                 context.currentProt = null;
                 FriendChat.count = 0;
                 FriendChat.users = null;
@@ -2378,6 +2381,9 @@ public final class ServerConnectionReader {
             }
 
             FriendChat.users = users;
+            if (AvTrace.ENABLED) {
+                AvTrace.log("friendchat full size=" + context.currentPacketSize + " owner=" + FriendChat.owner + " name=" + FriendChat.name + " raw=" + channel + " count=" + FriendChat.count);
+            }
             // g.trace("-=-=- CLANCHAT FULL CHANNEL UPDATE -=-=-");
             // g.trace("usercount={}", (Object)Integer.valueOf(km));
 

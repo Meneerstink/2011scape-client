@@ -8,17 +8,19 @@ public final class Base37 {
 
     private static final int MAX_LENGTH = 12;
 
-    private static final String MIN = "a";
+    // The 2011 client's own literals (night run 2026-10-12). The refactor computed these with encode(), which reads
+    // MAX_PENULTIMATE_ENCODED while it was still 0 during class initialisation: encode() stopped after the first character,
+    // MAX_ENCODED became encode("9") = 36 and decode() returned null for every real name - the friends chat channel name
+    // among them, so the Friends Chat tab said "Not in chat" after every join and Leave chat could never be clicked.
 
-    private static final long MIN_ENCODED = encode(MIN);
+    /** encode("a"). */
+    private static final long MIN_ENCODED = 1L;
 
-    private static final String MAX = "9".repeat(MAX_LENGTH);
+    /** encode("999999999999") = 37^12 - 1. */
+    private static final long MAX_ENCODED = 6582952005840035280L;
 
-    private static final long MAX_ENCODED = encode(MAX);
-
-    private static final String MAX_PENULTIMATE = "9".repeat(MAX_LENGTH - 1);
-
-    private static final long MAX_PENULTIMATE_ENCODED = encode(MAX_PENULTIMATE);
+    /** encode("99999999999") = 37^11 - 1: one more symbol would pass twelve. */
+    private static final long MAX_PENULTIMATE_ENCODED = 177917621779460412L;
 
     @OriginalMember(owner = "client!kj", name = "c", descriptor = "[C")
     public static final char[] TABLE = {

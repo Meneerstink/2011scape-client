@@ -177,6 +177,19 @@ tasks.check {
     dependsOn(r13Regression, audioSettingsRegression, audioVolumeRegression, cameraZoomRegression, debugOverlayRegression)
 }
 
+// Night run 2026-10-12: Base37 decoded every real name as null (friends chat channel name -> "Not in chat").
+val base37Regression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Base37 name encoding round-trips like the 2011 client (friends chat channel names, NameTools.normalise)"
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("Base37RegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    })
+}
+
 val graphicsDisplayRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     dependsOn(tasks.testClasses)

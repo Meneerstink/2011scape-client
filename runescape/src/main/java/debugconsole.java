@@ -40,6 +40,12 @@ public final class debugconsole {
     @OriginalMember(owner = "client!oia", name = "a", descriptor = "Ljava/util/Calendar;")
     public static final Calendar GMT_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
 
+    /**
+     * Owner A34 2026-10-11: CLIENT_CHEAT is a var-byte packet whose size byte is command length + 3 (two flag bytes and the
+     * string terminator). A longer command wrote a wrapped size byte and the server read the rest of the stream out of step.
+     */
+    public static final int MAX_CHEAT_LENGTH = 255 - 3;
+
     @OriginalMember(owner = "client!dha", name = "v", descriptor = "Ljava/lang/String;")
     public static String currententry = "";
 
@@ -959,6 +965,10 @@ public final class debugconsole {
         // Server commands (the chatbox "::" path reaches this through CS2 DOCHEAT, Ctrl+Shift tele too) are forwarded
         // for everyone; the server checks the rights of every command.
         try {
+            if (MainLogicManager.step == MainLogicStep.STEP_GAME_SCREEN && command.length() > MAX_CHEAT_LENGTH) {
+                addline("Command too long: " + command.length() + " characters (max " + MAX_CHEAT_LENGTH + ") - not sent.");
+                return;
+            }
             if (MainLogicManager.step == MainLogicStep.STEP_GAME_SCREEN) {
                 @Pc(2836) ClientMessage local2836 = ClientMessage.create(ClientProt.CLIENT_CHEAT, ServerConnection.GAME.isaac);
                 local2836.bitPacket.p1(command.length() + 3);

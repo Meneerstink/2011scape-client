@@ -530,6 +530,10 @@ public final class RspsDev {
 
     /** Sends [command] to the server as a client cheat. */
     public static void send(String command) {
+        if (command.length() > debugconsole.MAX_CHEAT_LENGTH) {
+            debugconsole.addline("Command too long: " + command.length() + " characters (max " + debugconsole.MAX_CHEAT_LENGTH + ") - not sent.");
+            return;
+        }
         ClientMessage message = ClientMessage.create(com.jagex.ClientProt.CLIENT_CHEAT, ServerConnection.GAME.isaac);
         message.bitPacket.p1(command.length() + 3);
         message.bitPacket.p1(0);
