@@ -495,7 +495,7 @@ public final class JavaToolkit extends Toolkit {
 
             this.canvas = canvas;
 
-            @Pc(18) Dimension dimension = canvas.getSize();
+            @Pc(18) Dimension dimension = com.jagex.StretchedMode.renderSize(canvas);
             this.canvasWidth = dimension.width;
             this.canvasHeight = dimension.height;
             this.surface = surface;
@@ -1039,7 +1039,7 @@ public final class JavaToolkit extends Toolkit {
         this.surfaces.put(canvas.hashCode(), surface);
 
         if (this.canvas == canvas && this.offscreenSurface == null) {
-            @Pc(39) Dimension dimension = canvas.getSize();
+            @Pc(39) Dimension dimension = com.jagex.StretchedMode.renderSize(canvas);
             this.canvasWidth = dimension.width;
             this.canvasHeight = dimension.height;
             this.surface = surface;

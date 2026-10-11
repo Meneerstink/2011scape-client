@@ -69,13 +69,13 @@ public final class CompleteMouseMonitor extends MouseMonitor implements MouseLis
         }
 
         if ((type & CLICK_TYPE_LEFT) != 0) {
-            this.log(event.getY(), event.getX(), MouseLog.TYPE_RELEASE_LEFT, event.getClickCount());
+            this.log(com.jagex.StretchedMode.mouseY(event.getY()), com.jagex.StretchedMode.mouseX(event.getX()), MouseLog.TYPE_RELEASE_LEFT, event.getClickCount());
         }
         if ((type & CLICK_TYPE_RIGHT) != 0) {
-            this.log(event.getY(), event.getX(), MouseLog.TYPE_RELEASE_RIGHT, event.getClickCount());
+            this.log(com.jagex.StretchedMode.mouseY(event.getY()), com.jagex.StretchedMode.mouseX(event.getX()), MouseLog.TYPE_RELEASE_RIGHT, event.getClickCount());
         }
         if ((type & CLICK_TYPE_MIDDLE) != 0) {
-            this.log(event.getY(), event.getX(), MouseLog.TYPE_RELEASE_MIDDLE, event.getClickCount());
+            this.log(com.jagex.StretchedMode.mouseY(event.getY()), com.jagex.StretchedMode.mouseX(event.getX()), MouseLog.TYPE_RELEASE_MIDDLE, event.getClickCount());
         }
 
         this.clickState &= ~type;
@@ -152,8 +152,8 @@ public final class CompleteMouseMonitor extends MouseMonitor implements MouseLis
     @OriginalMember(owner = "client!ht", name = "mouseWheelMoved", descriptor = "(Ljava/awt/event/MouseWheelEvent;)V")
     @Override
     public synchronized void mouseWheelMoved(@OriginalArg(0) MouseWheelEvent event) {
-        @Pc(2) int x = event.getX();
-        @Pc(5) int y = event.getY();
+        @Pc(2) int x = com.jagex.StretchedMode.mouseX(event.getX());
+        @Pc(5) int y = com.jagex.StretchedMode.mouseY(event.getY());
         @Pc(8) int rotation = event.getWheelRotation();
         this.log(y, x, MouseLog.TYPE_SCROLL, rotation);
         event.consume();
@@ -162,13 +162,13 @@ public final class CompleteMouseMonitor extends MouseMonitor implements MouseLis
     @OriginalMember(owner = "client!ht", name = "mouseExited", descriptor = "(Ljava/awt/event/MouseEvent;)V")
     @Override
     public synchronized void mouseExited(@OriginalArg(0) MouseEvent event) {
-        this.setPosition(event.getY(), event.getX());
+        this.setPosition(com.jagex.StretchedMode.mouseY(event.getY()), com.jagex.StretchedMode.mouseX(event.getX()));
     }
 
     @OriginalMember(owner = "client!ht", name = "mouseDragged", descriptor = "(Ljava/awt/event/MouseEvent;)V")
     @Override
     public synchronized void mouseDragged(@OriginalArg(0) MouseEvent event) {
-        this.setPosition(event.getY(), event.getX());
+        this.setPosition(com.jagex.StretchedMode.mouseY(event.getY()), com.jagex.StretchedMode.mouseX(event.getX()));
     }
 
     @OriginalMember(owner = "client!ht", name = "c", descriptor = "(I)Z")
@@ -189,11 +189,11 @@ public final class CompleteMouseMonitor extends MouseMonitor implements MouseLis
         @Pc(4) int type = this.getClickType(event);
 
         if (type == CLICK_TYPE_LEFT) {
-            this.log(event.getY(), event.getX(), MouseLog.TYPE_PRESS_LEFT, event.getClickCount());
+            this.log(com.jagex.StretchedMode.mouseY(event.getY()), com.jagex.StretchedMode.mouseX(event.getX()), MouseLog.TYPE_PRESS_LEFT, event.getClickCount());
         } else if (type == CLICK_TYPE_RIGHT) {
-            this.log(event.getY(), event.getX(), MouseLog.TYPE_PRESS_RIGHT, event.getClickCount());
+            this.log(com.jagex.StretchedMode.mouseY(event.getY()), com.jagex.StretchedMode.mouseX(event.getX()), MouseLog.TYPE_PRESS_RIGHT, event.getClickCount());
         } else if (type == CLICK_TYPE_MIDDLE) {
-            this.log(event.getY(), event.getX(), MouseLog.TYPE_PRESS_MIDDLE, event.getClickCount());
+            this.log(com.jagex.StretchedMode.mouseY(event.getY()), com.jagex.StretchedMode.mouseX(event.getX()), MouseLog.TYPE_PRESS_MIDDLE, event.getClickCount());
         }
 
         this.clickState |= type;
@@ -224,7 +224,7 @@ public final class CompleteMouseMonitor extends MouseMonitor implements MouseLis
     @OriginalMember(owner = "client!ht", name = "mouseMoved", descriptor = "(Ljava/awt/event/MouseEvent;)V")
     @Override
     public synchronized void mouseMoved(@OriginalArg(0) MouseEvent event) {
-        this.setPosition(event.getY(), event.getX());
+        this.setPosition(com.jagex.StretchedMode.mouseY(event.getY()), com.jagex.StretchedMode.mouseX(event.getX()));
     }
 
     @OriginalMember(owner = "client!ht", name = "a", descriptor = "(I)V")
@@ -236,7 +236,7 @@ public final class CompleteMouseMonitor extends MouseMonitor implements MouseLis
     @OriginalMember(owner = "client!ht", name = "mouseEntered", descriptor = "(Ljava/awt/event/MouseEvent;)V")
     @Override
     public synchronized void mouseEntered(@OriginalArg(0) MouseEvent event) {
-        this.setPosition(event.getY(), event.getX());
+        this.setPosition(com.jagex.StretchedMode.mouseY(event.getY()), com.jagex.StretchedMode.mouseX(event.getX()));
     }
 
     @OriginalMember(owner = "client!ht", name = "d", descriptor = "(I)Z")

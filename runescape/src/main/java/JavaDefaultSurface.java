@@ -42,6 +42,14 @@ public final class JavaDefaultSurface extends JavaSurface {
         this.clipBox.x = centerX;
         this.clipBox.y = centerY;
         this.clipBox.width = width;
+        if (com.jagex.StretchedMode.active() && this.canvas == com.jagex.game.runetek6.client.GameShell.canvas) {
+            // RuneLite Stretched Mode (Hooks.draw): the whole real-size frame drawn over the stretched canvas.
+            java.awt.Graphics2D g2 = (java.awt.Graphics2D) graphics;
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, com.jagex.StretchedMode.fast()
+                ? java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR : java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            graphics.drawImage(this.image, 0, 0, com.jagex.StretchedMode.stretchedWidth(), com.jagex.StretchedMode.stretchedHeight(), this.canvas);
+            return;
+        }
         graphics.setClip(this.clipBox);
         graphics.drawImage(this.image, centerX - x, centerY - y, this.canvas);
         graphics.setClip(this.clip);

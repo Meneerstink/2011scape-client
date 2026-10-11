@@ -53,8 +53,10 @@ public final class Static712 {
                 GameShell.canvasHei = Client.loadingScreenHeight;
                 GameShell.leftMargin = (GameShell.frameWid - Client.loadingScreenWidth) / 2;
                 GameShell.canvasWid = Client.loadingScreenWidth;
+                com.jagex.StretchedMode.layout(true);
             } else {
                 InterfaceManager.applyMaxScreenSize();
+                com.jagex.StretchedMode.layout(false);
                 if (ClientOptions.instance != null && GameShell.frameWid >= 765 && GameShell.frameHei >= 503) {
                     if (ClientOptions.instance.windowWidth != GameShell.frameWid
                         || ClientOptions.instance.windowHeight != GameShell.frameHei) {
@@ -74,7 +76,7 @@ public final class Static712 {
                 }
             }
 
-            GameShell.canvas.setSize(GameShell.canvasWid, GameShell.canvasHei);
+            GameShell.canvas.setSize(com.jagex.StretchedMode.canvasWidth(), com.jagex.StretchedMode.canvasHeight());
 
             if (Toolkit.active != null) {
                 if (OrthoMode.toolkitActive) {

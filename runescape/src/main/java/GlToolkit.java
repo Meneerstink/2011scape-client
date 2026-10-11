@@ -2114,7 +2114,8 @@ public final class GlToolkit extends Toolkit {
         if (this.aCanvas11 == null) {
             this.anInt7864 = this.anInt7904 = 0;
         } else {
-            @Pc(18) Dimension local18 = this.aCanvas11.getSize();
+            // RuneLite Stretched Mode: the game canvas renders at the real size and is stretched at flip.
+            @Pc(18) Dimension local18 = com.jagex.StretchedMode.renderSize(this.aCanvas11);
             this.anInt7864 = local18.width;
             this.anInt7904 = local18.height;
         }
@@ -3292,10 +3293,22 @@ public final class GlToolkit extends Toolkit {
     public void F(@OriginalArg(0) int x, @OriginalArg(1) int y) {
     }
 
+    /** RuneLite Stretched Mode: 0 = not asked yet, 1 = the driver can blit framebuffers, 2 = it cannot. */
+    private int rspsStretchBlit;
+
     @OriginalMember(owner = "client!qha", name = "e", descriptor = "(II)V")
     @Override
     public void flip(@OriginalArg(0) int x, @OriginalArg(1) int y) throws FlipException {
         try {
+            // RuneLite Stretched Mode (GpuPlugin): blit the real-size frame over the stretched window. The scissor test is on
+            // whenever the clip is not the whole surface (la() switches it off).
+            boolean scissor = this.anInt8000 != 0 || this.anInt8032 != 0 || this.anInt8028 != this.anInt7869 || this.anInt8012 != this.anInt7956;
+            // Asked of the driver itself: the 2011 client switches its own framebuffer use off on every Intel card (aBoolean613,
+            // a workaround for its post-processing), but the owner's Intel driver has both extensions.
+            if (this.rspsStretchBlit == 0) {
+                this.rspsStretchBlit = this.anOpenGL1.a("GL_EXT_framebuffer_object") && this.anOpenGL1.a("GL_EXT_framebuffer_blit") ? 1 : 2;
+            }
+            com.jagex.StretchedMode.glPresent(this.rspsStretchBlit == 1, scissor);
             this.anOpenGL1.swapBuffers();
         } catch (@Pc(8) Exception local8) {
         }

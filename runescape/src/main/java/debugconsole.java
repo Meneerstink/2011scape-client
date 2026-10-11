@@ -185,8 +185,9 @@ public final class debugconsole {
     @OriginalMember(owner = "client!hd", name = "a", descriptor = "(IZZLjava/lang/String;)V")
     public static void executeComand(@OriginalArg(1) boolean automatic, @OriginalArg(2) boolean retainText, @OriginalArg(3) String command) {
         try {
-            if (command.equalsIgnoreCase("commands") || command.equalsIgnoreCase("help")) {
-                addline("commands - This command");
+            // Owner 2026-10-10: "commands" goes to the server (the staff command list, interface 1180); "help" stays this list.
+            if (command.equalsIgnoreCase("help")) {
+                addline("help - This command (::commands opens the staff command list)");
                 addline("cls - Clear console");
                 addline("displayfps - Toggle FPS and other information");
                 addline("renderer - Print graphics renderer information");
@@ -953,8 +954,8 @@ public final class debugconsole {
 
     @OriginalMember(owner = "client!oga", name = "a", descriptor = "(I)V")
     public static void open() {
-        // K-01: no debug console outside dev mode (-Drsps.dev=true).
-        if (!ClientConfig.DEV_MODE || !MainLogicManager.isNotLoading()) {
+        // K-01: no debug console outside dev mode (-Drsps.dev=true), except for staff (ClientConfig.consoleAllowed).
+        if (!ClientConfig.consoleAllowed() || !MainLogicManager.isNotLoading()) {
             return;
         }
 

@@ -21,6 +21,15 @@ public class ClientConfig {
     public static final boolean DEV_MODE = Boolean.getBoolean("rsps.dev");
 
     /**
+     * Owner 2026-10-11 ("soes cant open the command window", choice "Console voor staff"): the command console opens in dev mode
+     * and for staff (moderator rank and up, {@link Client#staffModLevel} from the login response). The server still checks every
+     * command's rank; the client-side QA commands stay dev-only.
+     */
+    public static boolean consoleAllowed() {
+        return DEV_MODE || Client.staffModLevel >= 1;
+    }
+
+    /**
      * K-05: game/JS5 host. Players (or a remote test box) launch with {@code -Drsps.host=<server ip or name>}; without
      * the property the client stays on the local machine.
      */

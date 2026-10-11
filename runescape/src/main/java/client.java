@@ -951,13 +951,15 @@ public final class client extends GameShell {
             if (RspsTeleportKeys.key(log)) {
                 continue;
             }
+            // OSRS keybinding (owner 2026-10-11): F1-F12 / Esc open the bound side tab; the key still reaches the server.
+            RspsFunctionKeys.key(log);
             @Pc(102) int type = log.getType();
 
             if (type == KeyLog.TYPE_HELD || type == KeyLog.TYPE_TYPED) {
                 @Pc(118) char keyChar = log.getKeyChar();
 
-                // K-01: the debug console only opens in dev mode (-Drsps.dev=true); for players the key is typed normally.
-                if (ClientConfig.DEV_MODE && MainLogicManager.isNotLoading() && (keyChar == '`' || keyChar == '§' || keyChar == '²')) {
+                // K-01: the debug console opens in dev mode (-Drsps.dev=true) and for staff; for players the key is typed normally.
+                if (ClientConfig.consoleAllowed() && MainLogicManager.isNotLoading() && (keyChar == '`' || keyChar == '§' || keyChar == '²')) {
                     if (debugconsole.isOpen()) {
                         debugconsole.close();
                     } else {
@@ -967,6 +969,12 @@ public final class client extends GameShell {
                     Static194.AN_KEYBOARD_EVENT_ARRAY_1[Static671.anInt10026] = log;
                     Static671.anInt10026++;
                 }
+            } else if (type == 0 && (debugconsole.isOpen()
+                || ClientConfig.consoleAllowed() && log.getKeyCode() == rs2.client.event.keyboard.SimpleKeyboardMonitor.KEY_MAP[192])) {
+                // Owner 2026-10-10 ("closing the command window also closes the gui"): while the console is open its key presses -
+                // Enter, space, the closing backtick - belong to the console. They reached the game too, where they closed the open
+                // window (the ::commands list) and clicked "continue" in dialogues; the console reads only the typed events above.
+                continue;
             } else if (type == 0 && Static216.keyPressCount < 75) {
                 // RSPS Ground Items: a double tap of the hotkey hides every label (RuneLite).
                 RspsHudGroundItems.keyPressed(log.getKeyCode(), log.getTime());

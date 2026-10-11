@@ -16,7 +16,7 @@ public final class Static255 {
         @Pc(15) int height = 0;
 
         if (canvas != null) {
-            @Pc(20) Dimension dimension = canvas.getSize();
+            @Pc(20) Dimension dimension = com.jagex.StretchedMode.renderSize(canvas);
             width = dimension.width;
             height = dimension.height;
         }

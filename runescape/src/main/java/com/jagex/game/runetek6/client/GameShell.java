@@ -525,7 +525,7 @@ public abstract class GameShell extends Applet implements Runnable, FocusListene
             fullredraw = true;
             drawCount -= 50;
 
-            canvas.setSize(canvasWid, canvasHei);
+            canvas.setSize(com.jagex.StretchedMode.canvasWidth(), com.jagex.StretchedMode.canvasHeight()); // RuneLite Stretched Mode: the drawn size
             canvas.setVisible(true);
 
             if (frame != null && fsframe == null) {
@@ -737,7 +737,7 @@ public abstract class GameShell extends Applet implements Runnable, FocusListene
         topContainer.setLayout(null);
         canvas = new Canvas_Sub1(this);
         topContainer.add(canvas);
-        canvas.setSize(canvasWid, canvasHei);
+        canvas.setSize(com.jagex.StretchedMode.canvasWidth(), com.jagex.StretchedMode.canvasHeight()); // RuneLite Stretched Mode: the drawn size
         canvas.setIgnoreRepaint(true);
         canvas.setVisible(true);
 

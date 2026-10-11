@@ -63,6 +63,8 @@ final class RspsHudConfig {
         {"chatbox", "Chatbox", "Transparent or opaque chatbox in resizable and fullscreen"},
         // Owner 2026-10-07: the Quest Helper as a plugin (RuneLite Quest Helper: "An in-game interactive guide for quests").
         {"questhelper", "Quest Helper", "An in-game interactive guide for quests"},
+        // Owner 2026-10-11 (bug 012046 "we need the runelite stretched plugin"): RuneLite's Stretched Mode (com.jagex.StretchedMode).
+        {"stretchedmode", "Stretched Mode", "Stretches the game in fixed and resizable modes."},
     };
 
     static final List<Setting> SETTINGS = new ArrayList<Setting>();
@@ -193,6 +195,13 @@ final class RspsHudConfig {
         bool(q, "showMiniMapArrow", "Display arrows", "Show the hint arrow over the next npc or place, and on the minimap.", true, null);
         bool(q, "showStepMessages", "Step messages in chat", "Write each new quest step in the chatbox.", true, null);
 
+        // RuneLite StretchedModeConfig (group "stretchedmode"): same keys, names, descriptions and defaults.
+        String st = "stretchedmode";
+        bool(st, "keepAspectRatio", "Keep aspect ratio", "Keeps the aspect ratio when stretching.", false, null);
+        bool(st, "increasedPerformance", "Increased performance mode", "Uses a fast algorithm when stretching, lowering quality but increasing performance.", false, null);
+        bool(st, "integerScaling", "Integer Scaling", "Forces use of a whole number scale factor when stretching.", false, null);
+        integer(st, "scalingFactor", "Resizable Scaling", "In resizable mode, the game is reduced in size this much before it's stretched.", 50, 100, null);
+
         String l = "loottracker";
         choice(l, "priceType", "Price type", "What type of price to use for calculating value.", "GRAND_EXCHANGE",
             new String[]{"GRAND_EXCHANGE", "HIGH_ALCHEMY"}, new String[]{"Grand Exchange", "High Alchemy"}, null);
@@ -246,6 +255,8 @@ final class RspsHudConfig {
         }
         // RuneLite CameraPlugin: enabledByDefault = false.
         values.put("zoom.enabled", "false");
+        // RuneLite StretchedModePlugin: disabled by default.
+        values.put("stretchedmode.enabled", "false");
         highlighted.clear();
         hidden.clear();
         highlightedNames.clear();
@@ -299,6 +310,13 @@ final class RspsHudConfig {
     static void put(String key, String value) {
         values.put(key, value);
         revision++;
+        applyStretchedMode();
+    }
+
+    /** RuneLite StretchedModePlugin.updateConfig: hands the settings to the client's stretching (it lays the window out again). */
+    static void applyStretchedMode() {
+        com.jagex.StretchedMode.configure(enabled("stretchedmode"), bool("stretchedmode.keepAspectRatio"), bool("stretchedmode.increasedPerformance"),
+            bool("stretchedmode.integerScaling"), values.containsKey("stretchedmode.scalingFactor") ? integer("stretchedmode.scalingFactor") : 50);
     }
 
     static synchronized void handle(String kind, String rest) {
@@ -310,6 +328,7 @@ final class RspsHudConfig {
                 }
             }
             revision++;
+            applyStretchedMode();
             return;
         }
         List<Pattern> list = kind.equals("hl") ? highlighted : hidden;

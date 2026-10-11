@@ -2643,6 +2643,8 @@ public final class InterfaceManager {
         } else {
             applyMaxScreenSize();
         }
+        // RuneLite Stretched Mode: the game keeps its real size, the canvas is drawn stretched over the window.
+        com.jagex.StretchedMode.layout(newMode == WindowMode.FIXED);
 
         if (Client.modeWhere != ModeWhere.LIVE) {
             @Pc(178) boolean tooSmall;
@@ -2656,7 +2658,7 @@ public final class InterfaceManager {
         if (different) {
             Static574.method7572();
         } else {
-            GameShell.canvas.setSize(GameShell.canvasWid, GameShell.canvasHei);
+            GameShell.canvas.setSize(com.jagex.StretchedMode.canvasWidth(), com.jagex.StretchedMode.canvasHeight());
 
             if (OrthoMode.toolkitActive) {
                 OrthoMode.method7606(GameShell.canvas);

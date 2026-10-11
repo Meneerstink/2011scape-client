@@ -18,7 +18,7 @@ public final class Static574 {
             if (OrthoMode.toolkitActive) {
                 Static720.method9397(GameShell.canvas);
             } else {
-                @Pc(26) Dimension local26 = GameShell.canvas.getSize();
+                @Pc(26) Dimension local26 = com.jagex.StretchedMode.renderSize(GameShell.canvas);
                 Toolkit.active.addCanvas(GameShell.canvas, local26.width, local26.height);
             }
             Toolkit.active.setCanvas(GameShell.canvas);
