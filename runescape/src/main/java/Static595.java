@@ -35,10 +35,13 @@ public final class Static595 {
                 loading.free();
             }
         }
+        // Stretched Mode on: "Software" runs the Java software renderer, the one that can stretch (StretchedMode.rendererFor).
+        int create = com.jagex.StretchedMode.rendererFor(toolkit);
         GraphicsRendererPolicy.Result<Toolkit> created = GraphicsRendererPolicy.create(
-                toolkit, Static595::createWithHeap);
+                create, Static595::createWithHeap);
         Toolkit.active = created.value;
-        toolkit = created.renderer;
+        // The player's choice stays what they picked (Software = SSE), not the stand-in.
+        toolkit = create != toolkit && created.renderer == create ? toolkit : created.renderer;
         // RuneLite Stretched Mode draws through the software renderer, OpenGL's offscreen framebuffer or DirectX's scaled
         // Present; SSE, GLX and the orthographic toolkit draw straight into the canvas and stay unstretched (the layout
         // follows below).

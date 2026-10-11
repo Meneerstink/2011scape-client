@@ -52,6 +52,9 @@ public final class StretchedMode {
     public static boolean configure(boolean on, boolean keepAspect, boolean increasedPerformance, boolean integer, int scalingPercent) {
         double factor = 1 + scalingPercent / 100D;
         boolean changed = on != enabled || keepAspect != keepAspectRatio || increasedPerformance != fast || integer != integerScaling || factor != scalingFactor;
+        if (on != enabled) {
+            softwareSwap = true;
+        }
         enabled = on;
         keepAspectRatio = keepAspect;
         fast = increasedPerformance;
@@ -63,6 +66,26 @@ public final class StretchedMode {
         // RuneLite never sizes the window for a setting (owner 2026-10-11: the maximising added that afternoon was wrong). The
         // window the player had is brought back by RspsHudConfig.applyStretchedMode (RuneLite rememberScreenBounds).
         return changed;
+    }
+
+    /**
+     * RuneLite's only software renderer is its Java one, and it stretches. The 2011 "Software" choice runs the native SSE
+     * renderer when it can, which draws straight into the canvas and cannot stretch, so Stretched Mode did nothing in Software
+     * (night run 2026-10-12). While stretching is on, Software runs the Java software renderer instead; the player's choice
+     * stays "Software" (Static595.setToolkit keeps SSE stored) and SSE comes back when stretching goes off.
+     */
+    public static int rendererFor(int requested) {
+        return requested == com.jagex.graphics.ToolkitType.SSE && enabled ? com.jagex.graphics.ToolkitType.JAVA : requested;
+    }
+
+    /** Stretching went on or off: the game thread checks whether Software has to change renderer (client loop). */
+    private static volatile boolean softwareSwap;
+
+    /** True once after stretching went on or off (configure runs on the event thread as well as the game thread). */
+    public static boolean takeSoftwareSwap() {
+        boolean swap = softwareSwap;
+        softwareSwap = false;
+        return swap;
     }
 
     /**
@@ -151,11 +174,16 @@ public final class StretchedMode {
         } else {
             int newWidth = (int) (parentWidth / scalingFactor);
             int newHeight = (int) (parentHeight / scalingFactor);
-            if (newWidth < FIXED_WIDTH || newHeight < RESIZABLE_MIN_HEIGHT) {
-                double factor = Math.min((double) parentWidth / FIXED_WIDTH, (double) parentHeight / RESIZABLE_MIN_HEIGHT);
+            // The floor never exceeds the window: RuneLite stretches, it never shrinks the game into a smaller window (night run
+            // 2026-10-12: a 765x503 window drew the 791x520 game shrunk, and with Increased performance letters fell out of the
+            // chat text). A window lower than 520 px shows the game 1:1, exactly as without the plugin.
+            int minWidth = Math.min(FIXED_WIDTH, parentWidth);
+            int minHeight = Math.min(RESIZABLE_MIN_HEIGHT, parentHeight);
+            if (newWidth < minWidth || newHeight < minHeight) {
+                double factor = Math.min((double) parentWidth / minWidth, (double) parentHeight / minHeight);
                 // Rounded up: a truncated 502 px left the game a pixel under its minimum.
-                newWidth = Math.max(FIXED_WIDTH, (int) Math.ceil(parentWidth / factor));
-                newHeight = Math.max(RESIZABLE_MIN_HEIGHT, (int) Math.ceil(parentHeight / factor));
+                newWidth = Math.max(minWidth, (int) Math.ceil(parentWidth / factor));
+                newHeight = Math.max(minHeight, (int) Math.ceil(parentHeight / factor));
             }
             realWidth = newWidth;
             realHeight = newHeight;

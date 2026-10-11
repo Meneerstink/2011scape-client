@@ -25,20 +25,27 @@ public final class RspsHudRegressionTest {
         + "grounditems.highlightValueCalculation=HIGHEST;grounditems.dontHideUntradeables=true";
 
     public static void main(String[] args) {
-        values();
-        config();
-        countdowns();
-        groundItems();
-        groundSettings();
-        menu();
-        boosts();
-        timers();
-        opponent();
-        layout();
-        sidebar();
-        crowdedGround();
-        lootTracker();
-        chatbox();
+        // Every section runs even when an earlier one fails (night run 2026-10-12: the known red ground-items label check
+        // stopped the run before the overlay layout and Deadman HUD checks, so those had not run since). Still red overall.
+        Runnable[] sections = {
+            RspsHudRegressionTest::values, RspsHudRegressionTest::config, RspsHudRegressionTest::countdowns,
+            RspsHudRegressionTest::groundItems, RspsHudRegressionTest::groundSettings, RspsHudRegressionTest::menu,
+            RspsHudRegressionTest::boosts, RspsHudRegressionTest::timers, RspsHudRegressionTest::opponent,
+            RspsHudRegressionTest::layout, RspsHudRegressionTest::deadmanHudPerMode, RspsHudRegressionTest::sidebar,
+            RspsHudRegressionTest::crowdedGround, RspsHudRegressionTest::lootTracker, RspsHudRegressionTest::chatbox,
+        };
+        java.util.List<String> failures = new java.util.ArrayList<String>();
+        for (Runnable section : sections) {
+            try {
+                section.run();
+            } catch (AssertionError failure) {
+                failures.add(failure.getMessage());
+                System.out.println("FAILED: " + failure.getMessage());
+            }
+        }
+        if (!failures.isEmpty()) {
+            throw new AssertionError(failures.size() + " section(s) failed: " + failures);
+        }
         System.out.println("RSPS HUD regression checks passed: " + assertions);
     }
 
@@ -429,6 +436,51 @@ public final class RspsHudRegressionTest {
         RspsOverlayLayout.dropForTest("boosts", 100, 100);
         RspsOverlayLayout.resetAll();
         check(!RspsOverlayLayout.isMoved("boosts"), "reset all positions");
+        keys.alt = false;
+    }
+
+    /**
+     * Owner A30 2026-10-11: the Deadman HUD's fixed-mode default is the owner's spot 427,249 (block top-left) for everyone,
+     * each display mode keeps its own Alt-dragged spot, the owner's saved deadman=427,249 stays his fixed spot, and
+     * Alt + right-click puts it back on the mode's default.
+     */
+    private static void deadmanHudPerMode() {
+        try {
+            File dir = Files.createTempDirectory("rsps-overlays-a30").toFile();
+            System.setProperty("rsps.preferencesDir", dir.getAbsolutePath());
+            java.nio.file.Files.write(new File(dir, "overlays.properties").toPath(), java.util.Arrays.asList("deadman=427,249"));
+        } catch (java.io.IOException e) {
+            throw new AssertionError(e);
+        }
+        RspsOverlayLayout.reloadForTest();
+        Keys keys = new Keys();
+        Mouse mouse = new Mouse();
+        KeyboardMonitor.instance = keys;
+        MouseMonitor.instance = mouse;
+        String fixed = DeadmanSkullHud.layoutId(true);
+        String resizable = DeadmanSkullHud.layoutId(false);
+        check(fixed.equals("deadman") && !resizable.equals(fixed), "A30: fixed keeps the old key, resizable has its own");
+        int[] at = RspsOverlayLayout.place(fixed, DeadmanSkullHud.FIXED_DEFAULT_X, DeadmanSkullHud.FIXED_DEFAULT_Y, 90, 80, 0, 0, 765, 503);
+        check(at[0] == 427 && at[1] == 249, "A30: the owner's saved fixed spot: " + at[0] + "," + at[1]);
+        at = RspsOverlayLayout.place(resizable, 30, 600, 90, 80, 0, 0, 1200, 800);
+        check(at[0] == 30 && at[1] == 600 && !RspsOverlayLayout.isMoved(resizable), "A30: resizable unmoved = its own (chatbox) default");
+        // Drag the resizable HUD: the fixed spot does not move.
+        RspsOverlayLayout.dropForTest(resizable, 500, 100);
+        at = RspsOverlayLayout.place(fixed, DeadmanSkullHud.FIXED_DEFAULT_X, DeadmanSkullHud.FIXED_DEFAULT_Y, 90, 80, 0, 0, 765, 503);
+        check(at[0] == 427 && at[1] == 249, "A30: moving the resizable HUD leaves the fixed one alone");
+        // Move the fixed HUD, then Alt + right-click: back on 427,249 (not above the chatbox).
+        RspsOverlayLayout.dropForTest(fixed, 100, 100);
+        at = RspsOverlayLayout.place(fixed, DeadmanSkullHud.FIXED_DEFAULT_X, DeadmanSkullHud.FIXED_DEFAULT_Y, 90, 80, 0, 0, 765, 503);
+        check(at[0] == 100 && at[1] == 100, "A30: Alt-drag in fixed is kept");
+        keys.alt = true;
+        check(RspsOverlayLayout.mousePress(press(MouseLog.TYPE_PRESS_RIGHT, 105, 105)), "A30: Alt + right-click on the HUD is taken");
+        at = RspsOverlayLayout.place(fixed, DeadmanSkullHud.FIXED_DEFAULT_X, DeadmanSkullHud.FIXED_DEFAULT_Y, 90, 80, 0, 0, 765, 503);
+        check(at[0] == 427 && at[1] == 249, "A30: reset in fixed = 427,249: " + at[0] + "," + at[1]);
+        // A fresh player (no file): fixed default 427,249.
+        RspsOverlayLayout.resetAll();
+        RspsOverlayLayout.reloadForTest();
+        at = RspsOverlayLayout.place(fixed, DeadmanSkullHud.FIXED_DEFAULT_X, DeadmanSkullHud.FIXED_DEFAULT_Y, 90, 80, 0, 0, 765, 503);
+        check(at[0] == 427 && at[1] == 249, "A30: a new player starts on 427,249 in fixed");
         keys.alt = false;
     }
 

@@ -236,6 +236,87 @@ final class RspsSidebar extends JPanel {
         SwingUtilities.invokeLater(() -> instance.refresh());
     }
 
+    // ---- fullscreen ---------------------------------------------------------------------------------------------------
+    //
+    // RuneLite makes its whole frame - game and sidebar - the full-screen window, so the sidebar stays on screen in
+    // fullscreen. The 2011 client shows fullscreen in a frame of its own holding only the game canvas, and the sidebar stayed
+    // behind in the hidden main frame (owner 2026-10-11, "fullscreen hides the 78 sidebar"). While that frame is up, the
+    // sidebar is moved into it, on its right edge, and the game gets the rest of the screen (InterfaceManager.windowModeChanged
+    // asks fullscreenWidth()). The game thread never waits for the event thread here (the fullscreen switch itself already
+    // waits for it), so the width comes from the sidebar's own state and the move is posted.
+
+    /** The full-screen frame the sidebar is in, or null while it is in the main frame. */
+    private static volatile Frame fullscreenHost;
+
+    /** Whether the panel is open, readable from the game thread (fullscreenWidth). */
+    private static volatile boolean panelOpen;
+
+    /** The width the sidebar takes in the full-screen frame: the navigation strip, plus the panel while it is open. */
+    static int fullscreenWidth() {
+        if (instance == null || fullscreenHost == null) {
+            return 0;
+        }
+        return NAV_WIDTH + (panelOpen ? PANEL_WIDTH + SCROLLBAR_WIDTH : 0);
+    }
+
+    /** Fullscreen was entered (game thread): the sidebar goes into [fullscreen] on its right edge. */
+    static void enterFullscreen(final Frame fullscreen) {
+        if (instance == null || fullscreen == null) {
+            return;
+        }
+        fullscreenHost = fullscreen;
+        SwingUtilities.invokeLater(() -> {
+            if (fullscreenHost != fullscreen || instance.getParent() == fullscreen) {
+                return;
+            }
+            if (instance.getParent() != null) {
+                instance.getParent().remove(instance);
+                if (instance.frame != null) {
+                    instance.frame.validate();
+                }
+            }
+            // No layout manager, as GameShell.addcanvas sets: a BorderLayout would stretch the sidebar over the whole screen.
+            fullscreen.setLayout(null);
+            fullscreen.add(instance);
+            instance.placeInFullscreen();
+        });
+    }
+
+    /**
+     * Fullscreen is being left (game thread, before the full-screen frame is disposed): the sidebar goes back into the main
+     * frame. Posted before the fullscreen exit, which waits for the event thread, so it runs first.
+     */
+    static void leaveFullscreen() {
+        if (instance == null || fullscreenHost == null) {
+            return;
+        }
+        fullscreenHost = null;
+        SwingUtilities.invokeLater(() -> {
+            if (fullscreenHost != null || instance.frame == null || instance.getParent() == instance.frame) {
+                return;
+            }
+            if (instance.getParent() != null) {
+                instance.getParent().remove(instance);
+            }
+            instance.frame.add(instance, BorderLayout.EAST);
+            instance.frame.validate();
+            instance.revalidate();
+            instance.repaint();
+        });
+    }
+
+    /** Bounds in the full-screen frame (no layout manager there - the 2011 client places the canvas itself). */
+    private void placeInFullscreen() {
+        Frame host = fullscreenHost;
+        if (host == null || getParent() != host) {
+            return;
+        }
+        int width = NAV_WIDTH + (expanded ? PANEL_WIDTH + SCROLLBAR_WIDTH : 0);
+        setBounds(host.getWidth() - width, 0, width, host.getHeight());
+        validate();
+        repaint();
+    }
+
     // ---- frame --------------------------------------------------------------------------------------------------------
 
     boolean isExpanded() {
@@ -251,7 +332,14 @@ final class RspsSidebar extends JPanel {
             return;
         }
         expanded = open;
+        panelOpen = open;
         content.setVisible(open);
+        if (fullscreenHost != null && getParent() == fullscreenHost) {
+            // Fullscreen: the screen cannot grow, so the game gets narrower (RuneLite in fullscreen); the client lays it out again.
+            placeInFullscreen();
+            com.jagex.Client.changingWindowMode = true;
+            return;
+        }
         // RuneLite ContainableFrame.expandBy / contractBy (ExpandResizeType KEEP_GAME_SIZE): the window grows by the panel
         // so the game view keeps its size (not when maximised), and revalidateMinimumSize: the window's minimum size always
         // leaves the game its 765x503. Without it the window could be made so small with the panel open that the game view

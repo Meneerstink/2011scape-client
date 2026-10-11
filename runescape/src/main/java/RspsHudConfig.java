@@ -221,7 +221,8 @@ final class RspsHudConfig {
         bool(st, "keepAspectRatio", "Keep aspect ratio", "Keeps the aspect ratio when stretching.", false, null);
         bool(st, "increasedPerformance", "Increased performance mode", "Uses a fast algorithm when stretching, lowering quality but increasing performance.", false, null);
         bool(st, "integerScaling", "Integer scaling", "Forces use of a whole number scale factor when stretching.", false, null);
-        integer(st, "scalingFactor", "Resizable scaling", "In resizable mode, the game is reduced in size this much before it's stretched.", 50, 100, null);
+        // No @Range on RuneLite's scalingFactor: its spinner runs 0 .. Integer.MAX_VALUE (the 100 cap blocked 200%, night run 2026-10-12).
+        integer(st, "scalingFactor", "Resizable scaling", "In resizable mode, the game is reduced in size this much before it's stretched.", 50, Integer.MAX_VALUE, null);
 
         String l = "loottracker";
         choice(l, "priceType", "Price type", "What type of price to use for calculating value.", "GRAND_EXCHANGE",

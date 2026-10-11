@@ -2728,6 +2728,21 @@ public final class InterfaceManager {
             options.windowMaximised, options.windowWidth, options.windowHeight);
     }
 
+    /**
+     * Lays the game out again inside the full-screen frame (client loop, Client.changingWindowMode while in fullscreen): a
+     * Stretched Mode setting or the sidebar opening changed the layout. The client's own resize check only looks at a windowed
+     * frame, so before this every such change waited until fullscreen was left (night run 2026-10-12: Resizable scaling 100 %
+     * in fullscreen left the game at 1280x720). Same frame and screen size: windowModeChanged neither leaves nor re-enters
+     * fullscreen and resizes the canvas like a windowed resize.
+     */
+    public static void relayoutFullscreen() {
+        if (GameShell.fsframe == null || Toolkit.active == null) {
+            return;
+        }
+        windowModeChanged(WindowMode.FULLSCREEN, WindowMode.FULLSCREEN, GameShell.lastFullscreenWidth, GameShell.lastFullscreenHeight,
+            !Toolkit.active.method7983());
+    }
+
     @OriginalMember(owner = "client!li", name = "a", descriptor = "(IIIIIZ)V")
     public static void windowModeChanged(@OriginalArg(2) int newMode, @OriginalArg(0) int oldMode, @OriginalArg(4) int width, @OriginalArg(1) int height, @OriginalArg(5) boolean different) {
         if (GameShell.fsframe != null && (newMode != WindowMode.FULLSCREEN || width != GameShell.lastFullscreenWidth || height != GameShell.lastFullscreenHeight)) {
@@ -2742,6 +2757,8 @@ public final class InterfaceManager {
                 GameShell.lastFullscreenWidth = width;
                 GameShell.lastFullscreenHeight = height;
                 ClientOptions.save();
+                // RuneLite keeps its sidebar on screen in fullscreen: it moves into the full-screen frame (RspsSidebar).
+                RspsSidebar.enterFullscreen(GameShell.fsframe);
             }
         }
 
@@ -2753,7 +2770,8 @@ public final class InterfaceManager {
         @Pc(95) Container topContainer;
         if (GameShell.fsframe != null) {
             GameShell.frameHei = GameShell.fsframe.getHeight();
-            GameShell.frameWid = GameShell.fsframe.getWidth();
+            // The 78 Plugins sidebar takes the right edge of the full-screen frame; the game gets the rest.
+            GameShell.frameWid = GameShell.fsframe.getWidth() - RspsSidebar.fullscreenWidth();
             topContainer = GameShell.fsframe;
         } else if (GameShell.frame != null) {
             @Pc(110) Insets insets = GameShell.frame.getInsets();
@@ -3063,6 +3081,8 @@ public final class InterfaceManager {
 
     @OriginalMember(owner = "client!un", name = "a", descriptor = "(Lclient!vq;ILjava/awt/Frame;)V")
     public static void exitFullscreen(@OriginalArg(0) SignLink signLink, @OriginalArg(2) Frame frame) {
+        // Back into the main frame before the full-screen frame goes (posted ahead of the exit, which waits for the event thread).
+        RspsSidebar.leaveFullscreen();
         SignedResource resource = signLink.fullscreenExit(frame);
         while (resource.status == SignedResourceStatus.IDLE) TimeUtils.sleep(10L);
         // Never trap the game thread in a retry loop on desktop/driver failure.

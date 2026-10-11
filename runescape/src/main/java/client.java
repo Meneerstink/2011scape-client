@@ -754,6 +754,20 @@ public final class client extends GameShell {
                 Client.nextWindowModeChange = SystemTimer.safetime() + 500L;
                 Client.changingWindowMode = false;
             }
+        } else if (Client.changingWindowMode) {
+            // Fullscreen: a Stretched Mode setting or the 78 Plugins sidebar changed the layout (InterfaceManager.relayoutFullscreen).
+            Client.changingWindowMode = false;
+            InterfaceManager.relayoutFullscreen();
+        }
+
+        // Stretched Mode went on or off with "Software" chosen: SSE cannot stretch, the Java software renderer can
+        // (StretchedMode.rendererFor). Made again here, on the game thread, only when the running renderer is the wrong one.
+        if (com.jagex.StretchedMode.takeSoftwareSwap() && Toolkit.active != null && ClientOptions.instance != null
+            && ClientOptions.instance.toolkit.getValue() == com.jagex.graphics.ToolkitType.SSE) {
+            boolean wantJava = com.jagex.StretchedMode.rendererFor(com.jagex.graphics.ToolkitType.SSE) == com.jagex.graphics.ToolkitType.JAVA;
+            if (wantJava != (Toolkit.active instanceof JavaToolkit)) {
+                Static32.setToolkit(com.jagex.graphics.ToolkitType.SSE, false);
+            }
         }
 
         // Fullscreen stays stable across focus changes (Alt-Tab and Windows overlays).

@@ -27,7 +27,8 @@ import java.awt.Rectangle;
  * Anchor: the chatbox pane's own screen rectangle (gameframe child 548:192 in fixed mode, 746:73
  * in resizable/fullscreen - the slot interface 752 is mounted in), so the HUD always sits directly
  * above the chatbox, left-aligned with it, in every display mode. Falls back to interface 381's
- * own position when that rectangle is not available yet.
+ * own position when that rectangle is not available yet. That is the resizable / fullscreen default; in fixed mode the
+ * default is the owner's spot 427,249 (block top-left, owner A30 2026-10-11). Each mode keeps its own Alt-dragged position.
  *
  * The server writes {@code "<label>|<lo>-<hi>"} to text component 381:2 and {@code m:ss} (or "")
  * to 381:5. Nothing is computed here. Text is the bold 12px game font in the reference orange
@@ -68,8 +69,18 @@ final class DeadmanSkullHud {
     private static final int TEXT_SHADOW = 0xFF000000;
 
     private static final int ICON_GAP = 3;
-    /** RspsOverlayLayout id and the narrowest block the Alt outline / drag area gets. */
+    /**
+     * RspsOverlayLayout ids, one per display mode (owner A30 2026-10-11: "per-mode storage"): fixed mode keeps the original
+     * key, so the owner's approved deadman=427,249 stays his fixed position; resizable and fullscreen have their own.
+     */
     static final String LAYOUT_ID = "deadman";
+    static final String LAYOUT_ID_RESIZABLE = "deadman.resizable";
+    /**
+     * Owner A30 2026-10-11: the fixed-mode default for every player is the owner's own spot - the HUD block's top-left corner
+     * at 427,249 of the 765x503 game (reference\owner-overlays-approved-2026-10-11.properties). Alt + right-click puts it back here.
+     */
+    static final int FIXED_DEFAULT_X = 427;
+    static final int FIXED_DEFAULT_Y = 249;
     private static final int MIN_BLOCK_WIDTH = 64;
     // Native OSRS metrics, measured from the owner references (captured at 1.2x vertical scale):
     // skull top -> label baseline 40px, label -> bracket 12px, bracket baseline -> swords 9px,
@@ -84,6 +95,11 @@ final class DeadmanSkullHud {
     private static final int CHAT_MARGIN = 6;
     /** Horizontal centre of the column, measured from the chatbox's left edge. */
     private static final int CHAT_CENTRE_OFFSET = 32;
+
+    /** The overlay id of the HUD in fixed mode, or in resizable / fullscreen. */
+    static String layoutId(boolean fixedMode) {
+        return fixedMode ? LAYOUT_ID : LAYOUT_ID_RESIZABLE;
+    }
 
     static boolean isHudLayer(Component component) {
         return isZoneLayer(component) || isTimerLayer(component);
@@ -347,7 +363,11 @@ final class DeadmanSkullHud {
             blockWidth = Math.max(blockWidth, skullWidth + ICON_GAP + textWidth(time));
         }
         blockWidth += 8;
-        int[] at = RspsOverlayLayout.place(LAYOUT_ID, cx - blockWidth / 2, y - swordsReserve, blockWidth, swordsReserve + totalHeight,
+        boolean fixedMode = InterfaceManager.getWindowMode() == com.jagex.core.constants.WindowMode.FIXED;
+        String layoutId = layoutId(fixedMode);
+        int defaultX = fixedMode ? FIXED_DEFAULT_X : cx - blockWidth / 2;
+        int defaultY = fixedMode ? FIXED_DEFAULT_Y : y - swordsReserve;
+        int[] at = RspsOverlayLayout.place(layoutId, defaultX, defaultY, blockWidth, swordsReserve + totalHeight,
             0, 0, GameShell.canvasWid, GameShell.canvasHei);
         cx = at[0] + blockWidth / 2;
         y = at[1] + swordsReserve;
@@ -433,7 +453,7 @@ final class DeadmanSkullHud {
             int textX = rowX + iconW + (iconW > 0 ? ICON_GAP : 0);
             font.renderCentre(graveTime, textX + timeWidth / 2, rowY + (rowHeight + FONT_HEIGHT) / 2 - 1, graveColour(), TEXT_SHADOW);
         }
-        RspsOverlayLayout.decorate(LAYOUT_ID);
+        RspsOverlayLayout.decorate(layoutId);
         return new int[] {at[0], at[1], blockWidth, swordsReserve + totalHeight};
     }
 

@@ -84,6 +84,40 @@ public final class StretchedModeRegressionTest {
             check(GameShell.canvasWid <= previous && GameShell.canvasHei >= 520, "Resizable " + percent + "%: game " + GameShell.canvasWid + "x" + GameShell.canvasHei);
             previous = GameShell.canvasWid;
         }
+        // Night run 2026-10-12: never shrunk. A window lower than the 520 floor (765x503) drew the 791x520 game shrunk into it and
+        // Increased performance dropped pixel rows out of the text; RuneLite never draws the game smaller than it is.
+        StretchedMode.configure(true, false, false, false, 50);
+        window(765, 503, 765, 503);
+        StretchedMode.layout(false);
+        check(GameShell.canvasWid == 765 && GameShell.canvasHei == 503, "Resizable in a 765x503 window: 1:1, not shrunk: " + GameShell.canvasWid + "x" + GameShell.canvasHei);
+        window(900, 510, 900, 510);
+        StretchedMode.layout(false);
+        check(GameShell.canvasHei == 510 && GameShell.canvasWid <= 900, "Resizable in a 510 px high window: the game is 510 high: " + GameShell.canvasWid + "x" + GameShell.canvasHei);
+        // Every window from the smallest the frame allows up to the laptop screen, every scaling step 0..200 % (RuneLite has no
+        // maximum): the game is never larger than the window it is drawn over, and never lower than 520 where the window allows it.
+        int[][] windows = {{765, 503}, {765, 519}, {765, 520}, {800, 560}, {854, 581}, {944, 581}, {1029, 761}, {1254, 761}, {1648, 989}, {1890, 989}, {1920, 1080}};
+        for (int[] w : windows) {
+            for (int percent = 0; percent <= 200; percent += 5) {
+                StretchedMode.configure(true, false, false, false, percent);
+                window(w[0], w[1], w[0], w[1]);
+                StretchedMode.layout(false);
+                check(GameShell.canvasWid <= w[0] && GameShell.canvasHei <= w[1],
+                    "Resizable " + percent + "% in " + w[0] + "x" + w[1] + ": game " + GameShell.canvasWid + "x" + GameShell.canvasHei + " never larger than the window");
+                check(GameShell.canvasWid >= Math.min(765, w[0]) && GameShell.canvasHei >= Math.min(520, w[1]),
+                    "Resizable " + percent + "% in " + w[0] + "x" + w[1] + ": floor " + GameShell.canvasWid + "x" + GameShell.canvasHei);
+                for (boolean keep : new boolean[] {false, true}) {
+                    for (boolean integer : new boolean[] {false, true}) {
+                        StretchedMode.configure(true, keep, false, integer, percent);
+                        window(w[0], w[1], w[0], w[1]);
+                        StretchedMode.layout(false);
+                        check(StretchedMode.canvasWidth() <= w[0] && StretchedMode.canvasHeight() <= w[1] && GameShell.leftMargin >= 0 && GameShell.topMargin >= 0,
+                            "Resizable " + percent + "% keep=" + keep + " integer=" + integer + " in " + w[0] + "x" + w[1] + ": drawn inside the window");
+                        check(StretchedMode.canvasWidth() >= GameShell.canvasWid || !StretchedMode.active(),
+                            "Resizable " + percent + "% keep=" + keep + " integer=" + integer + " in " + w[0] + "x" + w[1] + ": drawn " + StretchedMode.canvasWidth() + " not smaller than the game " + GameShell.canvasWid);
+                    }
+                }
+            }
+        }
         // Fixed mode with stretching on fills any window, so the client must not shrink the window to 765x503 (A2).
         check(StretchedMode.fillsWindow(), "Stretching on: the window is not fitted to the game");
         StretchedMode.configure(false, false, false, false, 50);

@@ -29,6 +29,9 @@ tasks.named<JavaExec>("run") {
     systemProperty("rsps.dev", providers.gradleProperty("rsps.dev").getOrElse("false"))
     // Owner 2026-10-02: a test client for the agent's test server (tools\live\Start-TestServer.ps1) passes -Prsps.gamePort.
     providers.gradleProperty("rsps.gamePort").orNull?.let { systemProperty("rsps.gamePort", it) }
+    // Owner A2 2026-10-11: agent test clients pass -Prsps.preferencesDir so they never write the owner's
+    // jagex_runescape_preferences.dat or ~/.rsps78 (window size, HUD position, sidebar pins). The owner's launcher passes nothing.
+    providers.gradleProperty("rsps.preferencesDir").orNull?.let { systemProperty("rsps.preferencesDir", it) }
 
     // Owner D3 2026-10-11 (crash "NoClassDefFoundError: Static304", 2026-10-10 21:20:02): the client ran straight from
     // runescape/build/libs/runescape.jar; 75 s after the owner started his client another session ran `gradlew :client:jar`,
