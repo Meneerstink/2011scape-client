@@ -5,8 +5,6 @@ plugins {
 dependencies {
     implementation(files("lib/stub.jar"))
     implementation(libs.openrs2.deob.annotations)
-    // Mansion soundtrack (MansionMusic): MP3 decoding.
-    implementation("javazoom:jlayer:1.0.1")
     // 78 Plugins sidebar: RuneLite's look and feel (FlatLaf, RuneLite build) - rsps.runelite.RuneLiteLAF.
     implementation("net.runelite:flatlaf:3.2.5-rl4")
 }

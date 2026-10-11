@@ -52,11 +52,10 @@ tasks.named<Jar>("jar") {
     }) {
         exclude("META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA")
         // Owner 2026-10-11: the 27 MB player client could not be sent over Discord. Left out of the player jar:
-        // - the mansion soundtrack (13.7 MB): MansionMusic downloads it once from the website on the first visit;
         // - META-INF/versions: Java 9+ copies of library classes, never read (this manifest is not Multi-Release);
         // - BouncyCastle beyond what com.jagex.crypto reaches (jdeps closure 2026-10-11: 264 classes in asn1, asn1.pkcs/x509/x9,
         //   crypto, crypto.params, math, util; no reflection there). The rest (post-quantum, CMS, TLS ...) was ~8 MB.
-        exclude("music/mansion.mp3", "META-INF/versions/**")
+        exclude("META-INF/versions/**")
         exclude { element ->
             val path = element.path
             !element.isDirectory && path.startsWith("org/bouncycastle/") && bouncyCastleKeep.none { it.matches(path) }

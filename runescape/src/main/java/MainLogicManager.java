@@ -384,7 +384,6 @@ public final class MainLogicManager {
         Static159.method2575();
         Static271.processLocChanges();
         AudioRenderer.render();
-        MansionMusic.tick();
         ServerConnection.GAME.idleReadTicks++;
 
         if (ServerConnection.GAME.idleReadTicks > 750) {

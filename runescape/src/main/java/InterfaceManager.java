@@ -2544,6 +2544,14 @@ public final class InterfaceManager {
             component.x = width - ((width * component.originalX) >> 14) - component.width;
         }
 
+        // 78 Store window (interface 1151, component 1; owner 2026-10-11 bugs 022108 / 030753): its 120 px left offset keeps the
+        // minimap off the close button in a wide view, but in a narrow one - fixed mode's 765 px full screen, Stretched Mode's
+        // real sizes - it pushed the window off the left edge. Kept inside the view it belongs to.
+        if (component.slot == ((1151 << 16) | 1)) {
+            component.x = Math.max(0, Math.min(component.x, width - component.width));
+            component.y = Math.max(0, Math.min(component.y, height - component.height));
+        }
+
         if (testOpacity && (serverActiveProperties(component).events != 0 || component.type == Component.TYPE_LAYER)) {
             if (component.x < 0) {
                 component.x = 0;
