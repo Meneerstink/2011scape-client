@@ -87,16 +87,19 @@ public final class GraphicsDisplayRegressionTest {
         check(Static242.anInt3971 == 3440 && Static200.anInt3305 == 1440, "Wide viewport has no projection bars");
         CameraZoomController.restoreZoom(CameraZoomController.DEFAULT_ZOOM); Camera.zoom = 320; Static228.aShort45 = 256;
         Camera.method4606(0, 3000, 334, 0, 0, 0, 0);
+        // OSRS zoom (b7df0498): the wheel scales the projection (viewport_setfov); the camera keeps its distance.
         int distance = -Camera.z;
+        int scale = CameraZoomController.projectionScale(1000);
         CameraZoomController.applyWheelRotation(1, true, false, false, false, false, false);
         Camera.method4606(0, 3000, 334, 0, 0, 0, 0);
-        check(-Camera.z > distance, "Wheel changes actual fixed-mode camera position");
+        check(-Camera.z == distance && CameraZoomController.projectionScale(1000) < scale, "Wheel out: smaller projection, same camera distance (fixed)");
         Camera.zoom = 320; Static228.aShort45 = 256;
         check(CameraZoomController.getZoom() == 487, "Script projection reset retains wheel zoom");
         Camera.method4606(0, 3000, 700, 0, 0, 0, 0); distance = -Camera.z;
+        scale = CameraZoomController.projectionScale(1000);
         CameraZoomController.applyWheelRotation(-1, true, false, false, false, false, false);
         Camera.method4606(0, 3000, 700, 0, 0, 0, 0);
-        check(-Camera.z < distance, "Wheel changes actual resized camera position");
+        check(-Camera.z == distance && CameraZoomController.projectionScale(1000) > scale, "Wheel in: larger projection, same camera distance (resized)");
         System.out.println("Graphics/display regression checks passed: " + assertions);
     }
     private static ClientOptions read(byte[] bytes) {
