@@ -759,6 +759,10 @@ final class RspsSidebar extends JPanel {
                 if (editor instanceof JSpinner.DefaultEditor) {
                     ((JSpinner.DefaultEditor) editor).getTextField().setColumns(SPINNER_FIELD_WIDTH);
                 }
+                steadyArrows(spinner);
+                if (key.equals("stretchedmode.scalingFactor")) {
+                    percentUnits(spinner);
+                }
                 spinner.addChangeListener(e -> {
                     String value = spinner.getValue().toString();
                     if (!value.equals(RspsHudConfig.get(key))) {
@@ -783,6 +787,7 @@ final class RspsSidebar extends JPanel {
                 if (editor instanceof JSpinner.DefaultEditor) {
                     ((JSpinner.DefaultEditor) editor).getTextField().setColumns(SPINNER_FIELD_WIDTH);
                 }
+                steadyArrows(spinner);
                 spinner.addChangeListener(e -> {
                     String value = Double.toString(((Number) spinner.getValue()).doubleValue());
                     if (!value.equals(RspsHudConfig.get(key))) {
@@ -886,6 +891,113 @@ final class RspsSidebar extends JPanel {
             }
         }
         return -1;
+    }
+
+    // ---- spinner arrows ------------------------------------------------------------------------------------------------
+
+    /** Every running arrow repeat: any mouse release anywhere in the client stops them all. */
+    private static final java.util.Set<javax.swing.Timer> ARROW_REPEATS =
+        java.util.Collections.newSetFromMap(new java.util.WeakHashMap<javax.swing.Timer, Boolean>());
+    private static boolean releaseWatch;
+
+    /**
+     * Owner 2026-10-11 ("als ik em hoger zet zet de client de waardes automatisch hoger"): a step of Resizable scaling lays
+     * the whole game window out again, and the arrow's own release could get lost in that - Swing's arrow repeat then ran on by
+     * itself. The arrows are RuneLite's (one step per click, repeat while held: 400 ms, then every 60 ms), but the repeat
+     * stops on any mouse release in the client, when the pointer leaves the arrow, and when the window is deactivated.
+     */
+    private static void steadyArrows(final JSpinner spinner) {
+        if (!releaseWatch) {
+            releaseWatch = true;
+            java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(event -> {
+                int id = event.getID();
+                if (id == MouseEvent.MOUSE_RELEASED || id == java.awt.event.WindowEvent.WINDOW_DEACTIVATED) {
+                    for (javax.swing.Timer timer : ARROW_REPEATS) {
+                        timer.stop();
+                    }
+                }
+            }, java.awt.AWTEvent.MOUSE_EVENT_MASK | java.awt.AWTEvent.WINDOW_EVENT_MASK);
+        }
+        int index = 0;
+        for (Component child : spinner.getComponents()) {
+            if (!(child instanceof JButton)) {
+                continue;
+            }
+            final JButton button = (JButton) child;
+            // BasicSpinnerUI names them; the next (up) arrow comes first otherwise.
+            final boolean next = button.getName() != null ? button.getName().contains("next") : index == 0;
+            index++;
+            for (java.awt.event.MouseListener listener : button.getMouseListeners()) {
+                if (listener.getClass().getName().contains("ArrowButtonHandler")) {
+                    button.removeMouseListener(listener);
+                }
+            }
+            for (java.awt.event.ActionListener listener : button.getActionListeners()) {
+                if (listener.getClass().getName().contains("ArrowButtonHandler")) {
+                    button.removeActionListener(listener);
+                }
+            }
+            final javax.swing.Timer repeat = new javax.swing.Timer(60, e -> step(spinner, next));
+            repeat.setInitialDelay(400);
+            ARROW_REPEATS.add(repeat);
+            button.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    if (SwingUtilities.isLeftMouseButton(e) && spinner.isEnabled()) {
+                        step(spinner, next);
+                        repeat.restart();
+                    }
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    repeat.stop();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    repeat.stop();
+                }
+            });
+        }
+    }
+
+    /** RuneLite @Units(Units.PERCENT) / UnitFormatter: shown as "50%", typed with or without the "%". */
+    private static void percentUnits(JSpinner spinner) {
+        Component editor = spinner.getEditor();
+        if (!(editor instanceof JSpinner.DefaultEditor)) {
+            return;
+        }
+        javax.swing.JFormattedTextField field = ((JSpinner.DefaultEditor) editor).getTextField();
+        field.setFormatterFactory(new javax.swing.text.DefaultFormatterFactory(new javax.swing.JFormattedTextField.AbstractFormatter() {
+            @Override
+            public Object stringToValue(String text) throws java.text.ParseException {
+                String number = text == null ? "" : text.trim();
+                if (number.endsWith("%")) {
+                    number = number.substring(0, number.length() - 1).trim();
+                }
+                try {
+                    int value = Integer.parseInt(number);
+                    SpinnerNumberModel model = (SpinnerNumberModel) spinner.getModel();
+                    return Math.max(((Number) model.getMinimum()).intValue(), Math.min(((Number) model.getMaximum()).intValue(), value));
+                } catch (NumberFormatException e) {
+                    throw new java.text.ParseException(text, 0);
+                }
+            }
+
+            @Override
+            public String valueToString(Object value) {
+                return value == null ? "" : value + "%";
+            }
+        }));
+        field.setValue(spinner.getValue());
+    }
+
+    private static void step(JSpinner spinner, boolean next) {
+        Object value = next ? spinner.getNextValue() : spinner.getPreviousValue();
+        if (value != null) {
+            spinner.setValue(value);
+        }
     }
 
     // ---- changes ------------------------------------------------------------------------------------------------------

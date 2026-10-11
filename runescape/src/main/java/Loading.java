@@ -615,10 +615,14 @@ public final class Loading {
             }
             CameraZoomController.restoreZoom(ClientOptions.instance.cameraZoom);
             // RSPS: a fixed-mode start keeps the window at the fixed canvas (changeWindowMode fits it).
+            // RuneLite rememberScreenBounds: size and maximised state come back (a fixed start with Stretched Mode gets them when
+            // the account's setting arrives at login, RspsHudConfig.applyStretchedMode).
             if (ClientOptions.instance.startupWindowMode() != WindowMode.FIXED) {
-                com.jagex.graphics.awt.DesktopDisplay.restoreWindowSize(ClientOptions.instance.windowWidth, ClientOptions.instance.windowHeight);
+                InterfaceManager.restoreRememberedWindow(true);
             }
             InterfaceManager.changeWindowMode(ClientOptions.instance.startupWindowMode(), -1, -1, false);
+            // The restore above runs on the AWT queue: remembering starts after it (same queue, so after the restore).
+            java.awt.EventQueue.invokeLater(() -> java.awt.EventQueue.invokeLater(() -> InterfaceManager.windowRestored = true));
             FontTypeList.method7549(Toolkit.active);
             Fonts.init(Toolkit.active);
             Sprites.init(js5.SPRITES, Toolkit.active);

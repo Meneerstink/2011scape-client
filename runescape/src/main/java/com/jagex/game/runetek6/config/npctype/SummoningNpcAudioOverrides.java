@@ -32,7 +32,12 @@ public final class SummoningNpcAudioOverrides {
      */
     public static void apply(NPCType type) {
         int sound = soundFor(type.id);
-        if (sound == -1) {
+        // Owner B1/E18 (2026-10-02/03): "hard hit / footstep sound" from the Steel titan. Its cue here is 4638
+        // lore_steel_titan_spawn - the summon impact (1 s clipped hit) - and it was installed as the walk/run/crawl
+        // sound, so the client replayed the impact every time the titan started or changed pace while following (and
+        // right after every follow teleport). A spawn cue is never a footstep: these familiars keep the 667 cache's own
+        // (absent) movement sound; the server still plays the spawn cue on the real summon.
+        if (sound == -1 || isSpawnCue(type.id)) {
             return;
         }
 
@@ -226,6 +231,29 @@ public final class SummoningNpcAudioOverrides {
      */
     public static boolean isProvisionalPresentationSound(int npcId, int soundId) {
         return npcId != 6837 && soundFor(npcId) == soundId;
+    }
+
+    /** The familiars whose QC3 cue in {@link #soundFor} is their "_spawn" (summon impact) cue. */
+    static boolean isSpawnCue(int npcId) {
+        switch (npcId) {
+            case 7361: // Spirit Tz-Kih
+            case 7351: // Void torcher
+            case 7377: // Pyrelord
+            case 6809: // Karamthulhu overlord
+            case 7345: // Obsidian golem
+            case 7355: // Fire titan
+            case 7359: // Ice titan
+            case 7357: // Moss titan
+            case 7341: // Lava titan
+            case 7329: // Swamp titan
+            case 7339: // Geyser titan
+            case 7349: // Abyssal titan
+            case 7375: // Iron titan
+            case 7343: // Steel titan
+                return true;
+            default:
+                return false;
+        }
     }
 
     /** Returns whether the client must suppress an idle/ready cue for this familiar. */

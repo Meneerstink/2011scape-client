@@ -57,15 +57,10 @@ public final class Static712 {
             } else {
                 InterfaceManager.applyMaxScreenSize();
                 com.jagex.StretchedMode.layout(false);
-                if (ClientOptions.instance != null && GameShell.frameWid >= 765 && GameShell.frameHei >= 503) {
-                    if (ClientOptions.instance.windowWidth != GameShell.frameWid
-                        || ClientOptions.instance.windowHeight != GameShell.frameHei) {
-                        ClientOptions.instance.windowWidth = GameShell.frameWid;
-                        ClientOptions.instance.windowHeight = GameShell.frameHei;
-                        ClientOptions.save();
-                    }
-                }
             }
+            // The window size / maximised state the player gives the window is remembered by DesktopDisplay.watchWindow
+            // (RuneLite ClientUI windowBoundsChanged) - this layout does not run for every resize with every renderer.
+            com.jagex.graphics.awt.DesktopDisplay.watchWindow(InterfaceManager::rememberWindowBounds);
 
             if (Client.modeWhere != ModeWhere.LIVE) {
                 @Pc(101) boolean tooSmall;

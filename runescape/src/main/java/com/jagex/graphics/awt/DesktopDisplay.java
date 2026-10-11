@@ -31,6 +31,65 @@ public final class DesktopDisplay {
         return frame != null && (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
     }
 
+    /** The listeners are on this frame (a new frame after fullscreen gets them again). */
+    private static Frame watched;
+    private static javax.swing.Timer boundsTimer;
+
+    /**
+     * RuneLite ClientUI windowBoundsChanged (owner 2026-10-11 "net als de officiele versie"): every resize and maximise of the
+     * window runs [remember] 250 ms later (RuneLite defers it so a maximise is not saved as a size).
+     */
+    public static void watchWindow(Runnable remember) {
+        Frame frame = window();
+        if (frame == null || frame == watched) return;
+        watched = frame;
+        if (boundsTimer == null) {
+            boundsTimer = new javax.swing.Timer(250, e -> remember.run());
+            boundsTimer.setRepeats(false);
+        }
+        frame.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                boundsTimer.restart();
+            }
+        });
+        frame.addWindowStateListener(e -> boundsTimer.restart());
+    }
+
+    /** The game area's size (the loader applet in the player client), or null without a window. */
+    public static Dimension gameArea() {
+        Frame frame = window();
+        if (frame == null) return null;
+        Component game = GameShell.loaderApplet != null ? GameShell.loaderApplet : frame;
+        return game.getSize();
+    }
+
+    /**
+     * RuneLite rememberScreenBounds: a window whose game area is the fitted fixed game ([gameWidth] x [gameHeight]) gets back
+     * the player's remembered window - maximised, or [width] x [height] of game area. A window of any other size was sized by
+     * the player and stays as it is; the game is never maximised or resized for a setting.
+     */
+    public static void restoreIfGameSized(boolean always, int gameWidth, int gameHeight, boolean maximised, int width, int height) {
+        EventQueue.invokeLater(() -> {
+            Frame frame = window();
+            if (frame == null || GameShell.fsframe != null || (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH) return;
+            Component game = GameShell.loaderApplet != null ? GameShell.loaderApplet : frame;
+            if (!always && (game.getWidth() > gameWidth + 2 || game.getHeight() > gameHeight + 2)) return;
+            boolean sized = width >= 765 && height >= 503 && (width != game.getWidth() || height != game.getHeight());
+            System.out.println("[78] remembered window: " + (maximised ? "maximised" : sized ? width + "x" + height : "none") + " (game area was " + game.getWidth() + "x" + game.getHeight() + ")");
+            if (sized) {
+                // The normal size first, so a maximised window restores to it (RuneLite keeps the bounds under the maximised state).
+                Rectangle screen = bounds();
+                int w = Math.min(screen.width, frame.getWidth() + width - game.getWidth());
+                int h = Math.min(screen.height, frame.getHeight() + height - game.getHeight());
+                frame.setBounds(screen.x + Math.max(0, (screen.width - w) / 2), screen.y + Math.max(0, (screen.height - h) / 2), w, h);
+            }
+            if (maximised) {
+                frame.setExtendedState(frame.getExtendedState() | Frame.MAXIMIZED_BOTH);
+            }
+        });
+    }
+
     public static void restoreWindowSize(int width, int height) {
         if (width <= 0 || height <= 0) return;
         EventQueue.invokeLater(() -> {

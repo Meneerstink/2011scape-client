@@ -60,6 +60,8 @@ public final class StretchedMode {
         if (changed) {
             Client.changingWindowMode = true;
         }
+        // RuneLite never sizes the window for a setting (owner 2026-10-11: the maximising added that afternoon was wrong). The
+        // window the player had is brought back by RspsHudConfig.applyStretchedMode (RuneLite rememberScreenBounds).
         return changed;
     }
 
@@ -140,7 +142,9 @@ public final class StretchedMode {
             realHeight = stretchedHeight = GameShell.canvasHei;
             return;
         }
-        // getRealDimensions
+        // getRealDimensions (RuneLite StretchedModeMixin, exactly; owner 2026-10-11 "net als de officiele versie"). Fixed: the
+        // game is 765x503 and Resizable scaling does nothing ("In resizable mode, ..."). Resizable: the parent divided by the
+        // scaling factor, never below the minimum game size.
         if (fixed) {
             realWidth = FIXED_WIDTH;
             realHeight = FIXED_HEIGHT;
@@ -156,7 +160,7 @@ public final class StretchedMode {
             realWidth = newWidth;
             realHeight = newHeight;
         }
-        // getStretchedDimensions
+        // getStretchedDimensions (RuneLite, exactly): the whole parent, then Keep aspect ratio, then Integer scaling per side.
         if (keepAspectRatio) {
             double aspectRatio = (double) realWidth / realHeight;
             int tempNewWidth = (int) (parentHeight * aspectRatio);

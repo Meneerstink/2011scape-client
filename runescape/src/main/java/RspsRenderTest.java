@@ -34,6 +34,17 @@ final class RspsRenderTest {
     private RspsRenderTest() {
     }
 
+    /** Whether any of the first [faces] faces is opaque (alpha 0): only then does the translucent split have something to keep. */
+    static boolean hasOpaqueFace(byte[] alpha, int faces) {
+        int end = Math.min(faces, alpha.length);
+        for (int i = 0; i < end; i++) {
+            if (alpha[i] == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** "cull=0,alphadepth=1" - missing keys keep their value; "reset" restores both. */
     static void handle(String payload) {
         if (payload.equals("reset")) {

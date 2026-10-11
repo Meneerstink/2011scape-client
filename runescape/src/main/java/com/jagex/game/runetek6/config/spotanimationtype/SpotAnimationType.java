@@ -134,6 +134,8 @@ public final class SpotAnimationType {
             }
 
             model.s(newFunctionMask);
+            // RSPS: spell effects keep the 667 translucent draw order (Model.rspsKeep667AlphaOrder).
+            model.rspsKeep667AlphaOrder = true;
 
             @Pc(232) ReferenceCache local232 = this.myList.modelCache;
             synchronized (this.myList.modelCache) {

@@ -165,6 +165,8 @@ public final class ClientOptions extends Node {
     int windowWidth;
     int windowHeight;
     int cameraZoom = CameraZoomController.DEFAULT_ZOOM;
+    /** RuneLite ClientUI "clientMaximized": the window was maximised when it was last laid out (trailer version 3). */
+    boolean windowMaximised;
 
     public void markCustom() {
         traceCustom("markCustom");
@@ -202,10 +204,12 @@ public final class ClientOptions extends Node {
         Packet packet = encode();
         // Trailer version 2 (owner 2026-09-30, RuneLite Camera + Minimap zoom): the camera zoom in OSRS units and the
         // minimap zoom in thousandths of a pixel per tile (RuneLite MinimapPlugin "zoomLevel").
-        java.nio.ByteBuffer data = java.nio.ByteBuffer.allocate(packet.pos + 22);
-        data.put(packet.data, 0, packet.pos).putInt(0x52535053).put((byte) 2);
+        // Version 3 (owner 2026-10-11, RuneLite Stretched Mode / ClientUI rememberScreenBounds): whether the window was maximised.
+        java.nio.ByteBuffer data = java.nio.ByteBuffer.allocate(packet.pos + 23);
+        data.put(packet.data, 0, packet.pos).putInt(0x52535053).put((byte) 3);
         data.put((byte) startupWindowMode()).putInt(windowWidth).putInt(windowHeight).putInt(cameraZoom);
         data.putInt((int) Math.round(RspsMinimapZoom.zoom * 1000.0));
+        data.put((byte) (windowMaximised ? 1 : 0));
         return data.array();
     }
 
@@ -214,7 +218,7 @@ public final class ClientOptions extends Node {
         java.nio.ByteBuffer data = java.nio.ByteBuffer.wrap(packet.data, packet.pos, packet.data.length - packet.pos);
         if (data.getInt() != 0x52535053) return;
         int version = data.get();
-        if (version != 1 && version != 2) return;
+        if (version < 1 || version > 3) return;
         int mode = data.get();
         int width = data.getInt();
         int height = data.getInt();
@@ -231,6 +235,7 @@ public final class ClientOptions extends Node {
         }
         if (zoom >= CameraZoomController.ABSOLUTE_MIN && zoom <= CameraZoomController.INNER_ZOOM_LIMIT) cameraZoom = zoom;
         if (data.remaining() >= 4) RspsMinimapZoom.restore(data.getInt() / 1000.0);
+        if (version >= 3 && data.remaining() >= 1) windowMaximised = data.get() == 1;
     }
 
     @OriginalMember(owner = "client!kv", name = "Z", descriptor = "Lclient!tba;")

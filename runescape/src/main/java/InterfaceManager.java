@@ -186,8 +186,11 @@ public final class InterfaceManager {
      */
     private static final int[] FITTED_PREVIEW_INTERFACES = { 1151 };
 
-    /** Share of the box the fitted model may use; the rest is margin. */
-    private static final float FITTED_PREVIEW_FILL = 0.84F;
+    /**
+     * Share of the box the fitted model may use; the rest is margin. The fit uses the model's projected 3D bounding box, which is
+     * larger than what is drawn (owner 2026-10-11, bank-size store: amulets came out tiny at 0.84).
+     */
+    private static final float FITTED_PREVIEW_FILL = 0.96F;
 
     private static final int[] fitCorner = new int[3];
 
@@ -2666,9 +2669,63 @@ public final class InterfaceManager {
             if (mode == WindowMode.FIXED) {
                 com.jagex.graphics.awt.DesktopDisplay.restoreWindowSize(Client.loadingScreenWidth, Client.loadingScreenHeight);
             } else if (mode == WindowMode.RESIZABLE && current == WindowMode.FIXED) {
-                com.jagex.graphics.awt.DesktopDisplay.restoreWindowSize(ClientOptions.instance.windowWidth, ClientOptions.instance.windowHeight);
+                restoreRememberedWindow();
             }
         }
+    }
+
+    /**
+     * RuneLite ClientUI rememberScreenBounds (owner 2026-10-11, Stretched Mode "net als de officiele versie"): the window size
+     * and maximised state the player last had come back. Only for a window this client itself fitted to the game (a fixed
+     * window without stretching); a window the player sized is never touched. RuneLite itself never shrinks the window, so
+     * this undoes only our own fixed-mode fit - when going back to resizable, and when Stretched Mode starts filling a fixed
+     * window (switched on, or the account's saved setting arriving at login).
+     */
+    /**
+     * RuneLite ClientUI setLastNormalBounds / saveClientBoundsConfig: the player's own window is kept - its game area while
+     * it is not maximised, and whether it is maximised. Not while this client itself fits a fixed window to the unstretched
+     * game (that size is not the player's) and not in fullscreen.
+     */
+    static void rememberWindowBounds() {
+        ClientOptions options = ClientOptions.instance;
+        java.awt.Dimension game = com.jagex.graphics.awt.DesktopDisplay.gameArea();
+        // Not before the start-up has put the remembered window back (RuneLite restores the bounds before it listens): the
+        // loading screen's default 978x709 window overwrote the player's size (tested 2026-10-11).
+        if (options == null || game == null || GameShell.fsframe != null || !windowRestored) {
+            return;
+        }
+        if (getWindowMode() == WindowMode.FIXED && !com.jagex.StretchedMode.fillsWindow()) {
+            return;
+        }
+        boolean maximised = com.jagex.graphics.awt.DesktopDisplay.maximised();
+        boolean changed = maximised != options.windowMaximised;
+        options.windowMaximised = maximised;
+        if (!maximised && game.width >= 765 && game.height >= 503 && (options.windowWidth != game.width || options.windowHeight != game.height)) {
+            options.windowWidth = game.width;
+            options.windowHeight = game.height;
+            changed = true;
+        }
+        if (changed) {
+            System.out.println("[78] window remembered: " + (maximised ? "maximised, " : "") + options.windowWidth + "x" + options.windowHeight);
+            ClientOptions.save();
+        }
+    }
+
+    /** Set once the start-up has applied the remembered window mode and window (Loading). */
+    static boolean windowRestored;
+
+    static void restoreRememberedWindow() {
+        restoreRememberedWindow(false);
+    }
+
+    /** [atStart]: the client's own start-up window (RuneLite restores the bounds at every start), else only a fitted fixed window. */
+    static void restoreRememberedWindow(boolean atStart) {
+        ClientOptions options = ClientOptions.instance;
+        if (options == null || GameShell.fsframe != null) {
+            return;
+        }
+        com.jagex.graphics.awt.DesktopDisplay.restoreIfGameSized(atStart, Client.loadingScreenWidth, Client.loadingScreenHeight,
+            options.windowMaximised, options.windowWidth, options.windowHeight);
     }
 
     @OriginalMember(owner = "client!li", name = "a", descriptor = "(IIIIIZ)V")

@@ -2843,6 +2843,7 @@ public final class Model_Sub1 extends Model {
             arg4.aBoolean228 = true;
         }
         arg4.rspsFaceAlpha = this.rspsFaceAlpha;
+        arg4.rspsKeep667AlphaOrder = this.rspsKeep667AlphaOrder;
         @Pc(71) boolean local71 = Static119.method2175(this.anInt2765, arg0);
         @Pc(77) boolean local77 = Static590.method7746(this.anInt2765, arg0);
         @Pc(83) boolean local83 = Static604.method7904(arg0, this.anInt2765);
@@ -3792,7 +3793,9 @@ public final class Model_Sub1 extends Model {
             // RSPS (RspsRenderTest): with translucent faces, pass 0 draws every opaque face (depth writes as before), pass 1 every
             // translucent face without depth writes - so no translucent face hides another part of the model.
             byte[] alpha = this.aByteArray33 != null ? this.aByteArray33 : this.rspsFaceAlpha;
-            boolean split = this.aBoolean228 && alpha != null && !RspsRenderTest.alphaDepth;
+            // A model without an opaque face (a frozen player at Ice Barrage's 144) keeps the 667 order (Model_Sub2, same rule).
+            boolean split = this.aBoolean228 && alpha != null && !RspsRenderTest.alphaDepth && !this.rspsKeep667AlphaOrder
+                && RspsRenderTest.hasOpaqueFace(alpha, this.anIntArray238[this.anIntArray241.length]);
             for (int pass = 0; pass < (split ? 2 : 1); pass++) {
                 for (@Pc(108) int local108 = 0; local108 < this.anIntArray241.length; local108++) {
                     @Pc(115) int local115 = this.anIntArray238[local108];

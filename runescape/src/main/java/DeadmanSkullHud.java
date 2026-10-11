@@ -121,7 +121,7 @@ final class DeadmanSkullHud {
             timerState = text;
         }
         if (changed) {
-            System.out.println("[dmmhud] state zone=" + zoneState + " timer=" + timerState);
+            AvTrace.log("dmmhud state zone=" + zoneState + " timer=" + timerState);
             loggedNotDrawn = false;
         }
     }
@@ -148,7 +148,7 @@ final class DeadmanSkullHud {
         if (zoneState.length() == 0) {
             if (!loggedNotDrawn) {
                 loggedNotDrawn = true;
-                System.out.println("[dmmhud] NOT drawn: no state yet (top=" + InterfaceManager.topLevelInterface + ")");
+                AvTrace.log("dmmhud NOT drawn: no state yet (top=" + InterfaceManager.topLevelInterface + ")");
             }
             return;
         }
@@ -167,7 +167,7 @@ final class DeadmanSkullHud {
                 String place = box[0] + "," + box[1] + " " + box[2] + "x" + box[3] + " mode=" + InterfaceManager.getWindowMode() + " top=" + InterfaceManager.topLevelInterface;
                 if (!place.equals(lastLoggedPlace)) {
                     lastLoggedPlace = place;
-                    System.out.println("[dmmhud] drawn at " + place);
+                    AvTrace.log("dmmhud drawn at " + place);
                 }
             }
         } catch (RuntimeException e) {

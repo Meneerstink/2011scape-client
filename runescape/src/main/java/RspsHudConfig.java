@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -214,12 +215,13 @@ final class RspsHudConfig {
         bool(q, "showMiniMapArrow", "Display arrows", "Show the hint arrow over the next npc or place, and on the minimap.", true, null);
         bool(q, "showStepMessages", "Step messages in chat", "Write each new quest step in the chatbox.", true, null);
 
-        // RuneLite StretchedModeConfig (group "stretchedmode"): same keys, names, descriptions and defaults.
+        // RuneLite StretchedModeConfig (group "stretchedmode"): the official keys, names, descriptions and defaults, word for word
+        // (owner 2026-10-11 "net als de officiele versie"; the afternoon's own fixed-mode meanings were wrong).
         String st = "stretchedmode";
         bool(st, "keepAspectRatio", "Keep aspect ratio", "Keeps the aspect ratio when stretching.", false, null);
         bool(st, "increasedPerformance", "Increased performance mode", "Uses a fast algorithm when stretching, lowering quality but increasing performance.", false, null);
-        bool(st, "integerScaling", "Integer Scaling", "Forces use of a whole number scale factor when stretching.", false, null);
-        integer(st, "scalingFactor", "Resizable Scaling", "In resizable mode, the game is reduced in size this much before it's stretched.", 50, 100, null);
+        bool(st, "integerScaling", "Integer scaling", "Forces use of a whole number scale factor when stretching.", false, null);
+        integer(st, "scalingFactor", "Resizable scaling", "In resizable mode, the game is reduced in size this much before it's stretched.", 50, 100, null);
 
         String l = "loottracker";
         choice(l, "priceType", "Price type", "What type of price to use for calculating value.", "GRAND_EXCHANGE",
@@ -336,23 +338,56 @@ final class RspsHudConfig {
     }
 
     /** Local change (the sidebar sets it at once; the server's push confirms it). */
-    static void put(String key, String value) {
+    static synchronized void put(String key, String value) {
         values.put(key, value);
+        pending.put(key, value);
+        pendingAt.put(key, System.currentTimeMillis());
         revision++;
         applyStretchedMode();
     }
 
+    /**
+     * Owner 2026-10-11 ("als ik em hoger zet zet de client de waardes automatisch hoger"): every step of a setting goes to the
+     * server, which pushes all values back. A push answering an EARLIER step (51 while the player is already at 55) put the
+     * old value back, the spinner jumped back and its arrows went on counting from there. A local change now wins over pushes
+     * until the server confirms that very value (or [PENDING_MS] passed - a value the server refused is not kept forever).
+     */
+    private static final Map<String, String> pending = new HashMap<String, String>();
+    private static final Map<String, Long> pendingAt = new HashMap<String, Long>();
+    private static final long PENDING_MS = 3000;
+
+    /** False while a newer local change of [key] waits for the server to confirm it. */
+    private static boolean acceptPush(String key, String value) {
+        String mine = pending.get(key);
+        if (mine == null) {
+            return true;
+        }
+        if (mine.equals(value) || System.currentTimeMillis() - pendingAt.get(key) > PENDING_MS) {
+            pending.remove(key);
+            pendingAt.remove(key);
+            return true;
+        }
+        return false;
+    }
+
     /** RuneLite StretchedModePlugin.updateConfig: hands the settings to the client's stretching (it lays the window out again). */
     static void applyStretchedMode() {
+        boolean wasOn = com.jagex.StretchedMode.enabled();
         com.jagex.StretchedMode.configure(enabled("stretchedmode"), bool("stretchedmode.keepAspectRatio"), bool("stretchedmode.increasedPerformance"),
             bool("stretchedmode.integerScaling"), values.containsKey("stretchedmode.scalingFactor") ? integer("stretchedmode.scalingFactor") : 50);
+        // Stretched Mode starts filling a fixed window this client had fitted to the game: the player's own window comes back
+        // (RuneLite never shrank it). Settings changes never touch the window (owner 2026-10-11: fixed mode exactly RuneLite -
+        // Resizable scaling does nothing in fixed mode).
+        if (!wasOn && com.jagex.StretchedMode.fillsWindow() && InterfaceManager.getWindowMode() == com.jagex.core.constants.WindowMode.FIXED) {
+            InterfaceManager.restoreRememberedWindow();
+        }
     }
 
     static synchronized void handle(String kind, String rest) {
         if (kind.equals("cfg")) {
             for (String pair : rest.split(";")) {
                 int eq = pair.indexOf('=');
-                if (eq > 0) {
+                if (eq > 0 && acceptPush(pair.substring(0, eq), pair.substring(eq + 1))) {
                     values.put(pair.substring(0, eq), pair.substring(eq + 1));
                 }
             }

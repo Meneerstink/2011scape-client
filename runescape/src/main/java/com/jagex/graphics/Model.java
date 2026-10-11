@@ -16,6 +16,13 @@ public abstract class Model {
     @OriginalMember(owner = "client!ka", name = "j", descriptor = "Z")
     protected boolean locked = false;
 
+    /**
+     * RSPS: a spot animation's model (SpotAnimationType) - spell effects and projectiles keep the 667 translucent draw order
+     * (RspsRenderTest). Ice Barrage's block hides its solid white core behind its own translucent shell only in that order;
+     * with the two-pass translucent draw it was an opaque white cube in HD (intro scene, 2026-10-09). Copies inherit it.
+     */
+    public boolean rspsKeep667AlphaOrder;
+
     @OriginalMember(owner = "client!ka", name = "<init>", descriptor = "()V")
     protected Model() {
     }

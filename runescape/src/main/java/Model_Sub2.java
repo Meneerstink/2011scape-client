@@ -1462,7 +1462,11 @@ public final class Model_Sub2 extends Model {
                 // RSPS (RspsRenderTest): with translucent faces, pass 0 draws every opaque face (depth writes as before), pass 1
                 // every translucent face without depth writes - so no translucent face hides another part of the model.
                 byte[] alpha = this.aByteArray54 != null ? this.aByteArray54 : this.rspsFaceAlpha;
-                boolean split = this.aBoolean421 && alpha != null && !RspsRenderTest.alphaDepth;
+                // The split keeps a model's opaque faces from being hidden by its translucent ones. A model without an opaque face -
+                // a whole-body transparency such as a frozen player (every face at Ice Barrage's 144) - keeps the 667 order: split, its
+                // overlapping layers (body, armour) all blended and it became an opaque white block in HD (intro scene, 2026-10-09).
+                boolean split = this.aBoolean421 && alpha != null && !RspsRenderTest.alphaDepth && !this.rspsKeep667AlphaOrder
+                    && RspsRenderTest.hasOpaqueFace(alpha, this.anInt5560);
                 for (int pass = 0; pass < (split ? 2 : 1); pass++) {
                     for (@Pc(86) int local86 = 0; local86 < local84; local86++) {
                         @Pc(93) int local93 = this.anIntArray413[local86];
@@ -3182,6 +3186,7 @@ public final class Model_Sub2 extends Model {
             arg4.aBoolean421 = true;
         }
         arg4.rspsFaceAlpha = this.rspsFaceAlpha;
+        arg4.rspsKeep667AlphaOrder = this.rspsKeep667AlphaOrder;
         @Pc(85) boolean local85 = Static646.method8457(this.anInt5529, arg3);
         @Pc(93) boolean local93 = Static58.method1257(this.anInt5529, arg3);
         @Pc(99) boolean local99 = Static340.method5011(arg3, this.anInt5529);
