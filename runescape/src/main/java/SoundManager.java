@@ -480,6 +480,9 @@ public final class SoundManager {
     public static void playVorbisSound(@OriginalArg(0) int id, @OriginalArg(1) int loops, @OriginalArg(4) int delay, @OriginalArg(5) int volume, @OriginalArg(2) int rate, @OriginalArg(6) boolean speech) {
         if ((speech ? ClientOptions.instance.speechVolume.getValue() : ClientOptions.instance.soundVolume.getValue()) != 0 && loops != 0 && count < 50 && id != -1) {
             sounds[count++] = new Sound((byte) (speech ? SoundType.VORBIS_VOICE_OVER : SoundType.VORBIS), id, loops, delay, volume, rate, 0, null);
+            AvTrace.log((speech ? "speech" : "vorbis") + " queued id=" + id + " loops=" + loops + " delay=" + delay + " volume=" + volume + " queue=" + count);
+        } else {
+            AvTrace.log((speech ? "speech" : "vorbis") + " dropped id=" + id + " volumeOption=" + (speech ? ClientOptions.instance.speechVolume.getValue() : ClientOptions.instance.soundVolume.getValue()) + " loops=" + loops + " queue=" + count);
         }
     }
 
