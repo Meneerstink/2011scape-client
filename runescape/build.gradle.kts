@@ -230,3 +230,16 @@ val rspsRoofFloodRegression by tasks.registering(JavaExec::class) {
 }
 
 tasks.check { dependsOn(rspsRoofFloodRegression) }
+
+// T2 (owner 2026-10-13): the client saves its own next frame as bugs\<report>.png after every `bug` command.
+val bugShotRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Checks the bug-report screenshot: server stems only, frame composed per mode (fixed/resizable/stretched), folder, wiring."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("BugShotRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
+tasks.check { dependsOn(bugShotRegression) }

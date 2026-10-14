@@ -832,6 +832,9 @@ public final class client extends GameShell {
             }
         }
 
+        // T2: a `bug` report's screenshot takes this frame - game and interfaces, without the dev console drawn over it.
+        RspsBugShot.beforeConsole();
+
         if (debugconsole.isOpen()) {
             debugconsole.draw(Toolkit.active);
         }

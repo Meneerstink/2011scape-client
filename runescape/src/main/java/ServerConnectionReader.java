@@ -1159,6 +1159,9 @@ public final class ServerConnectionReader {
             if (type == ChatLineType.CONSOLE_PRINT) {
                 if (message.startsWith(RspsScreenshot.PREFIX)) {
                     RspsScreenshot.capture(message.substring(RspsScreenshot.PREFIX.length()));
+                } else if (message.startsWith(RspsBugShot.PREFIX)) {
+                    // T2: after a `bug` report the client saves its next frame as bugs\<report>.png
+                    RspsBugShot.request(message.substring(RspsBugShot.PREFIX.length()));
                 } else if (message.startsWith(RspsHud.PREFIX)) {
                     RspsHud.handle(message.substring(RspsHud.PREFIX.length()));
                 } else if (message.startsWith(RspsGrandExchange.PREFIX)) {
