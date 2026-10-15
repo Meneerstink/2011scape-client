@@ -44,6 +44,14 @@ import java.util.regex.Pattern;
  * "|upload" (older server, hourly cap) only the local copy is made, as in round 1: C:\RSPS\bugs when that folder exists,
  * else &lt;home&gt;\78legacy\bugs. Only stems the server makes are accepted (no paths, no extensions); a shot never
  * overwrites another file. Regression: :runescape:bugShotRegression.
+ *
+ * <p>Round 3 (Keurmeester FAIL round 2: 'bug A', 15 s later 'bug B' -> the server saved NEITHER picture, the client said
+ * "sent" for both: the pieces carried no report, the server's newer request swallowed the rest of A). Every piece now names
+ * its report stem ({@link #writeChunk}); the uploads go one after the other ({@link Uploads}); the server answers each report
+ * with "&lt;stem&gt;|saved|&lt;detail&gt;" (after the PNG is on its disk) or "&lt;stem&gt;|refused|&lt;why&gt;" - a refused
+ * report stops at once (sending, waiting, or not even made yet) and the others go on. The player sees only that answer,
+ * never a "sent" of the client's own. Reports asked for before the next frame (two `bug` lines in one frame, a minimised
+ * window) all wait for that frame instead of only the newest.
  */
 public final class RspsBugShot {
 
@@ -56,18 +64,29 @@ public final class RspsBugShot {
     /** Server BugShot.UPLOAD: the server takes the PNG of this report. */
     static final String UPLOAD = "|upload";
 
+    /** Server BugShot.replyLine: "&lt;stem&gt;|saved|&lt;detail&gt;" / "&lt;stem&gt;|refused|&lt;why&gt;". */
+    static final String SAVED = "saved";
+    static final String REFUSED = "refused";
+
+    /** Longest stem {@link #STEM} allows: bug-yyyyMMdd-HHmmss-nnn- (24) + 20 letters = 44 (server BugShotUploads.MAX_STEM 48). */
+    static final int MAX_STEM = 44;
+
+    /** Bytes of data per piece (server BugShotUploads.MAX_CHUNK = 1350). */
+    static final int CHUNK = 1250;
+
     /**
-     * Bytes per piece. A message must fit ServerConnection.writePacket (1350 bytes) whole - a bigger one is never flushed and
-     * stalls every packet behind it: 1 opcode + 2 size + 8 header + 1300 = 1311. Server BugShotUploads.MAX_CHUNK = 1350.
+     * The biggest piece on the wire: 1 opcode + 2 size + 1 stem length + {@link #MAX_STEM} + 8 header + {@link #CHUNK} = 1306.
+     * A message must fit ServerConnection.writePacket (1350 bytes) whole - a bigger one is never flushed and stalls every
+     * packet behind it.
      */
-    static final int CHUNK = 1300;
+    static final int MAX_PIECE = 3 + 1 + MAX_STEM + 8 + CHUNK;
 
     /**
      * Free bytes the socket writer (ClientStreamWriter, 15000-byte ring) must have before a piece is added: the piece plus
      * room for the player's own packets. Without it the pieces filled the ring faster than the socket drained it and the
      * client dropped the connection ("Buffer overflow 1311 579", test server 2026-10-15 01:53).
      */
-    static final int WRITER_RESERVE = CHUNK + 11 + 6000;
+    static final int WRITER_RESERVE = MAX_PIECE + 6000;
 
     /**
      * One piece per 85 ms = at most 15.6 KB/s (server BugShotUploads.CLIENT_RATE 16 KB/s): half of what the server reads per
@@ -85,22 +104,29 @@ public final class RspsBugShot {
         return t;
     });
 
-    /** Results from the writer thread, printed in the dev console by the game thread. */
+    /** Lines for the player, printed in the dev console by the game thread (from the writer thread and the server's answers). */
     private static final ConcurrentLinkedQueue<String> results = new ConcurrentLinkedQueue<>();
 
-    /** A server request: the report stem and whether the server takes the PNG. */
+    /**
+     * A line from the server: a screenshot request (the report stem and whether the server takes the PNG) or the server's
+     * answer about one report ({@link #reply} {@link #SAVED} / {@link #REFUSED} with its {@link #detail}).
+     */
     static final class Request {
         final String stem;
         final boolean upload;
+        final String reply;
+        final String detail;
 
-        Request(String stem, boolean upload) {
+        Request(String stem, boolean upload, String reply, String detail) {
             this.stem = stem;
             this.upload = upload;
+            this.reply = reply;
+            this.detail = detail;
         }
     }
 
     /** A finished PNG on its way to the server (sent by the game thread, see {@link #pump}). */
-    private static final class Upload {
+    static final class Upload {
         final String stem;
         final byte[] data;
         int offset;
@@ -113,13 +139,82 @@ public final class RspsBugShot {
         }
     }
 
-    private static volatile Request pending;
+    /**
+     * The PNGs on their way to the server, one after the other: the writer thread adds, the game thread sends ({@link #current},
+     * {@link #advance}) and handles the server's refusals ({@link #refuse}). A refused report is never sent again, also when
+     * its PNG is only made after the refusal.
+     */
+    static final class Uploads {
+        private final ConcurrentLinkedQueue<Upload> waiting = new ConcurrentLinkedQueue<>();
+        private final java.util.Set<String> refused = java.util.Collections.synchronizedSet(new java.util.LinkedHashSet<>());
+        private Upload sending;
 
-    /** Made by the writer thread, sent by the game thread. */
-    private static final ConcurrentLinkedQueue<Upload> outgoing = new ConcurrentLinkedQueue<>();
+        /** Writer thread: a finished PNG; false when the server already refused this report. */
+        boolean add(String stem, byte[] png) {
+            if (refused.contains(stem)) {
+                return false;
+            }
+            waiting.add(new Upload(stem, png));
+            return true;
+        }
 
-    /** Game thread only. */
-    private static Upload sending;
+        /** Game thread: the upload whose next piece goes out, or null. */
+        Upload current() {
+            while (sending == null) {
+                final Upload next = waiting.poll();
+                if (next == null) {
+                    return null;
+                }
+                if (!refused.contains(next.stem)) {
+                    sending = next;
+                }
+            }
+            return sending;
+        }
+
+        /** Game thread: [bytes] of [up] went out; true when that was its last piece. */
+        boolean advance(Upload up, int bytes) {
+            up.offset += bytes;
+            if (up.offset >= up.data.length) {
+                if (sending == up) {
+                    sending = null;
+                }
+                return true;
+            }
+            return false;
+        }
+
+        /** Game thread, the server refused [stem]: stop it (sending, waiting or still to be made). True when it was stopped mid-way. */
+        boolean refuse(String stem) {
+            synchronized (refused) {
+                refused.add(stem);
+                while (refused.size() > 64) {
+                    refused.remove(refused.iterator().next());
+                }
+            }
+            waiting.removeIf(u -> u.stem.equals(stem));
+            if (sending != null && sending.stem.equals(stem)) {
+                sending = null;
+                return true;
+            }
+            return false;
+        }
+
+        /** Game thread, the connection is gone: drops every upload; returns how many. */
+        int dropAll() {
+            int n = sending != null ? 1 : 0;
+            sending = null;
+            while (waiting.poll() != null) {
+                n++;
+            }
+            return n;
+        }
+    }
+
+    static final Uploads UPLOADS = new Uploads();
+
+    /** Requests waiting for the next frame (all of them get it). */
+    private static final ConcurrentLinkedQueue<Request> waitingShots = new ConcurrentLinkedQueue<>();
 
     private RspsBugShot() {
     }
@@ -128,24 +223,77 @@ public final class RspsBugShot {
         return stem != null && STEM.matcher(stem).matches();
     }
 
-    /** "&lt;stem&gt;" or "&lt;stem&gt;|upload" from the server; null for anything else (no paths, no other suffix). */
+    /**
+     * "&lt;stem&gt;", "&lt;stem&gt;|upload", "&lt;stem&gt;|saved|&lt;detail&gt;" or "&lt;stem&gt;|refused|&lt;why&gt;" from the
+     * server; null for anything else (no paths, no other word).
+     */
     static Request parse(String payload) {
         if (payload == null) {
             return null;
         }
-        final boolean upload = payload.endsWith(UPLOAD);
-        final String stem = upload ? payload.substring(0, payload.length() - UPLOAD.length()) : payload;
-        return accepts(stem) ? new Request(stem, upload) : null;
+        final int bar = payload.indexOf('|');
+        final String stem = bar < 0 ? payload : payload.substring(0, bar);
+        if (!accepts(stem)) {
+            return null;
+        }
+        if (bar < 0) {
+            return new Request(stem, false, null, null);
+        }
+        final String rest = payload.substring(bar + 1);
+        if (rest.equals(UPLOAD.substring(1))) {
+            return new Request(stem, true, null, null);
+        }
+        for (String word : new String[] {SAVED, REFUSED}) {
+            if (rest.startsWith(word + "|")) {
+                final String detail = rest.substring(word.length() + 1);
+                return new Request(stem, false, word, detail.length() > 120 ? detail.substring(0, 120) : detail);
+            }
+        }
+        return null;
     }
 
-    /** ServerConnectionReader (game thread), console line from the server: the next frame is taken in beforeConsole. */
+    /**
+     * ServerConnectionReader (game thread), console line from the server: a request waits for the next frame (taken in
+     * beforeConsole); the server's answer about a report is shown to the player, a refusal also stops that upload.
+     */
     public static void request(String payload) {
         final Request request = parse(payload);
         if (request == null) {
-            System.out.println("[bugshot] PROBLEM refused a stem that is not a bug report: " + payload);
+            System.out.println("[bugshot] PROBLEM refused a line that is not about a bug report: " + payload);
             return;
         }
-        pending = request;
+        if (SAVED.equals(request.reply)) {
+            System.out.println("[bugshot] the server saved " + request.stem + ": " + request.detail);
+            results.add("Bug screenshot saved on the server: " + request.detail);
+        } else if (REFUSED.equals(request.reply)) {
+            final boolean stopped = UPLOADS.refuse(request.stem);
+            System.out.println("[bugshot] PROBLEM the server refused " + request.stem + ": " + request.detail + (stopped ? " - stopped sending it" : ""));
+            results.add("Bug screenshot NOT saved on the server: " + request.detail + " (your copy is in 78legacy\\bugs).");
+        } else {
+            waitingShots.add(request);
+        }
+    }
+
+    /** Requests waiting for the next frame (tests). */
+    static int waitingShots() {
+        return waitingShots.size();
+    }
+
+    /** Takes the lines waiting for the dev console (tests). */
+    static java.util.List<String> takeResults() {
+        final java.util.List<String> out = new java.util.ArrayList<>();
+        String line;
+        while ((line = results.poll()) != null) {
+            out.add(line);
+        }
+        return out;
+    }
+
+    /** Tests: forget every waiting request, line and upload. */
+    static void clearForTests() {
+        waitingShots.clear();
+        results.clear();
+        UPLOADS.dropAll();
     }
 
     /**
@@ -157,12 +305,17 @@ public final class RspsBugShot {
         while ((line = results.poll()) != null) {
             debugconsole.addline(line);
         }
-        final Request request = pending;
-        if (request == null) {
+        if (waitingShots.isEmpty()) {
             return;
         }
-        pending = null;
-        final String stem = request.stem;
+        final java.util.List<Request> requests = new java.util.ArrayList<>();
+        Request r;
+        String last = null;
+        while ((r = waitingShots.poll()) != null) {
+            requests.add(r);
+            last = r.stem;
+        }
+        final String stem = last;
         final Canvas canvas = GameShell.canvas;
         final int w = StretchedMode.active() ? StretchedMode.realWidth() : GameShell.canvasWid;
         final int h = StretchedMode.active() ? StretchedMode.realHeight() : GameShell.canvasHei;
@@ -177,7 +330,10 @@ public final class RspsBugShot {
             fail(stem, "no frame (" + (pixels == null ? "null" : pixels.length + " px") + " for " + w + "x" + h + ")");
             return;
         }
-        WRITER.execute(() -> write(request, pixels, w, h, canvas));
+        // every report asked for before this frame gets this frame
+        for (Request request : requests) {
+            WRITER.execute(() -> write(request, pixels, w, h, canvas));
+        }
     }
 
     private static void fail(String stem, String why) {
@@ -224,9 +380,12 @@ public final class RspsBugShot {
                 } catch (Throwable t) {
                     copy = "none (" + t + ")";
                 }
-                outgoing.add(new Upload(stem, png));
-                System.out.println("[bugshot] made " + stem + " " + size + " " + png.length + " bytes - sending it to the server; own copy " + copy);
-                results.add("Bug screenshot made (" + kb(png.length) + " KB) - sending it to the server...");
+                if (UPLOADS.add(stem, png)) {
+                    System.out.println("[bugshot] made " + stem + " " + size + " " + png.length + " bytes - sending it to the server; own copy " + copy);
+                    results.add("Bug screenshot made (" + kb(png.length) + " KB) - sending it to the server...");
+                } else {
+                    System.out.println("[bugshot] made " + stem + " " + size + " - the server already refused it, not sent; own copy " + copy);
+                }
             } else {
                 final File out = saveBytes(png, targetDir(SERVER_BUGS, home), stem);
                 System.out.println("[bugshot] saved " + out.getAbsolutePath() + " " + size);
@@ -292,23 +451,19 @@ public final class RspsBugShot {
 
     /**
      * MainLogicManager, game thread, every logic cycle right before ServerConnection.GAME.flush(): sends the next piece of a
-     * finished screenshot - one piece per cycle and only when no other packet waits, so the player's own packets never wait
-     * behind a screenshot (~65 KB/s). A lost connection drops the upload (the player keeps the local copy).
+     * finished screenshot - at the upload pace and only when no other packet waits, so the player's own packets never wait
+     * behind a screenshot. A lost connection drops the uploads (the player keeps the local copies). The last piece is not
+     * "sent" for the player: only the server's answer (saved / refused, see {@link #request}) is shown.
      */
     public static void pump() {
-        Upload up = sending;
+        final Upload up = UPLOADS.current();
         if (up == null) {
-            up = outgoing.poll();
-            if (up == null) {
-                return;
-            }
-            sending = up;
+            return;
         }
         final ServerConnection connection = ServerConnection.GAME;
         if (connection.connection == null || connection.isaac == null) {
-            sending = null;
-            outgoing.clear();
-            System.out.println("[bugshot] PROBLEM " + up.stem + ": connection lost after " + up.offset + "/" + up.data.length + " bytes - not sent");
+            final int dropped = UPLOADS.dropAll();
+            System.out.println("[bugshot] PROBLEM " + up.stem + ": connection lost after " + up.offset + "/" + up.data.length + " bytes - " + dropped + " screenshot(s) not sent");
             debugconsole.addline("Bug screenshot not sent: the connection was lost (your copy is in 78legacy\\bugs).");
             return;
         }
@@ -319,15 +474,13 @@ public final class RspsBugShot {
         up.nextPieceAt = now + PIECE_INTERVAL_MS;
         final ClientMessage message = ClientMessage.create(ClientProt.RSPS_BUGSHOT_CHUNK, connection.isaac);
         if (up.offset == 0) {
-            up.started = System.currentTimeMillis();
+            up.started = now;
             System.out.println("[bugshot] sending " + up.stem + ".png to the server: " + up.data.length + " bytes in pieces of " + CHUNK);
         }
-        up.offset += writeChunk(message.bitPacket, up.data, up.offset);
+        final int bytes = writeChunk(message.bitPacket, up.stem, up.data, up.offset);
         connection.send(message);
-        if (up.offset >= up.data.length) {
-            sending = null;
-            System.out.println("[bugshot] sent " + up.stem + ".png to the server: " + up.data.length + " bytes in " + (System.currentTimeMillis() - up.started) + " ms");
-            debugconsole.addline("Bug screenshot sent to the server (" + kb(up.data.length) + " KB).");
+        if (UPLOADS.advance(up, bytes)) {
+            System.out.println("[bugshot] all " + up.data.length + " bytes of " + up.stem + ".png handed to the connection in " + (now - up.started) + " ms - waiting for the server's answer");
         }
     }
 
@@ -348,13 +501,17 @@ public final class RspsBugShot {
     }
 
     /**
-     * One piece as the server reads it (BugShotChunkDecoder): p2 size (var-short), p4 total, p4 offset, then at most
-     * {@link #CHUNK} bytes of data from offset. Returns the number of bytes of data written.
+     * One piece as the server reads it (BugShotChunkDecoder): p2 size (var-short), p1 stem length, the report [stem] (ASCII,
+     * {@link #STEM} only), p4 total, p4 offset, then at most {@link #CHUNK} bytes of data from offset. Returns the number of
+     * bytes of data written.
      */
-    static int writeChunk(Packet packet, byte[] data, int offset) {
+    static int writeChunk(Packet packet, String stem, byte[] data, int offset) {
         final int len = Math.min(CHUNK, data.length - offset);
+        final byte[] name = stem.getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
         packet.p2(0);
         final int start = packet.pos;
+        packet.p1(name.length);
+        packet.pdata(name.length, name, 0);
         packet.p4(data.length);
         packet.p4(offset);
         packet.pdata(len, data, offset);

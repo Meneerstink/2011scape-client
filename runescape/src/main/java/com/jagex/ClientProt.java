@@ -290,7 +290,8 @@ public final class ClientProt {
     public static final ClientProt EVENT_APPLET_FOCUS = new ClientProt(93, 1);
 
     /**
-     * 78 client only (T2 2026-10-15): one piece of a bug-report screenshot (RspsBugShot.pump / writeChunk: p4 total, p4 offset,
+     * 78 client only (T2 2026-10-15): one piece of a bug-report screenshot (RspsBugShot.pump / writeChunk: p1 stem length, the
+     * report stem (round 3), p4 total, p4 offset,
      * bytes). The server registers it as opcode 94 VARIABLE_SHORT (data/packets.yml, ClientProtSizes) and only takes it after
      * it asked for the screenshot ("__RSPS_BUGSHOT__:&lt;stem&gt;|upload"); an older server would drop the connection on it.
      */

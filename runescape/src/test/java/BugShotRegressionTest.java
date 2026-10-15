@@ -25,6 +25,11 @@ import java.util.List;
  * - with an upload the client never writes C:\RSPS\bugs itself (the server does), its own copy goes to 78legacy\bugs;
  * - pump runs in the logic cycle right before the flush, sends only when no other packet waits, never blocks; opcode 94 is
  *   var-short on both sides (server data/packets.yml, BugShot.UPLOAD).
+ * Round 3 (Keurmeester FAIL round 2: 'bug A', 15 s later 'bug B' -> no PNG for either on the server, the client said "sent"
+ * for both): every piece names its report stem; uploads go one after the other and a piece never carries another report's
+ * stem; the server answers per report "<stem>|saved|<detail>" / "<stem>|refused|<why>" - refused stops that upload (sending or
+ * queued, even before the PNG is made) without touching the others; the player is told only what the server said (no
+ * "sent" of the client's own); reports asked for before the next frame each get that frame.
  */
 public final class BugShotRegressionTest {
     private static int assertions;
@@ -43,6 +48,8 @@ public final class BugShotRegressionTest {
         folders();
         requests();
         chunks();
+        queue();
+        replies();
         stalledSocket();
         pace();
         wiring();
@@ -164,46 +171,185 @@ public final class BugShotRegressionTest {
         check(up != null && up.upload && stem.equals(up.stem), "'<stem>|upload' = upload of that report");
         RspsBugShot.Request local = RspsBugShot.parse(stem);
         check(local != null && !local.upload && stem.equals(local.stem), "'<stem>' = local copy only (older server / hourly cap)");
+        RspsBugShot.Request saved = RspsBugShot.parse(stem + "|saved|" + stem + ".png 974x581 690 KB");
+        check(saved != null && "saved".equals(saved.reply) && stem.equals(saved.stem) && !saved.upload && (stem + ".png 974x581 690 KB").equals(saved.detail),
+            "'<stem>|saved|<detail>' = the server saved that report's picture");
+        RspsBugShot.Request refused = RspsBugShot.parse(stem + "|refused|a piece at 2000, expected 1000");
+        check(refused != null && "refused".equals(refused.reply) && stem.equals(refused.stem) && "a piece at 2000, expected 1000".equals(refused.detail),
+            "'<stem>|refused|<why>' = the server will not take that report's picture");
+        check(up != null && local != null && up.reply == null && local.reply == null, "a request is not a reply");
         for (String bad : new String[] {stem + "|uploadx", stem + "|upload|upload", stem + "|", "|upload", "../" + stem + "|upload",
-            stem + "|upload/../x", "C:\\x|upload", null}) {
+            stem + "|upload/../x", "C:\\x|upload", null, stem + "|saved", stem + "|refused", stem + "|savedx|y", "|saved|x",
+            "../" + stem + "|refused|x", stem + "|done|x"}) {
             check(RspsBugShot.parse(bad) == null, "refused: " + bad);
         }
     }
 
-    /** Every size, as the client puts it on the wire: opcode byte + RspsBugShot.writeChunk, each message within 1350 bytes. */
+    /**
+     * Every size and every stem length, as the client puts it on the wire: opcode byte + RspsBugShot.writeChunk (var-short
+     * size, p1 stem length, stem, p4 total, p4 offset, bytes - server BugShotChunkDecoder), each message within 1350 bytes.
+     */
     private static void chunks() {
         final int writeBuffer = new ServerConnection().writePacket.data.length;
         check(writeBuffer == 1350, "ServerConnection.writePacket is 1350 bytes: " + writeBuffer);
-        for (int size : new int[] {1, 8, RspsBugShot.CHUNK - 1, RspsBugShot.CHUNK, RspsBugShot.CHUNK + 1, 2 * RspsBugShot.CHUNK, 812_345, 3_000_017}) {
-            final byte[] data = new byte[size];
-            for (int i = 0; i < size; i++) {
-                data[i] = (byte) (i * 31 + size);
-            }
-            final byte[] back = new byte[size];
-            int offset = 0;
-            int pieces = 0;
-            boolean ok = true;
-            while (offset < size && ok) {
-                final com.jagex.core.io.Packet p = new com.jagex.core.io.Packet(writeBuffer);
-                p.p1(94); // the opcode byte ClientMessage.create writes first
-                final int n = RspsBugShot.writeChunk(p, data, offset);
-                pieces++;
-                final byte[] d = p.data;
-                final int len = (d[1] & 255) << 8 | (d[2] & 255);
-                final int total = (d[3] & 255) << 24 | (d[4] & 255) << 16 | (d[5] & 255) << 8 | (d[6] & 255);
-                final int off = (d[7] & 255) << 24 | (d[8] & 255) << 16 | (d[9] & 255) << 8 | (d[10] & 255);
-                ok = check(p.pos <= writeBuffer, size + " bytes: piece of " + p.pos + " bytes does not fit the write buffer")
-                    && check(len == p.pos - 3 && len == 8 + n, size + " bytes: var-short size " + len + " for " + (p.pos - 3) + " body bytes")
-                    && check(total == size && off == offset, size + " bytes: header total " + total + " offset " + off + " want " + offset)
-                    && check(n > 0 && n <= RspsBugShot.CHUNK, size + " bytes: piece of " + n);
-                if (ok) {
-                    System.arraycopy(d, 11, back, offset, n);
-                    offset += n;
-                }
-            }
-            check(ok && java.util.Arrays.equals(data, back), size + " bytes: put back together byte-exact");
-            check(pieces == (size + RspsBugShot.CHUNK - 1) / RspsBugShot.CHUNK, size + " bytes: " + pieces + " pieces");
+        final String[] stems = {"bug-20261015-010631-a", "bug-20261015-010631-teamtest1", "bug-20261015-010631-999-abcdefghijklmnopqrst"};
+        for (String stem : stems) {
+            check(RspsBugShot.accepts(stem), "test stem " + stem);
+            check(stem.length() <= RspsBugShot.MAX_STEM, "the longest server stem fits MAX_STEM: " + stem);
         }
+        check(RspsBugShot.MAX_PIECE <= writeBuffer, "the biggest piece " + RspsBugShot.MAX_PIECE + " fits the write buffer");
+        for (String stem : stems) {
+            for (int size : new int[] {1, 8, RspsBugShot.CHUNK - 1, RspsBugShot.CHUNK, RspsBugShot.CHUNK + 1, 2 * RspsBugShot.CHUNK, 812_345, 3_000_017}) {
+                final byte[] data = new byte[size];
+                for (int i = 0; i < size; i++) {
+                    data[i] = (byte) (i * 31 + size);
+                }
+                final byte[] back = new byte[size];
+                int offset = 0;
+                int pieces = 0;
+                boolean ok = true;
+                final String what = stem + " " + size + " bytes: ";
+                while (offset < size && ok) {
+                    final com.jagex.core.io.Packet p = new com.jagex.core.io.Packet(writeBuffer);
+                    p.p1(94); // the opcode byte ClientMessage.create writes first
+                    final int n = RspsBugShot.writeChunk(p, stem, data, offset);
+                    pieces++;
+                    final byte[] d = p.data;
+                    final int len = (d[1] & 255) << 8 | (d[2] & 255);
+                    final int stemLen = d[3] & 255;
+                    final String gotStem = new String(d, 4, Math.min(stemLen, writeBuffer - 4), StandardCharsets.ISO_8859_1);
+                    final int h = Math.min(4 + stemLen, writeBuffer - 8);
+                    final int total = (d[h] & 255) << 24 | (d[h + 1] & 255) << 16 | (d[h + 2] & 255) << 8 | (d[h + 3] & 255);
+                    final int off = (d[h + 4] & 255) << 24 | (d[h + 5] & 255) << 16 | (d[h + 6] & 255) << 8 | (d[h + 7] & 255);
+                    ok = check(p.pos <= writeBuffer && p.pos <= RspsBugShot.MAX_PIECE, what + "piece of " + p.pos + " bytes does not fit the write buffer")
+                        && check(stem.equals(gotStem), what + "piece names '" + gotStem + "'")
+                        && check(len == p.pos - 3 && len == 1 + stemLen + 8 + n, what + "var-short size " + len + " for " + (p.pos - 3) + " body bytes")
+                        && check(total == size && off == offset, what + "header total " + total + " offset " + off + " want " + offset)
+                        && check(n > 0 && n <= RspsBugShot.CHUNK, what + "piece of " + n);
+                    if (ok) {
+                        System.arraycopy(d, h + 8, back, offset, n);
+                        offset += n;
+                    }
+                }
+                check(ok && java.util.Arrays.equals(data, back), what + "put back together byte-exact");
+                check(pieces == (size + RspsBugShot.CHUNK - 1) / RspsBugShot.CHUNK, what + pieces + " pieces");
+            }
+        }
+    }
+
+    private static byte[] bytes(int n, int seed) {
+        final byte[] b = new byte[n];
+        for (int i = 0; i < n; i++) {
+            b[i] = (byte) (i * 13 + seed);
+        }
+        return b;
+    }
+
+    /**
+     * Drains the upload queue the way pump does (one piece per cycle) and returns "stem@offset" of every piece. [addAt] maps a
+     * piece number to a report whose PNG is made right then, [refuseAt] a piece number to a stem the server refuses right then.
+     */
+    private static List<String> drain(RspsBugShot.Uploads q, java.util.Map<Integer, String> refuseAt, java.util.Map<Integer, String> addAt) {
+        final List<String> sent = new ArrayList<>();
+        for (int cycle = 0; cycle < 10_000; cycle++) {
+            if (addAt.containsKey(cycle)) {
+                q.add(addAt.get(cycle), bytes(5 * RspsBugShot.CHUNK + 7, cycle));
+            }
+            if (refuseAt.containsKey(cycle)) {
+                q.refuse(refuseAt.get(cycle));
+            }
+            final RspsBugShot.Upload up = q.current();
+            if (up == null) {
+                final int now = cycle;
+                if (addAt.keySet().stream().anyMatch(k -> k > now)) {
+                    continue;
+                }
+                break;
+            }
+            final com.jagex.core.io.Packet p = new com.jagex.core.io.Packet(1350);
+            p.p1(94);
+            sent.add(up.stem + "@" + up.offset);
+            q.advance(up, RspsBugShot.writeChunk(p, up.stem, up.data, up.offset));
+        }
+        return sent;
+    }
+
+    /** Uploads go one after the other; every piece names its own report; a refusal stops only that report. */
+    private static void queue() {
+        final String a = "bug-20261015-022906-teamtest1";
+        final String b = "bug-20261015-022921-teamtest1";
+        final String c = "bug-20261015-022930-teamtest1";
+        final int per = 6; // 5 * CHUNK + 7 bytes = 6 pieces
+        // Keurmeester round 2: B made while A is half sent -> A finishes, then all of B from 0, every piece named right
+        RspsBugShot.Uploads q = new RspsBugShot.Uploads();
+        q.add(a, bytes(5 * RspsBugShot.CHUNK + 7, 1));
+        List<String> sent = drain(q, java.util.Map.of(), java.util.Map.of(3, b));
+        final List<String> want = new ArrayList<>();
+        for (String s : new String[] {a, b}) {
+            for (int i = 0; i < per; i++) {
+                want.add(s + "@" + i * RspsBugShot.CHUNK);
+            }
+        }
+        check(want.equals(sent), "A then B, each whole and named: " + sent);
+        // three in a row before any piece went out
+        q = new RspsBugShot.Uploads();
+        q.add(a, bytes(5 * RspsBugShot.CHUNK + 7, 1));
+        q.add(b, bytes(5 * RspsBugShot.CHUNK + 7, 2));
+        q.add(c, bytes(5 * RspsBugShot.CHUNK + 7, 3));
+        sent = drain(q, java.util.Map.of(), java.util.Map.of());
+        check(sent.size() == 3 * per && sent.get(0).equals(a + "@0") && sent.get(per).equals(b + "@0") && sent.get(2 * per).equals(c + "@0")
+            && sent.get(3 * per - 1).equals(c + "@" + (per - 1) * RspsBugShot.CHUNK), "three reports in order, each from 0: " + sent);
+        // the server refuses A in the middle: A stops at once, B and C are sent whole
+        q = new RspsBugShot.Uploads();
+        q.add(a, bytes(5 * RspsBugShot.CHUNK + 7, 1));
+        q.add(b, bytes(5 * RspsBugShot.CHUNK + 7, 2));
+        q.add(c, bytes(5 * RspsBugShot.CHUNK + 7, 3));
+        sent = drain(q, java.util.Map.of(2, a), java.util.Map.of());
+        check(sent.size() == 2 + 2 * per && sent.get(1).equals(a + "@" + RspsBugShot.CHUNK) && sent.get(2).equals(b + "@0")
+            && sent.stream().filter(x -> x.startsWith(a)).count() == 2, "refused A stops after 2 pieces, then B and C whole: " + sent);
+        // a waiting report refused (the server's open-upload cap) is skipped; one refused before its PNG was made is never sent
+        q = new RspsBugShot.Uploads();
+        q.add(a, bytes(5 * RspsBugShot.CHUNK + 7, 1));
+        q.add(b, bytes(5 * RspsBugShot.CHUNK + 7, 2));
+        q.refuse(b);
+        q.refuse(c);
+        q.add(c, bytes(5 * RspsBugShot.CHUNK + 7, 3));
+        sent = drain(q, java.util.Map.of(), java.util.Map.of());
+        check(sent.size() == per && sent.stream().allMatch(x -> x.startsWith(a + "@")), "refused B (waiting) and C (not made yet) are never sent: " + sent);
+        // a lost connection drops everything (the player keeps the own copies)
+        q = new RspsBugShot.Uploads();
+        q.add(a, bytes(100, 1));
+        q.add(b, bytes(100, 2));
+        q.current();
+        check(q.dropAll() == 2 && q.current() == null, "a lost connection drops the sending and the waiting uploads");
+    }
+
+    /** The player is told what the server did - never "sent" on the client's own word; a reply is not a new screenshot. */
+    private static void replies() {
+        final String a = "bug-20261015-022906-teamtest1";
+        final String b = "bug-20261015-022921-teamtest1";
+        RspsBugShot.clearForTests();
+        // two requests before the next frame: both get that frame (round 2 kept only the newest)
+        RspsBugShot.request(a + "|upload");
+        RspsBugShot.request(b + "|upload");
+        check(RspsBugShot.waitingShots() == 2, "two reports before the next frame both wait for it: " + RspsBugShot.waitingShots());
+        RspsBugShot.request(a + "|saved|" + a + ".png 974x581 690 KB");
+        RspsBugShot.request(b + "|refused|the request expired");
+        check(RspsBugShot.waitingShots() == 2, "a reply never asks for a screenshot");
+        final List<String> lines = RspsBugShot.takeResults();
+        check(lines.size() == 2 && lines.get(0).contains("saved on the server") && lines.get(0).contains(a + ".png")
+            && lines.get(1).contains("NOT saved on the server") && lines.get(1).contains("the request expired"),
+            "the player sees the server's answer per report: " + lines);
+        String src = "";
+        try {
+            src = read("src/main/java/RspsBugShot.java");
+        } catch (Exception e) {
+            check(false, "source " + e);
+        }
+        final String pump = method(src, "public static void pump()");
+        check(!pump.isEmpty() && !pump.contains("addline(\"Bug screenshot sent") && !pump.contains("results.add(\"Bug screenshot sent"),
+            "pump never tells the player 'sent' - only the server's answer does");
+        RspsBugShot.clearForTests();
     }
 
     /**
@@ -235,7 +381,7 @@ public final class BugShotRegressionTest {
         final com.jagex.core.io.connection.ClientStreamWriter writer = new com.jagex.core.io.connection.ClientStreamWriter(stalled, 15000);
         try {
             check(writer.free() == 15000, "an empty ring has 15000 bytes free: " + writer.free());
-            final byte[] piece = new byte[RspsBugShot.CHUNK + 11];
+            final byte[] piece = new byte[RspsBugShot.MAX_PIECE];
             int sent = 0;
             try {
                 for (int cycle = 0; cycle < 1000; cycle++) {
@@ -285,7 +431,7 @@ public final class BugShotRegressionTest {
                 }
                 maxPerSecond = Math.max(maxPerSecond, window.size());
             }
-            final int bytes = maxPerSecond * (RspsBugShot.CHUNK + 11);
+            final int bytes = maxPerSecond * RspsBugShot.MAX_PIECE;
             check(bytes <= serverRate, "cycles of " + cycleMs + " ms: " + bytes + " bytes in one second, more than the " + serverRate + " the server allows for an upload");
             check(maxPerSecond >= 8, "cycles of " + cycleMs + " ms: the upload still moves (" + maxPerSecond + " pieces per second)");
         }
@@ -323,7 +469,7 @@ public final class BugShotRegressionTest {
         final int upload = write.indexOf("if (request.upload)");
         final int other = upload < 0 ? -1 : write.indexOf("} else {", upload);
         final String uploadBranch = upload < 0 || other < 0 ? "" : write.substring(upload, other);
-        check(uploadBranch.contains("ownDir(home)") && uploadBranch.contains("outgoing.add(") && !uploadBranch.contains("SERVER_BUGS")
+        check(uploadBranch.contains("ownDir(home)") && uploadBranch.contains("UPLOADS.add(") && !uploadBranch.contains("SERVER_BUGS")
             && !uploadBranch.contains("targetDir("), "with an upload the client queues the PNG and keeps its own copy only in 78legacy\\bugs");
         final File home = new File("x");
         check(new File(home, "78legacy/bugs").equals(RspsBugShot.ownDir(home)), "own copy folder");
@@ -336,6 +482,11 @@ public final class BugShotRegressionTest {
             check(entry.contains("type: VARIABLE_SHORT") && entry.contains("opcode: 94"), "server packets.yml: opcode 94 VARIABLE_SHORT BugShotChunkMessage");
             final String server = read("C:/RSPS/game/game/game/plugins/src/main/kotlin/gg/rsmod/plugins/content/cmd/BugShot.kt");
             check(server.contains("const val UPLOAD = \"" + RspsBugShot.UPLOAD + "\""), "server BugShot.UPLOAD matches the client's");
+            check(server.contains("if (outcome == BugShotUploads.Outcome.SAVED) \"saved\" else \"refused\"") && server.contains("|$word|$clean"),
+                "server replies '<stem>|saved|..' / '<stem>|refused|..' as the client parses them");
+            final String decoder = read("C:/RSPS/game/game/game/src/main/kotlin/gg/rsmod/game/message/decoder/BugShotChunkDecoder.kt");
+            check(decoder.contains("val length = reader.getUnsigned(DataType.BYTE).toInt() and 0xFF") && decoder.indexOf("stemBytes") < decoder.indexOf("val total"),
+                "server decoder reads p1 stem length + stem before total/offset (RspsBugShot.writeChunk)");
         }
     }
 
