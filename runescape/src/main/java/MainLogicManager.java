@@ -767,6 +767,8 @@ public final class MainLogicManager {
                                                 @Pc(2571) ClientMessage local2571 = ClientMessage.create(ClientProt.NO_TIMEOUT, ServerConnection.GAME.isaac);
                                                 ServerConnection.GAME.send(local2571);
                                             }
+                                            // T2: the next piece of a bug-report screenshot, only when nothing else waits to be sent.
+                                            RspsBugShot.pump();
                                             if (VerifyId.isTransmitRequested()) {
                                                 VerifyId.transmit();
                                                 VerifyId.cancelTransmitRequest();
@@ -775,6 +777,8 @@ public final class MainLogicManager {
                                                 ServerConnection.GAME.flush();
                                                 return;
                                             } catch (@Pc(2588) IOException local2588) {
+                                                // T2: this write error dropped the connection without a trace.
+                                                System.out.println("[net] PROBLEM game connection write failed, disconnecting: " + local2588);
                                                 ConnectionManager.disconnect();
                                                 return;
                                             }

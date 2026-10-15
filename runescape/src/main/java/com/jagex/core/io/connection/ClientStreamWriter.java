@@ -156,6 +156,17 @@ public final class ClientStreamWriter implements Runnable {
     }
 
     @OriginalMember(owner = "client!vja", name = "b", descriptor = "(I)V")
+    /**
+     * T2: bytes {@link #write} can still take without "Buffer overflow" (which drops the game connection). Lets a bulk
+     * sender (RspsBugShot.pump) wait for the socket instead of filling the buffer the player's own packets need.
+     */
+    public synchronized int free() {
+        if (this.writePointer < this.bufferPointer) {
+            return this.bufferPointer - this.writePointer - 1;
+        }
+        return this.bufferPointer + this.bufferSize - this.writePointer - 1;
+    }
+
     public void reset() {
         this.output = new DummyOutputStream();
     }

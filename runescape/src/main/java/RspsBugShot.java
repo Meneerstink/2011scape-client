@@ -1,4 +1,6 @@
+import com.jagex.ClientProt;
 import com.jagex.StretchedMode;
+import com.jagex.core.io.Packet;
 import com.jagex.game.runetek6.client.GameShell;
 import com.jagex.graphics.Toolkit;
 
@@ -13,7 +15,10 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Window;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -30,8 +35,14 @@ import java.util.regex.Pattern;
  * or a covered client never ends up in the report. It is taken in mainredraw after the game and the interfaces and BEFORE
  * the dev console is drawn: the player types `bug` in the console, the shot shows the game behind it.
  *
- * <p>Saved as &lt;stem&gt;.png in C:\RSPS\bugs (the server PC: next to the report) when that folder exists, else in the
- * player's own &lt;home&gt;\78legacy\bugs. Only stems the server makes are accepted (no paths, no extensions); a shot never
+ * <p>Round 2 (Keurmeester FAIL round 1: the PNG stayed on the reporter's PC - friends play from other PCs, the server moves to
+ * a VPS). Donor: RuneLite ImageCapture.uploadScreenshot - after the event the client sends its screenshot to a server. When
+ * the server asks with "&lt;stem&gt;|upload" (it opened the upload for that report, server BugShotUploads) the PNG goes to the
+ * server over the game connection: {@link #pump} sends one piece of {@link #CHUNK} bytes per logic cycle (ClientProt
+ * RSPS_BUGSHOT_CHUNK, opcode 94), only when no other packet waits, so the player's own clicks never queue behind it; the
+ * server writes bugs\&lt;stem&gt;.png next to the report. The player keeps a copy in &lt;home&gt;\78legacy\bugs. Without
+ * "|upload" (older server, hourly cap) only the local copy is made, as in round 1: C:\RSPS\bugs when that folder exists,
+ * else &lt;home&gt;\78legacy\bugs. Only stems the server makes are accepted (no paths, no extensions); a shot never
  * overwrites another file. Regression: :runescape:bugShotRegression.
  */
 public final class RspsBugShot {
@@ -41,6 +52,29 @@ public final class RspsBugShot {
 
     /** The server's report stems (BugShot.reportFile, BugShotTests): bug-yyyyMMdd-HHmmss[-n]-&lt;username&gt;. */
     static final Pattern STEM = Pattern.compile("bug-\\d{8}-\\d{6}(-\\d{1,3})?-[A-Za-z0-9 _-]{1,20}");
+
+    /** Server BugShot.UPLOAD: the server takes the PNG of this report. */
+    static final String UPLOAD = "|upload";
+
+    /**
+     * Bytes per piece. A message must fit ServerConnection.writePacket (1350 bytes) whole - a bigger one is never flushed and
+     * stalls every packet behind it: 1 opcode + 2 size + 8 header + 1300 = 1311. Server BugShotUploads.MAX_CHUNK = 1350.
+     */
+    static final int CHUNK = 1300;
+
+    /**
+     * Free bytes the socket writer (ClientStreamWriter, 15000-byte ring) must have before a piece is added: the piece plus
+     * room for the player's own packets. Without it the pieces filled the ring faster than the socket drained it and the
+     * client dropped the connection ("Buffer overflow 1311 579", test server 2026-10-15 01:53).
+     */
+    static final int WRITER_RESERVE = CHUNK + 11 + 6000;
+
+    /**
+     * One piece per 85 ms = at most 15.6 KB/s (server BugShotUploads.CLIENT_RATE 16 KB/s): half of what the server reads per
+     * player per second (ClientChannelInitializer.CHANNEL_READ_LIMIT, 32 KB/s), so the player's own packets are never read late.
+     * At the old 5 KB/s server limit and one piece per logic cycle the reads were throttled and the ring overflowed.
+     */
+    static final int PIECE_INTERVAL_MS = 85;
 
     private static final File SERVER_BUGS = new File("C:/RSPS/bugs");
 
@@ -54,7 +88,38 @@ public final class RspsBugShot {
     /** Results from the writer thread, printed in the dev console by the game thread. */
     private static final ConcurrentLinkedQueue<String> results = new ConcurrentLinkedQueue<>();
 
-    private static volatile String pending;
+    /** A server request: the report stem and whether the server takes the PNG. */
+    static final class Request {
+        final String stem;
+        final boolean upload;
+
+        Request(String stem, boolean upload) {
+            this.stem = stem;
+            this.upload = upload;
+        }
+    }
+
+    /** A finished PNG on its way to the server (sent by the game thread, see {@link #pump}). */
+    private static final class Upload {
+        final String stem;
+        final byte[] data;
+        int offset;
+        long started;
+        long nextPieceAt;
+
+        Upload(String stem, byte[] data) {
+            this.stem = stem;
+            this.data = data;
+        }
+    }
+
+    private static volatile Request pending;
+
+    /** Made by the writer thread, sent by the game thread. */
+    private static final ConcurrentLinkedQueue<Upload> outgoing = new ConcurrentLinkedQueue<>();
+
+    /** Game thread only. */
+    private static Upload sending;
 
     private RspsBugShot() {
     }
@@ -63,13 +128,24 @@ public final class RspsBugShot {
         return stem != null && STEM.matcher(stem).matches();
     }
 
+    /** "&lt;stem&gt;" or "&lt;stem&gt;|upload" from the server; null for anything else (no paths, no other suffix). */
+    static Request parse(String payload) {
+        if (payload == null) {
+            return null;
+        }
+        final boolean upload = payload.endsWith(UPLOAD);
+        final String stem = upload ? payload.substring(0, payload.length() - UPLOAD.length()) : payload;
+        return accepts(stem) ? new Request(stem, upload) : null;
+    }
+
     /** ServerConnectionReader (game thread), console line from the server: the next frame is taken in beforeConsole. */
-    public static void request(String stem) {
-        if (!accepts(stem)) {
-            System.out.println("[bugshot] PROBLEM refused a stem that is not a bug report: " + stem);
+    public static void request(String payload) {
+        final Request request = parse(payload);
+        if (request == null) {
+            System.out.println("[bugshot] PROBLEM refused a stem that is not a bug report: " + payload);
             return;
         }
-        pending = stem;
+        pending = request;
     }
 
     /**
@@ -81,11 +157,12 @@ public final class RspsBugShot {
         while ((line = results.poll()) != null) {
             debugconsole.addline(line);
         }
-        final String stem = pending;
-        if (stem == null) {
+        final Request request = pending;
+        if (request == null) {
             return;
         }
         pending = null;
+        final String stem = request.stem;
         final Canvas canvas = GameShell.canvas;
         final int w = StretchedMode.active() ? StretchedMode.realWidth() : GameShell.canvasWid;
         final int h = StretchedMode.active() ? StretchedMode.realHeight() : GameShell.canvasHei;
@@ -100,7 +177,7 @@ public final class RspsBugShot {
             fail(stem, "no frame (" + (pixels == null ? "null" : pixels.length + " px") + " for " + w + "x" + h + ")");
             return;
         }
-        WRITER.execute(() -> write(stem, pixels, w, h, canvas));
+        WRITER.execute(() -> write(request, pixels, w, h, canvas));
     }
 
     private static void fail(String stem, String why) {
@@ -109,7 +186,8 @@ public final class RspsBugShot {
     }
 
     /** Writer thread: the whole client area like the hook's screenshot (78 Plugins sidebar by Swing, the frame on the canvas). */
-    private static void write(String stem, int[] pixels, int w, int h, Canvas canvas) {
+    private static void write(Request request, int[] pixels, int w, int h, Canvas canvas) {
+        final String stem = request.stem;
         try {
             final Window window = SwingUtilities.getWindowAncestor(canvas);
             final BufferedImage area;
@@ -135,10 +213,25 @@ public final class RspsBugShot {
                 area = new BufferedImage(Math.max(1, canvas.getWidth()), Math.max(1, canvas.getHeight()), BufferedImage.TYPE_INT_RGB);
                 at = new Rectangle(0, 0, area.getWidth(), area.getHeight());
             }
-            final File out = save(compose(pixels, w, h, area, at), targetDir(SERVER_BUGS, new File(System.getProperty("user.home"))), stem);
-            System.out.println("[bugshot] saved " + out.getAbsolutePath() + " " + area.getWidth() + "x" + area.getHeight() + " frame " + w + "x" + h
-                + (StretchedMode.active() ? " stretched" : ""));
-            results.add("Bug screenshot saved: " + out.getAbsolutePath());
+            final byte[] png = encode(compose(pixels, w, h, area, at));
+            final File home = new File(System.getProperty("user.home"));
+            final String size = area.getWidth() + "x" + area.getHeight() + " frame " + w + "x" + h + (StretchedMode.active() ? " stretched" : "");
+            if (request.upload) {
+                // the server's copy is the one that counts; the player's own copy must never stop it
+                String copy;
+                try {
+                    copy = saveBytes(png, ownDir(home), stem).getAbsolutePath();
+                } catch (Throwable t) {
+                    copy = "none (" + t + ")";
+                }
+                outgoing.add(new Upload(stem, png));
+                System.out.println("[bugshot] made " + stem + " " + size + " " + png.length + " bytes - sending it to the server; own copy " + copy);
+                results.add("Bug screenshot made (" + kb(png.length) + " KB) - sending it to the server...");
+            } else {
+                final File out = saveBytes(png, targetDir(SERVER_BUGS, home), stem);
+                System.out.println("[bugshot] saved " + out.getAbsolutePath() + " " + size);
+                results.add("Bug screenshot saved: " + out.getAbsolutePath());
+            }
         } catch (Throwable t) {
             fail(stem, t.toString());
         }
@@ -158,23 +251,114 @@ public final class RspsBugShot {
         return area;
     }
 
-    /** C:\RSPS\bugs on the server PC (next to the report), else the player's own folder. */
+    /** Without an upload (older server, hourly cap): C:\RSPS\bugs on the server PC (next to the report), else the player's own folder. */
     static File targetDir(File serverBugs, File home) {
-        return serverBugs.isDirectory() ? serverBugs : new File(home, "78legacy/bugs");
+        return serverBugs.isDirectory() ? serverBugs : ownDir(home);
+    }
+
+    /** The player's own copy: &lt;home&gt;\78legacy\bugs (with an upload the server writes bugs\, never this client). */
+    static File ownDir(File home) {
+        return new File(home, "78legacy/bugs");
+    }
+
+    static byte[] encode(BufferedImage image) throws IOException {
+        final ByteArrayOutputStream bytes = new ByteArrayOutputStream(1 << 20);
+        if (!ImageIO.write(image, "png", bytes)) {
+            throw new IOException("no png writer");
+        }
+        return bytes.toByteArray();
     }
 
     /** Writes &lt;stem&gt;.png; when that file already exists &lt;stem&gt;-shot2.png, -shot3 ... - never overwrites. */
-    static File save(BufferedImage image, File dir, String stem) throws java.io.IOException {
+    static File save(BufferedImage image, File dir, String stem) throws IOException {
+        return saveBytes(encode(image), dir, stem);
+    }
+
+    static File saveBytes(byte[] png, File dir, String stem) throws IOException {
         if (!dir.isDirectory() && !dir.mkdirs()) {
-            throw new java.io.IOException("cannot make " + dir);
+            throw new IOException("cannot make " + dir);
         }
         File out = new File(dir, stem + ".png");
         for (int n = 2; out.exists(); n++) {
             out = new File(dir, stem + "-shot" + n + ".png");
         }
-        if (!ImageIO.write(image, "png", out)) {
-            throw new java.io.IOException("no png writer");
-        }
+        Files.write(out.toPath(), png);
         return out;
+    }
+
+    private static int kb(int bytes) {
+        return (bytes + 1023) / 1024;
+    }
+
+    /**
+     * MainLogicManager, game thread, every logic cycle right before ServerConnection.GAME.flush(): sends the next piece of a
+     * finished screenshot - one piece per cycle and only when no other packet waits, so the player's own packets never wait
+     * behind a screenshot (~65 KB/s). A lost connection drops the upload (the player keeps the local copy).
+     */
+    public static void pump() {
+        Upload up = sending;
+        if (up == null) {
+            up = outgoing.poll();
+            if (up == null) {
+                return;
+            }
+            sending = up;
+        }
+        final ServerConnection connection = ServerConnection.GAME;
+        if (connection.connection == null || connection.isaac == null) {
+            sending = null;
+            outgoing.clear();
+            System.out.println("[bugshot] PROBLEM " + up.stem + ": connection lost after " + up.offset + "/" + up.data.length + " bytes - not sent");
+            debugconsole.addline("Bug screenshot not sent: the connection was lost (your copy is in 78legacy\\bugs).");
+            return;
+        }
+        final long now = System.currentTimeMillis();
+        if (!canSendPiece(connection.buffered, writerFree(connection.connection), now, up.nextPieceAt)) {
+            return;
+        }
+        up.nextPieceAt = now + PIECE_INTERVAL_MS;
+        final ClientMessage message = ClientMessage.create(ClientProt.RSPS_BUGSHOT_CHUNK, connection.isaac);
+        if (up.offset == 0) {
+            up.started = System.currentTimeMillis();
+            System.out.println("[bugshot] sending " + up.stem + ".png to the server: " + up.data.length + " bytes in pieces of " + CHUNK);
+        }
+        up.offset += writeChunk(message.bitPacket, up.data, up.offset);
+        connection.send(message);
+        if (up.offset >= up.data.length) {
+            sending = null;
+            System.out.println("[bugshot] sent " + up.stem + ".png to the server: " + up.data.length + " bytes in " + (System.currentTimeMillis() - up.started) + " ms");
+            debugconsole.addline("Bug screenshot sent to the server (" + kb(up.data.length) + " KB).");
+        }
+    }
+
+    /**
+     * A piece goes out only at the upload pace, when no other packet waits and when the socket writer has room for it plus
+     * the player's own packets.
+     */
+    static boolean canSendPiece(int buffered, int writerFree, long now, long notBefore) {
+        return now >= notBefore && buffered == 0 && writerFree >= WRITER_RESERVE;
+    }
+
+    /** Free space in the game socket's write ring; a connection without one (not the async writer) never blocks a piece. */
+    static int writerFree(com.jagex.core.io.connection.Connection connection) {
+        if (connection instanceof com.jagex.core.io.connection.AsyncDuplexConnection) {
+            return ((com.jagex.core.io.connection.AsyncDuplexConnection) connection).writer.free();
+        }
+        return Integer.MAX_VALUE;
+    }
+
+    /**
+     * One piece as the server reads it (BugShotChunkDecoder): p2 size (var-short), p4 total, p4 offset, then at most
+     * {@link #CHUNK} bytes of data from offset. Returns the number of bytes of data written.
+     */
+    static int writeChunk(Packet packet, byte[] data, int offset) {
+        final int len = Math.min(CHUNK, data.length - offset);
+        packet.p2(0);
+        final int start = packet.pos;
+        packet.p4(data.length);
+        packet.p4(offset);
+        packet.pdata(len, data, offset);
+        packet.psize2(packet.pos - start);
+        return len;
     }
 }
