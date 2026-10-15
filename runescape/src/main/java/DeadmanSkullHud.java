@@ -92,7 +92,7 @@ final class DeadmanSkullHud {
     private static final int FONT_HEIGHT = 12;
     private static final int TIMER_GAP = 3;
     /** Distance between the HUD's bottom edge and the chatbox top. */
-    private static final int CHAT_MARGIN = 6;
+    static final int CHAT_MARGIN = 6;
     /** Horizontal centre of the column, measured from the chatbox's left edge. */
     private static final int CHAT_CENTRE_OFFSET = 32;
 
@@ -124,6 +124,8 @@ final class DeadmanSkullHud {
     private static volatile String timerState = "";
     private static boolean loggedNotDrawn;
     private static String lastLoggedPlace = "";
+    /** The chatbox top the last frame was placed against (-1 = none known), for the "dmmhud drawn at" trace. */
+    private static int lastChatTop = -1;
 
     /** Side-channel payload (RspsHud): {@code dmmz} = the zone text, {@code dmmt} = the timer text. */
     static void update(String kind, String value) {
@@ -180,7 +182,7 @@ final class DeadmanSkullHud {
                         InterfaceManager.dirtyRectangles[i] = true;
                     }
                 }
-                String place = box[0] + "," + box[1] + " " + box[2] + "x" + box[3] + " mode=" + InterfaceManager.getWindowMode() + " top=" + InterfaceManager.topLevelInterface;
+                String place = box[0] + "," + box[1] + " " + box[2] + "x" + box[3] + " mode=" + InterfaceManager.getWindowMode() + " top=" + InterfaceManager.topLevelInterface + " chat=" + lastChatTop;
                 if (!place.equals(lastLoggedPlace)) {
                     lastLoggedPlace = place;
                     AvTrace.log("dmmhud drawn at " + place);
@@ -326,18 +328,19 @@ final class DeadmanSkullHud {
         int skullWidth = skull == null ? 0 : skull.getWidth();
         int skullHeight = skull == null ? 0 : skull.getHeight();
 
-        int zoneHeight = LABEL_BASELINE + (bracket.length() > 0 ? LINE_HEIGHT : 0);
-        int timerHeight = time.length() == 0 ? 0 : TIMER_GAP + Math.max(skullHeight, FONT_HEIGHT);
-        int graceHeight = grace.length() == 0 ? 0 : TIMER_GAP + FONT_HEIGHT;
-        int emblemHeight = tier == 0 ? 0 : TIMER_GAP + Math.max(EMBLEM_ICON_H, FONT_HEIGHT) + SMALL_FONT_HEIGHT;
+        int zoneHeight = zoneHeight(bracket.length() > 0);
+        int timerHeight = time.length() == 0 ? 0 : timerRowHeight(skullHeight);
+        int graceHeight = grace.length() == 0 ? 0 : graceRowHeight();
+        int emblemHeight = tier == 0 ? 0 : emblemRowHeight();
         Sprite grave = graveTime.length() == 0 ? null : DeadmanIcons.grave();
         int graveIconHeight = grave == null ? 0 : grave.getHeight();
-        int graveHeight = graveTime.length() == 0 ? 0 : TIMER_GAP + Math.max(graveIconHeight, FONT_HEIGHT);
+        int graveHeight = graveTime.length() == 0 ? 0 : graveRowHeight(graveIconHeight);
         int totalHeight = zoneHeight + timerHeight + graceHeight + emblemHeight + graveHeight;
 
         int cx;
         int y;
         Rectangle chat = chatboxBounds();
+        lastChatTop = chat == null ? -1 : chat.y;
         if (chat != null) {
             cx = chat.x + CHAT_CENTRE_OFFSET;
             y = chat.y - CHAT_MARGIN - totalHeight;
@@ -367,8 +370,8 @@ final class DeadmanSkullHud {
         String layoutId = layoutId(fixedMode);
         int defaultX = fixedMode ? FIXED_DEFAULT_X : cx - blockWidth / 2;
         int defaultY = fixedMode ? FIXED_DEFAULT_Y : y - swordsReserve;
-        int[] at = RspsOverlayLayout.place(layoutId, defaultX, defaultY, blockWidth, swordsReserve + totalHeight,
-            0, 0, GameShell.canvasWid, GameShell.canvasHei);
+        int[] at = placeBlock(fixedMode, defaultX, defaultY, blockWidth, swordsReserve + totalHeight, chat,
+            GameShell.canvasWid, GameShell.canvasHei);
         cx = at[0] + blockWidth / 2;
         y = at[1] + swordsReserve;
 
@@ -455,6 +458,58 @@ final class DeadmanSkullHud {
         }
         RspsOverlayLayout.decorate(layoutId);
         return new int[] {at[0], at[1], blockWidth, swordsReserve + totalHeight};
+    }
+
+    // ---- block size and placement (pure; RspsHudRegressionTest deadmanHudClearOfChat) ---------------------------------
+
+    /** Zone rows: icon + label, plus the combat bracket line when there is one. */
+    static int zoneHeight(boolean bracket) {
+        return LABEL_BASELINE + (bracket ? LINE_HEIGHT : 0);
+    }
+
+    /** The PK-skull timer row: [skull] m:ss. */
+    static int timerRowHeight(int skullHeight) {
+        return TIMER_GAP + Math.max(skullHeight, FONT_HEIGHT);
+    }
+
+    /** The post-kill protection row: "Protected m:ss". */
+    static int graceRowHeight() {
+        return TIMER_GAP + FONT_HEIGHT;
+    }
+
+    /** The emblem rows: [icon] T3, then "200 > 360". */
+    static int emblemRowHeight() {
+        return TIMER_GAP + Math.max(EMBLEM_ICON_H, FONT_HEIGHT) + SMALL_FONT_HEIGHT;
+    }
+
+    /** The gravestone row: [grave] m:ss. */
+    static int graveRowHeight(int graveIconHeight) {
+        return TIMER_GAP + Math.max(graveIconHeight, FONT_HEIGHT);
+    }
+
+    /**
+     * Where the HUD block (top-left, {@code width x height} including the combat-icon reserve) is drawn this frame:
+     * the saved / dragged / default spot of the current mode's layout id, clamped inside its area.
+     *
+     * A30 round 2 (Keurmeester FAIL 2026-10-15): in fixed mode the block is pinned by its top-left (427,249, owner decision
+     * "anker = linkerbovenhoek") and grows down, so the skull timer, "Protected m:ss", emblem and gravestone rows ran over
+     * the chatbox. Port of RuneLite OverlayRenderer.clampOverlayLocation: an overlay is kept inside its parent bounds by
+     * moving it only as far as needed ({@code constrainToRange(y, parent.y, parent.height - overlayHeight)}); in fixed mode
+     * the HUD's parent is the game view above the chatbox (RuneLite's fixed-mode snap area is the viewport). So a block
+     * that fits stays exactly on its spot, a taller one moves up just enough to end {@link #CHAT_MARGIN} above the chatbox,
+     * and the saved spot itself is never rewritten. A spot the player dragged onto the chatbox is his choice and only
+     * stays inside the canvas; resizable / fullscreen keep their chatbox anchor (that block already grows upward).
+     */
+    static int[] placeBlock(boolean fixedMode, int defaultX, int defaultY, int width, int height, Rectangle chat, int canvasWid, int canvasHei) {
+        String id = layoutId(fixedMode);
+        int areaHeight = canvasHei;
+        if (fixedMode && chat != null) {
+            int[] wanted = RspsOverlayLayout.requested(id, defaultX, defaultY, 0, 0);
+            if (wanted[1] < chat.y) {
+                areaHeight = Math.max(0, Math.min(canvasHei, chat.y - CHAT_MARGIN));
+            }
+        }
+        return RspsOverlayLayout.place(id, defaultX, defaultY, width, height, 0, 0, canvasWid, areaHeight);
     }
 
     /**

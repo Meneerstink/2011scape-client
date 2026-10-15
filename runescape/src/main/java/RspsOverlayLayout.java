@@ -74,19 +74,9 @@ final class RspsOverlayLayout {
      * {@code defaultX/defaultY}; always clamped inside the area. Records the bounds for input and outlines.
      */
     static int[] place(String id, int defaultX, int defaultY, int width, int height, int areaX, int areaY, int areaWidth, int areaHeight) {
-        load();
-        int x = defaultX;
-        int y = defaultY;
-        if (id.equals(dragging) && MouseMonitor.instance != null) {
-            x = MouseMonitor.instance.getRecordedX() - grabX;
-            y = MouseMonitor.instance.getRecordedY() - grabY;
-        } else {
-            int[] offset = saved.get(id);
-            if (offset != null) {
-                x = areaX + offset[0];
-                y = areaY + offset[1];
-            }
-        }
+        int[] wanted = requested(id, defaultX, defaultY, areaX, areaY);
+        int x = wanted[0];
+        int y = wanted[1];
         x = Math.max(areaX, Math.min(x, areaX + areaWidth - width));
         y = Math.max(areaY, Math.min(y, areaY + areaHeight - height));
         Entry entry = drawn.get(id);
@@ -104,6 +94,23 @@ final class RspsOverlayLayout {
         entry.areaHeight = areaHeight;
         entry.drawnAt = System.currentTimeMillis();
         return new int[]{x, y};
+    }
+
+    /**
+     * Where panel {@code id} wants to be this frame before it is clamped: under the mouse while it is dragged, else its
+     * saved spot (an offset from the area's top-left), else {@code defaultX/defaultY}. Lets a panel pick the area it is
+     * clamped to from the spot the player chose (RuneLite OverlayRenderer: preferred location first, then clamp).
+     */
+    static int[] requested(String id, int defaultX, int defaultY, int areaX, int areaY) {
+        load();
+        if (id.equals(dragging) && MouseMonitor.instance != null) {
+            return new int[]{MouseMonitor.instance.getRecordedX() - grabX, MouseMonitor.instance.getRecordedY() - grabY};
+        }
+        int[] offset = saved.get(id);
+        if (offset != null) {
+            return new int[]{areaX + offset[0], areaY + offset[1]};
+        }
+        return new int[]{defaultX, defaultY};
     }
 
     /** Draws the Alt outline of a placed panel (call after drawing the panel itself). */

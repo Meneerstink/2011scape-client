@@ -41,6 +41,17 @@ val rspsHudRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
+val deadmanHudRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "A30: the Deadman HUD sections of rspsHudRegression on their own (per-mode spot, never over the fixed chatbox)."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("RspsHudRegressionTest")
+    args("deadmanHudPerMode", "deadmanHudClearOfChat")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
 val stretchedModeRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks RuneLite Stretched Mode layout, toolkit gating and mouse scaling without a display or GL context."

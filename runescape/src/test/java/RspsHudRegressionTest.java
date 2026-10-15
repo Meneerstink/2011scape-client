@@ -27,17 +27,39 @@ public final class RspsHudRegressionTest {
     public static void main(String[] args) {
         // Every section runs even when an earlier one fails (night run 2026-10-12: the known red ground-items label check
         // stopped the run before the overlay layout and Deadman HUD checks, so those had not run since). Still red overall.
-        Runnable[] sections = {
-            RspsHudRegressionTest::values, RspsHudRegressionTest::config, RspsHudRegressionTest::countdowns,
-            RspsHudRegressionTest::groundItems, RspsHudRegressionTest::groundSettings, RspsHudRegressionTest::menu,
-            RspsHudRegressionTest::boosts, RspsHudRegressionTest::timers, RspsHudRegressionTest::opponent,
-            RspsHudRegressionTest::layout, RspsHudRegressionTest::deadmanHudPerMode, RspsHudRegressionTest::sidebar,
-            RspsHudRegressionTest::crowdedGround, RspsHudRegressionTest::lootTracker, RspsHudRegressionTest::chatbox,
-        };
+        // Arguments = section names to run only those (A30 2026-10-15: :runescape:deadmanHudRegression runs the two Deadman HUD
+        // sections on their own, so their result is not hidden behind the known red T16 / N18 checks). No arguments = all.
+        java.util.Map<String, Runnable> sections = new java.util.LinkedHashMap<String, Runnable>();
+        sections.put("values", RspsHudRegressionTest::values);
+        sections.put("config", RspsHudRegressionTest::config);
+        sections.put("countdowns", RspsHudRegressionTest::countdowns);
+        sections.put("groundItems", RspsHudRegressionTest::groundItems);
+        sections.put("groundSettings", RspsHudRegressionTest::groundSettings);
+        sections.put("menu", RspsHudRegressionTest::menu);
+        sections.put("boosts", RspsHudRegressionTest::boosts);
+        sections.put("timers", RspsHudRegressionTest::timers);
+        sections.put("opponent", RspsHudRegressionTest::opponent);
+        sections.put("layout", RspsHudRegressionTest::layout);
+        sections.put("deadmanHudPerMode", RspsHudRegressionTest::deadmanHudPerMode);
+        sections.put("deadmanHudClearOfChat", RspsHudRegressionTest::deadmanHudClearOfChat);
+        sections.put("sidebar", RspsHudRegressionTest::sidebar);
+        sections.put("crowdedGround", RspsHudRegressionTest::crowdedGround);
+        sections.put("lootTracker", RspsHudRegressionTest::lootTracker);
+        sections.put("chatbox", RspsHudRegressionTest::chatbox);
+        java.util.List<String> only = java.util.Arrays.asList(args);
+        for (String name : only) {
+            if (!sections.containsKey(name)) {
+                throw new AssertionError("unknown section " + name + ", known: " + sections.keySet());
+            }
+        }
         java.util.List<String> failures = new java.util.ArrayList<String>();
-        for (Runnable section : sections) {
+        for (java.util.Map.Entry<String, Runnable> section : sections.entrySet()) {
+            if (!only.isEmpty() && !only.contains(section.getKey())) {
+                continue;
+            }
+            System.out.println("section " + section.getKey());
             try {
-                section.run();
+                section.getValue().run();
             } catch (AssertionError failure) {
                 failures.add(failure.getMessage());
                 System.out.println("FAILED: " + failure.getMessage());
@@ -482,6 +504,113 @@ public final class RspsHudRegressionTest {
         at = RspsOverlayLayout.place(fixed, DeadmanSkullHud.FIXED_DEFAULT_X, DeadmanSkullHud.FIXED_DEFAULT_Y, 90, 80, 0, 0, 765, 503);
         check(at[0] == 427 && at[1] == 249, "A30: a new player starts on 427,249 in fixed");
         keys.alt = false;
+    }
+
+    /** The fixed gameframe's chatbox pane (548:192) on the 765x503 fixed canvas, as the client lays it out. */
+    private static final java.awt.Rectangle FIXED_CHAT = new java.awt.Rectangle(0, 338, 519, 165);
+
+    /**
+     * A30 round 2 (Keurmeester FAIL 2026-10-15): in fixed mode the Deadman HUD block grows down from its top-left, so a
+     * skull timer, "Protected m:ss", the emblem rows or the gravestone timer ran over the chatbox (72x133 at 427,249 ends at
+     * y 382, the chatbox starts at 338). Whole class: EVERY combination of rows, every plausible sprite height, the default
+     * spot, the owner's saved 427,249, any other spot dragged in the game view - the block never reaches the chatbox, it
+     * moves up only as far as needed (RuneLite OverlayRenderer.clampOverlayLocation: keep the overlay inside its parent
+     * bounds), and a block that fits stays exactly on its spot. A spot the player dragged onto the chatbox is kept, and
+     * resizable / fullscreen keep their chatbox anchor.
+     */
+    private static void deadmanHudClearOfChat() {
+        File dir;
+        try {
+            dir = Files.createTempDirectory("rsps-overlays-a30-chat").toFile();
+            System.setProperty("rsps.preferencesDir", dir.getAbsolutePath());
+        } catch (java.io.IOException e) {
+            throw new AssertionError(e);
+        }
+        RspsOverlayLayout.reloadForTest();
+        KeyboardMonitor.instance = new Keys();
+        MouseMonitor.instance = new Mouse();
+        int chatTop = FIXED_CHAT.y;
+        int[][] spots = {
+            {DeadmanSkullHud.FIXED_DEFAULT_X, DeadmanSkullHud.FIXED_DEFAULT_Y, 0},  // fresh player / after Alt + right-click
+            {427, 249, 1},                                                          // the owner's own saved spot
+            {100, 300, 1},                                                          // dragged low in the game view
+            {300, 10, 1},                                                           // dragged to the top
+        };
+        int[] spriteHeights = {0, 12, 19, 20, 25, 32};
+        int combinations = 0;
+        for (int[] spot : spots) {
+            if (spot[2] == 1) {
+                write(dir, "deadman=" + spot[0] + "," + spot[1]);
+            } else {
+                write(dir, "# none");
+            }
+            RspsOverlayLayout.reloadForTest();
+            for (int rows = 0; rows < 32; rows++) {
+                for (int skull : spriteHeights) {
+                    for (int grave : spriteHeights) {
+                        for (int swords : new int[] {0, 28}) {
+                            int height = swords + DeadmanSkullHud.zoneHeight((rows & 1) != 0)
+                                + ((rows & 2) != 0 ? DeadmanSkullHud.timerRowHeight(skull) : 0)
+                                + ((rows & 4) != 0 ? DeadmanSkullHud.graceRowHeight() : 0)
+                                + ((rows & 8) != 0 ? DeadmanSkullHud.emblemRowHeight() : 0)
+                                + ((rows & 16) != 0 ? DeadmanSkullHud.graveRowHeight(grave) : 0);
+                            int[] at = DeadmanSkullHud.placeBlock(true, DeadmanSkullHud.FIXED_DEFAULT_X, DeadmanSkullHud.FIXED_DEFAULT_Y,
+                                72, height, FIXED_CHAT, 765, 503);
+                            int expectedY = Math.max(0, Math.min(spot[1], chatTop - DeadmanSkullHud.CHAT_MARGIN - height));
+                            String what = "A30: spot " + spot[0] + "," + spot[1] + " rows=" + Integer.toBinaryString(rows)
+                                + " skull=" + skull + " grave=" + grave + " swords=" + swords + " -> " + at[0] + "," + at[1] + " " + 72 + "x" + height;
+                            check(at[1] + height <= chatTop, what + ": the block ends at " + (at[1] + height) + ", over the chatbox at " + chatTop);
+                            check(at[0] == spot[0] && at[1] == expectedY, what + ": expected " + spot[0] + "," + expectedY + " (stays on its spot, moves up only as far as needed)");
+                            combinations++;
+                        }
+                    }
+                }
+            }
+        }
+        // The plain zone block (label + bracket under the combat-icon reserve, 72x80) keeps the owner's exact spot.
+        write(dir, "# none");
+        RspsOverlayLayout.reloadForTest();
+        int plain = 28 + DeadmanSkullHud.zoneHeight(true);
+        int[] at = DeadmanSkullHud.placeBlock(true, 427, 249, 72, plain, FIXED_CHAT, 765, 503);
+        check(plain == 80 && at[0] == 427 && at[1] == 249, "A30: the plain Guarded / Level block stays on 427,249: " + at[0] + "," + at[1] + " " + plain);
+        // Moving the block up never rewrites the saved spot: once the rows are gone it is back on 427,249.
+        write(dir, "deadman=427,249");
+        RspsOverlayLayout.reloadForTest();
+        DeadmanSkullHud.placeBlock(true, 427, 249, 72, 170, FIXED_CHAT, 765, 503);
+        at = DeadmanSkullHud.placeBlock(true, 427, 249, 72, plain, FIXED_CHAT, 765, 503);
+        check(at[0] == 427 && at[1] == 249 && read(dir).contains("deadman=427,249"), "A30: the saved spot is unchanged after a tall block: " + at[0] + "," + at[1]);
+        // A spot the player dragged onto the chatbox itself is his choice: kept (only clamped inside the canvas).
+        write(dir, "deadman=100,400");
+        RspsOverlayLayout.reloadForTest();
+        at = DeadmanSkullHud.placeBlock(true, 427, 249, 72, 80, FIXED_CHAT, 765, 503);
+        check(at[0] == 100 && at[1] == 400, "A30: a spot dragged onto the chatbox is kept: " + at[0] + "," + at[1]);
+        at = DeadmanSkullHud.placeBlock(true, 427, 249, 72, 170, FIXED_CHAT, 765, 503);
+        check(at[0] == 100 && at[1] == 503 - 170, "A30: ... and only clamped inside the canvas: " + at[0] + "," + at[1]);
+        // Resizable / fullscreen: unchanged, the chatbox-anchored default (it already grows upward from the chatbox).
+        write(dir, "# none");
+        RspsOverlayLayout.reloadForTest();
+        at = DeadmanSkullHud.placeBlock(false, 30, 500, 72, 170, new java.awt.Rectangle(0, 700, 519, 165), 1200, 900);
+        check(at[0] == 30 && at[1] == 500, "A30: resizable keeps its chatbox default: " + at[0] + "," + at[1]);
+        // No chatbox laid out yet (fullscreen top level straight after login): the whole canvas, as before.
+        at = DeadmanSkullHud.placeBlock(true, 427, 249, 72, 80, null, 765, 503);
+        check(at[0] == 427 && at[1] == 249, "A30: no chatbox known: 427,249 on the canvas: " + at[0] + "," + at[1]);
+        System.out.println("A30 Deadman HUD clear of the chatbox: " + combinations + " fixed-mode combinations");
+    }
+
+    private static void write(File dir, String line) {
+        try {
+            Files.write(new File(dir, "overlays.properties").toPath(), java.util.Arrays.asList(line));
+        } catch (java.io.IOException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    private static String read(File dir) {
+        try {
+            return new String(Files.readAllBytes(new File(dir, "overlays.properties").toPath()), "UTF-8");
+        } catch (java.io.IOException e) {
+            throw new AssertionError(e);
+        }
     }
 
     // ---- the 78 Plugins sidebar (headless Swing) ----------------------------------------------------------------------
