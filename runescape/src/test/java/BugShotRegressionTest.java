@@ -30,6 +30,11 @@ import java.util.List;
  * stem; the server answers per report "<stem>|saved|<detail>" / "<stem>|refused|<why>" - refused stops that upload (sending or
  * queued, even before the PNG is made) without touching the others; the player is told only what the server said (no
  * "sent" of the client's own); reports asked for before the next frame each get that frame.
+ * Round 4 (AUDIT T2-93: after a kick in the owner's window the client went on sending teamtest2's PNG over teamtest3's new
+ * login, silently, and teamtest3's own report waited 4.5 minutes behind it): every request and upload belongs to the game
+ * connection it was asked on; a lost or new connection (kick, logout, reconnect, another account) drops them - at every
+ * moment: waiting for the frame, waiting in the queue, half sent - never a piece over another connection, the player is
+ * told once, the new session's own reports go first and whole; the player hears how long the upload takes.
  */
 public final class BugShotRegressionTest {
     private static int assertions;
@@ -54,6 +59,7 @@ public final class BugShotRegressionTest {
         pace();
         wiring();
         uploadWiring();
+        sessions();
         if (!failures.isEmpty()) {
             failures.forEach(f -> System.out.println("FAILED: " + f));
             throw new AssertionError(failures.size() + " of " + assertions + " bug screenshot checks failed");
@@ -488,6 +494,132 @@ public final class BugShotRegressionTest {
             check(decoder.contains("val length = reader.getUnsigned(DataType.BYTE).toInt() and 0xFF") && decoder.indexOf("stemBytes") < decoder.indexOf("val total"),
                 "server decoder reads p1 stem length + stem before total/offset (RspsBugShot.writeChunk)");
         }
+    }
+
+    /**
+     * pump with the session rule: every cycle the uploads of another connection than live(cycle) are dropped first, a piece
+     * goes out only over the connection its upload belongs to. Returns "stem@offset@connection" per piece.
+     */
+    private static List<String> drainLive(RspsBugShot.Uploads q, java.util.function.IntFunction<Object> live, java.util.Map<Integer, Runnable> at,
+                                          java.util.Map<Object, String> names) {
+        final List<String> sent = new ArrayList<>();
+        for (int cycle = 0; cycle < 10_000; cycle++) {
+            if (at.containsKey(cycle)) {
+                at.get(cycle).run();
+            }
+            final Object conn = live.apply(cycle);
+            q.dropOtherSessions(conn);
+            final RspsBugShot.Upload up = q.current();
+            if (up == null) {
+                final int now = cycle;
+                if (at.keySet().stream().anyMatch(k -> k > now)) {
+                    continue;
+                }
+                break;
+            }
+            if (conn == null) {
+                continue;
+            }
+            final com.jagex.core.io.Packet p = new com.jagex.core.io.Packet(1350);
+            p.p1(94);
+            sent.add(up.stem + "@" + up.offset + "@" + names.get(conn) + (up.session == conn ? "" : "!WRONG-CONNECTION"));
+            q.advance(up, RspsBugShot.writeChunk(p, up.stem, up.data, up.offset));
+        }
+        return sent;
+    }
+
+    /** Round 4: an upload never outlives the game connection it was asked on, at any moment, and the player is told. */
+    private static void sessions() {
+        final String a = "bug-20261015-052119-teamtest2";
+        final String b = "bug-20261015-052130-teamtest2";
+        final String c = "bug-20261015-052830-teamtest3";
+        final int per = 6; // 5 * CHUNK + 7 bytes
+        final Object tt2 = new Object();
+        final Object tt3 = new Object();
+        final java.util.Map<Object, String> names = new java.util.IdentityHashMap<>();
+        names.put(tt2, "tt2");
+        names.put(tt3, "tt3");
+        // the same connection: nothing is dropped
+        RspsBugShot.Uploads q = new RspsBugShot.Uploads();
+        q.add(a, bytes(5 * RspsBugShot.CHUNK + 7, 1), tt2);
+        q.add(b, bytes(5 * RspsBugShot.CHUNK + 7, 2), tt2);
+        check(q.dropOtherSessions(tt2).isEmpty() && q.current() != null && a.equals(q.current().stem), "the upload's own connection keeps every upload");
+        // the AUDIT case at every moment of A: kicked after k pieces (no connection), teamtest3 logs in 5 cycles later, reports C
+        for (int kick = 0; kick <= per; kick++) {
+            final int k = kick;
+            final RspsBugShot.Uploads qq = new RspsBugShot.Uploads();
+            qq.add(a, bytes(5 * RspsBugShot.CHUNK + 7, 1), tt2);
+            qq.add(b, bytes(5 * RspsBugShot.CHUNK + 7, 2), tt2);
+            final List<String> sent = drainLive(qq, cycle -> cycle < k ? tt2 : cycle < k + 5 ? null : tt3,
+                java.util.Map.of(k + 6, () -> qq.add(c, bytes(5 * RspsBugShot.CHUNK + 7, 3), tt3)), names);
+            final List<String> want = new ArrayList<>();
+            for (int i = 0; i < Math.min(k, per); i++) {
+                want.add(a + "@" + i * RspsBugShot.CHUNK + "@tt2");
+            }
+            for (int i = 0; i < per; i++) {
+                want.add(c + "@" + i * RspsBugShot.CHUNK + "@tt3");
+            }
+            if (k < per) {
+                check(want.equals(sent), "kicked after " + k + " pieces of A, then teamtest3's report C: A only before the kick, then all of C over tt3, never A or B over tt3: " + sent);
+            } else {
+                check(sent.size() == 2 * per && sent.subList(0, per).stream().allMatch(x -> x.startsWith(a + "@") && x.endsWith("@tt2"))
+                        && sent.subList(per, 2 * per).equals(want.subList(per, 2 * per)),
+                    "kicked right after A's last piece: B (waiting, old connection) is never sent, C goes whole over tt3: " + sent);
+            }
+        }
+        // a reconnect straight onto another connection (no gap): same
+        final RspsBugShot.Uploads q2 = new RspsBugShot.Uploads();
+        q2.add(a, bytes(5 * RspsBugShot.CHUNK + 7, 1), tt2);
+        List<String> sent = drainLive(q2, cycle -> cycle < 2 ? tt2 : tt3, java.util.Map.of(), names);
+        check(sent.size() == 2 && sent.stream().allMatch(x -> x.endsWith("@tt2")), "a new connection right after 2 pieces: nothing more of A: " + sent);
+        // dropped uploads are listed once each, with how far they got
+        q = new RspsBugShot.Uploads();
+        q.add(a, bytes(5 * RspsBugShot.CHUNK + 7, 1), tt2);
+        q.add(b, bytes(5 * RspsBugShot.CHUNK + 7, 2), tt2);
+        q.add(c, bytes(5 * RspsBugShot.CHUNK + 7, 3), tt3);
+        q.advance(q.current(), RspsBugShot.CHUNK);
+        final List<String> dropped = q.dropOtherSessions(tt3);
+        check(dropped.size() == 2 && dropped.get(0).startsWith(a + " " + RspsBugShot.CHUNK + "/") && dropped.get(1).startsWith(b + " 0/"),
+            "A (half sent) and B (waiting) of the old connection dropped, C of the new one kept: " + dropped);
+        check(q.current() != null && c.equals(q.current().stem) && q.dropOtherSessions(tt3).isEmpty(), "the new connection's report goes next");
+        // requests still waiting for their frame, then the connection changes: no picture for the old connection, told ONCE
+        RspsBugShot.clearForTests();
+        RspsBugShot.request(a + "|upload");
+        RspsBugShot.request(b + "|upload");
+        RspsBugShot.checkSession(null);
+        check(RspsBugShot.waitingShots() == 2, "the same connection keeps waiting requests: " + RspsBugShot.waitingShots());
+        RspsBugShot.takeResults();
+        RspsBugShot.checkSession(tt3);
+        check(RspsBugShot.waitingShots() == 0, "a new connection drops the old one's requests before their frame: " + RspsBugShot.waitingShots());
+        final List<String> lines = RspsBugShot.takeResults();
+        check(lines.size() == 1 && lines.get(0).contains("NOT sent to the server") && lines.get(0).contains("connection was lost") && lines.get(0).contains("78legacy"),
+            "the player is told once that the server did not get it: " + lines);
+        RspsBugShot.checkSession(tt3);
+        check(RspsBugShot.takeResults().isEmpty(), "told once, not every frame");
+        RspsBugShot.clearForTests();
+        // how long it takes is said up front (the owner's window: ~2.18 MB = about 2.5 minutes)
+        check(RspsBugShot.uploadSeconds(1) == 1 && RspsBugShot.uploadSeconds(RspsBugShot.CHUNK) == 1,
+            "a tiny upload is about 1 s: " + RspsBugShot.uploadSeconds(1));
+        final int owner = RspsBugShot.uploadSeconds(2_176_000);
+        check(owner == (int) Math.ceil(((2_176_000 + RspsBugShot.CHUNK - 1) / RspsBugShot.CHUNK) * RspsBugShot.PIECE_INTERVAL_MS / 1000.0),
+            "a 2.18 MB screenshot is announced at the pump pace: " + owner + " s");
+        // wiring: every frame and before every piece; the request remembers its connection, the PNG keeps it
+        String src = "";
+        try {
+            src = read("src/main/java/RspsBugShot.java");
+        } catch (Exception e) {
+            check(false, "source " + e);
+        }
+        final String before = method(src, "public static void beforeConsole()");
+        check(before.indexOf('{') > 0 && before.substring(before.indexOf('{') + 1).trim().startsWith("checkSession(ServerConnection.GAME.connection);"), "beforeConsole checks the connection first, every frame");
+        final String pump = method(src, "public static void pump()");
+        final int guard = pump.indexOf("up.session != connection.connection");
+        check(guard > 0 && guard < pump.indexOf("ClientMessage.create("), "pump never sends a piece over another connection than its own");
+        final String request = method(src, "public static void request(String payload)");
+        check(request.contains("request.session = ServerConnection.GAME.connection;"), "a request remembers the connection it came in on");
+        final String write = method(src, "private static void write(Request request");
+        check(write.contains("UPLOADS.add(stem, png, request.session)") && write.contains("Keep the game open"),
+            "the PNG keeps its request's connection and the player hears how long to keep the game open");
     }
 
     private static String method(String source, String signature) {

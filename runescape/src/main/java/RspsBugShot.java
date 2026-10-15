@@ -52,6 +52,13 @@ import java.util.regex.Pattern;
  * report stops at once (sending, waiting, or not even made yet) and the others go on. The player sees only that answer,
  * never a "sent" of the client's own. Reports asked for before the next frame (two `bug` lines in one frame, a minimised
  * window) all wait for that frame instead of only the newest.
+ *
+ * <p>Round 4 (AUDIT T2-93: in the owner's 1874x970 window the server kicked the player mid-upload - its decoder could not
+ * wait for the second byte of a piece's length, fixed on the server - and after the kick this client went on sending
+ * teamtest2's PNG over teamtest3's new login, silently). Every request and upload now belongs to the game connection it was
+ * asked on ({@link Request#session}, {@link Upload#session}); {@link #checkSession} runs every frame and drops what belongs to
+ * a connection that is gone (kick, logout, reconnect, another account) and tells the player that the server did NOT get it
+ * (the own copy stays in 78legacy\bugs). RuneLite does the same: an upload belongs to the session that made it.
  */
 public final class RspsBugShot {
 
@@ -116,6 +123,8 @@ public final class RspsBugShot {
         final boolean upload;
         final String reply;
         final String detail;
+        /** The game connection this request came in on (set by {@link #request}); null in tests. */
+        Object session;
 
         Request(String stem, boolean upload, String reply, String detail) {
             this.stem = stem;
@@ -129,13 +138,16 @@ public final class RspsBugShot {
     static final class Upload {
         final String stem;
         final byte[] data;
+        /** The game connection the server asked for it on: only that connection may carry its pieces. */
+        final Object session;
         int offset;
         long started;
         long nextPieceAt;
 
-        Upload(String stem, byte[] data) {
+        Upload(String stem, byte[] data, Object session) {
             this.stem = stem;
             this.data = data;
+            this.session = session;
         }
     }
 
@@ -151,11 +163,36 @@ public final class RspsBugShot {
 
         /** Writer thread: a finished PNG; false when the server already refused this report. */
         boolean add(String stem, byte[] png) {
+            return add(stem, png, null);
+        }
+
+        /** Writer thread: a finished PNG asked for on game connection [session]; false when the server already refused it. */
+        boolean add(String stem, byte[] png, Object session) {
             if (refused.contains(stem)) {
                 return false;
             }
-            waiting.add(new Upload(stem, png));
+            waiting.add(new Upload(stem, png, session));
             return true;
+        }
+
+        /**
+         * Game thread: drops every upload (sending or waiting) that does not belong to game connection [live] - the connection
+         * it was asked on is gone (kicked, logged out, reconnected, another account). Returns "stem offset/size" of each.
+         */
+        java.util.List<String> dropOtherSessions(Object live) {
+            final java.util.List<String> dropped = new java.util.ArrayList<>();
+            if (sending != null && sending.session != live) {
+                dropped.add(sending.stem + " " + sending.offset + "/" + sending.data.length);
+                sending = null;
+            }
+            for (java.util.Iterator<Upload> it = waiting.iterator(); it.hasNext(); ) {
+                final Upload u = it.next();
+                if (u.session != live) {
+                    dropped.add(u.stem + " 0/" + u.data.length);
+                    it.remove();
+                }
+            }
+            return dropped;
         }
 
         /** Game thread: the upload whose next piece goes out, or null. */
@@ -270,8 +307,31 @@ public final class RspsBugShot {
             System.out.println("[bugshot] PROBLEM the server refused " + request.stem + ": " + request.detail + (stopped ? " - stopped sending it" : ""));
             results.add("Bug screenshot NOT saved on the server: " + request.detail + " (your copy is in 78legacy\\bugs).");
         } else {
+            request.session = ServerConnection.GAME.connection;
             waitingShots.add(request);
         }
+    }
+
+    /**
+     * Every frame (beforeConsole, game thread) and before every piece (pump): a report whose game connection is gone (kicked,
+     * logged out, reconnected, another account logged in) is never sent over another connection - the server would refuse
+     * it piece after piece and the new account's own report would wait behind it. It is dropped and the player is told once;
+     * the own copy stays in 78legacy\bugs.
+     */
+    static void checkSession(Object live) {
+        final java.util.List<String> dropped = UPLOADS.dropOtherSessions(live);
+        for (java.util.Iterator<Request> it = waitingShots.iterator(); it.hasNext(); ) {
+            final Request r = it.next();
+            if (r.session != live) {
+                dropped.add(r.stem + " (no picture yet)");
+                it.remove();
+            }
+        }
+        if (dropped.isEmpty()) {
+            return;
+        }
+        System.out.println("[bugshot] PROBLEM the game connection " + (live == null ? "was lost" : "changed (new login)") + " - not sent to the server: " + String.join(", ", dropped));
+        results.add("Bug screenshot NOT sent to the server: the connection was lost (" + dropped.size() + " report(s); your copy is in 78legacy\\bugs).");
     }
 
     /** Requests waiting for the next frame (tests). */
@@ -301,6 +361,7 @@ public final class RspsBugShot {
      * request this frame. Only the pixel read-back happens here; the PNG is made on the writer thread.
      */
     public static void beforeConsole() {
+        checkSession(ServerConnection.GAME.connection);
         String line;
         while ((line = results.poll()) != null) {
             debugconsole.addline(line);
@@ -380,9 +441,9 @@ public final class RspsBugShot {
                 } catch (Throwable t) {
                     copy = "none (" + t + ")";
                 }
-                if (UPLOADS.add(stem, png)) {
-                    System.out.println("[bugshot] made " + stem + " " + size + " " + png.length + " bytes - sending it to the server; own copy " + copy);
-                    results.add("Bug screenshot made (" + kb(png.length) + " KB) - sending it to the server...");
+                if (UPLOADS.add(stem, png, request.session)) {
+                    System.out.println("[bugshot] made " + stem + " " + size + " " + png.length + " bytes - sending it to the server (about " + uploadSeconds(png.length) + " s); own copy " + copy);
+                    results.add("Bug screenshot made (" + kb(png.length) + " KB) - sending it to the server, about " + uploadSeconds(png.length) + " s. Keep the game open until it says saved.");
                 } else {
                     System.out.println("[bugshot] made " + stem + " " + size + " - the server already refused it, not sent; own copy " + copy);
                 }
@@ -449,6 +510,12 @@ public final class RspsBugShot {
         return (bytes + 1023) / 1024;
     }
 
+    /** How long [bytes] take at the upload pace (one {@link #CHUNK} per {@link #PIECE_INTERVAL_MS}), rounded up. */
+    static int uploadSeconds(int bytes) {
+        final long pieces = (bytes + CHUNK - 1) / CHUNK;
+        return (int) ((pieces * PIECE_INTERVAL_MS + 999) / 1000);
+    }
+
     /**
      * MainLogicManager, game thread, every logic cycle right before ServerConnection.GAME.flush(): sends the next piece of a
      * finished screenshot - at the upload pace and only when no other packet waits, so the player's own packets never wait
@@ -461,10 +528,9 @@ public final class RspsBugShot {
             return;
         }
         final ServerConnection connection = ServerConnection.GAME;
-        if (connection.connection == null || connection.isaac == null) {
-            final int dropped = UPLOADS.dropAll();
-            System.out.println("[bugshot] PROBLEM " + up.stem + ": connection lost after " + up.offset + "/" + up.data.length + " bytes - " + dropped + " screenshot(s) not sent");
-            debugconsole.addline("Bug screenshot not sent: the connection was lost (your copy is in 78legacy\\bugs).");
+        if (connection.connection == null || connection.isaac == null || up.session != connection.connection) {
+            // never a piece over another connection than the one the server asked on (checkSession tells the player)
+            checkSession(connection.connection);
             return;
         }
         final long now = System.currentTimeMillis();
