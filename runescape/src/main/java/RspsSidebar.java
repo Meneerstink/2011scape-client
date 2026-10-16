@@ -79,8 +79,8 @@ final class RspsSidebar extends JPanel {
     private static final ImageIcon OFF_STAR;
     private static final ImageIcon CONFIG_ICON;
     private static final ImageIcon BACK_ICON;
-    private static final ImageIcon SECTION_EXPAND_ICON;
-    private static final ImageIcon SECTION_RETRACT_ICON;
+    static final ImageIcon SECTION_EXPAND_ICON;
+    static final ImageIcon SECTION_RETRACT_ICON;
     private static final ImageIcon NAV_ICON;
     private static final ImageIcon SEARCH_ICON;
 
@@ -108,8 +108,33 @@ final class RspsSidebar extends JPanel {
     private final Frame frame;
     private boolean expanded;
     private String plugin;
+    private RspsBotPanel botPanel;
+    private boolean botStaffVisible;
     private String search = "";
     private final Set<String> collapsedSections = new LinkedHashSet<String>();
+
+    {
+        // v3: the Gear Switcher's ten save keys start folded away (the equip keys and the set editor matter more).
+        collapsedSections.add("Save keys");
+        // v3.2: the single prayer / supply keys sit under the preset cards, folded until you need them.
+        collapsedSections.add("Prayers & supplies");
+        // v4 (layout version C, like UG): the gear sets, gear keys and quick keys start folded.
+        collapsedSections.add("Gear sets");
+        collapsedSections.add("Gear keys");
+        collapsedSections.add("Quick keys");
+        // v4: a script, profile or gear-set change refreshes the open page (hotkey names, script boxes).
+        RspsScripts.addListener(RspsSidebar::refreshLater);
+        RspsProfiles.addListener(RspsSidebar::refreshLater);
+    }
+
+    /** v4: the merged plugin's accent colour (Main Config -> Accent colour); other plugins keep RuneLite's orange. */
+    static Color accent() {
+        String a = RspsHudConfig.get("pkhotkeys.accentColour");
+        if ("BLUE".equals(a)) return new Color(0x1E8FE1);
+        if ("GREEN".equals(a)) return new Color(0x3FAE49);
+        if ("PURPLE".equals(a)) return new Color(0xA463E6);
+        return ColorScheme.BRAND_ORANGE;
+    }
     private JButton lootNav;
     /** The Loot Tracker tab is the open view. */
     private volatile boolean lootView;
@@ -229,11 +254,17 @@ final class RspsSidebar extends JPanel {
     }
 
     /** A server push: the open view shows the new values. */
+    /** v5: one queued refresh at a time - a burst of pushes (login, preset load) refreshes the page once. */
+    private static final java.util.concurrent.atomic.AtomicBoolean REFRESH_QUEUED = new java.util.concurrent.atomic.AtomicBoolean();
+
     static void refreshLater() {
-        if (instance == null) {
+        if (instance == null || !REFRESH_QUEUED.compareAndSet(false, true)) {
             return;
         }
-        SwingUtilities.invokeLater(() -> instance.refresh());
+        SwingUtilities.invokeLater(() -> {
+            REFRESH_QUEUED.set(false);
+            instance.refresh();
+        });
     }
 
     // ---- fullscreen ---------------------------------------------------------------------------------------------------
@@ -331,6 +362,7 @@ final class RspsSidebar extends JPanel {
         if (open == expanded) {
             return;
         }
+        if (!open && "botpanel".equals(plugin)) showList();
         expanded = open;
         panelOpen = open;
         content.setVisible(open);
@@ -358,6 +390,13 @@ final class RspsSidebar extends JPanel {
                     contractBy(panel);
                 }
             }
+        }
+        // The open panel takes its width from the window: the minimum size grows with it, so the window can't be dragged
+        // narrower than the game view (in fixed mode that pushed the frame's left side off screen).
+        if (frame != null) {
+            Dimension min = frame.getMinimumSize();
+            int panel = PANEL_WIDTH + SCROLLBAR_WIDTH;
+            frame.setMinimumSize(new Dimension(Math.max(0, min.width + (open ? panel : -panel)), min.height));
         }
         revalidate();
         repaint();
@@ -402,6 +441,11 @@ final class RspsSidebar extends JPanel {
 
     /** A loot event or a new item icon: the open Loot Tracker view shows it. */
     static void refreshLootLater() {
+        // v5: the Bruine Bonen page shows item icons too (script chips): a new icon refreshes it.
+        if (instance != null && !instance.lootView && "pkhotkeys".equals(instance.plugin)) {
+            refreshLater();
+            return;
+        }
         if (instance == null || !instance.lootView) {
             return;
         }
@@ -452,7 +496,33 @@ final class RspsSidebar extends JPanel {
         }
     }
 
+    /** Own staff view, like Loot Tracker/Quest Helper. Only opening requests a server refresh. */
+    private void leaveBots() {
+        if (botPanel == null) return;
+        RspsBotPanel.release();
+        botPanel = null;
+    }
+
+    private void showBots() {
+        if (!RspsBotPanel.isStaff()) { showList(); return; }
+        lootView = false;
+        questView = false;
+        plugin = "botpanel";
+        shownAccent = null;
+        refreshers.clear();
+        listRefreshers.clear();
+        content.removeAll();
+        botPanel = new RspsBotPanel(this::showList);
+        JPanel wrap = new JPanel(new BorderLayout());
+        wrap.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        wrap.add(botPanel, BorderLayout.NORTH);
+        content.add(scroll(wrap), BorderLayout.CENTER);
+        content.revalidate();
+        content.repaint();
+        RspsBotPanel.request();
+    }
     void showQuest() {
+        leaveBots();
         questView = true;
         lootView = false;
         plugin = null;
@@ -478,6 +548,7 @@ final class RspsSidebar extends JPanel {
     // ---- Loot Tracker (RuneLite LootTrackerPanel) ---------------------------------------------------------------------
 
     void showLoot() {
+        leaveBots();
         lootView = true;
         questView = false;
         plugin = null;
@@ -503,6 +574,7 @@ final class RspsSidebar extends JPanel {
     // ---- plugin list (RuneLite PluginListPanel / PluginListItem) ------------------------------------------------------
 
     void showList() {
+        leaveBots();
         lootView = false;
         questView = false;
         plugin = null;
@@ -604,6 +676,9 @@ final class RspsSidebar extends JPanel {
     }
 
     private void fillPluginRows(JPanel list) {
+        // Cache the permission used for these rows so the first grant triggers a rebuild.
+        boolean staffVisible = RspsBotPanel.isStaff();
+        botStaffVisible = staffVisible;
         String query = search.trim().toLowerCase();
         List<String[]> order = new ArrayList<String[]>();
         // RuneLite: pinned plugins first, then by name.
@@ -619,6 +694,10 @@ final class RspsSidebar extends JPanel {
         }
         boolean first = true;
         for (final String[] p : order) {
+            // Staff tools are never exposed by a local setting or pin.
+            if ("botpanel".equals(p[0]) && !staffVisible) continue;
+            // Owner 2026-10-16: Bruine Bonen Technologia (pkhotkeys) is a moderator tool too.
+            if ("pkhotkeys".equals(p[0]) && !staffVisible) continue;
             if (query.length() > 0 && !p[1].toLowerCase().contains(query) && !p[2].toLowerCase().contains(query)) {
                 continue;
             }
@@ -661,12 +740,17 @@ final class RspsSidebar extends JPanel {
         name.setToolTipText("<html>" + p[1] + ":<br>" + p[2] + "</html>");
         row.add(name, BorderLayout.CENTER);
 
-        JPanel buttons = new JPanel(new GridLayout(1, 2));
+        JPanel buttons = new JPanel(new GridLayout(1, "botpanel".equals(p[0]) ? 1 : 2));
         buttons.setOpaque(false);
         JButton config = iconButton(CONFIG_ICON, "Edit plugin configuration");
         config.setName("config." + p[0]);
         config.addActionListener(e -> showConfig(p[0]));
         buttons.add(config);
+        // This is a staff tool, not a client enabled setting; commands control server bots.
+        if ("botpanel".equals(p[0])) {
+            row.add(buttons, BorderLayout.LINE_END);
+            return row;
+        }
         final Toggle toggle = new Toggle(RspsHudConfig.enabled(p[0]));
         toggle.setName("toggle." + p[0]);
         toggle.onChange = on -> set(p[0] + ".enabled", Boolean.toString(on));
@@ -679,9 +763,12 @@ final class RspsSidebar extends JPanel {
     // ---- configuration (RuneLite ConfigPanel) -------------------------------------------------------------------------
 
     void showConfig(final String pluginId) {
+        if ("botpanel".equals(pluginId)) { showBots(); return; }
+        leaveBots();
         lootView = false;
         questView = false;
         plugin = pluginId;
+        shownAccent = "pkhotkeys".equals(pluginId) ? accent() : null;
         refreshers.clear();
         listRefreshers.clear();
         content.removeAll();
@@ -709,7 +796,11 @@ final class RspsSidebar extends JPanel {
         Map<String, JPanel> sections = new HashMap<String, JPanel>();
         boolean first = true;
         for (RspsHudConfig.Setting setting : RspsHudConfig.SETTINGS) {
-            if (!setting.plugin.equals(pluginId)) {
+            if (!setting.plugin.equals(pluginId) || setting.hidden) {
+                continue;
+            }
+            // v5: Hotkey 1-15 are drawn in their script's header (RspsScriptBox), not again under Hotkey Config.
+            if (scriptOfKey(setting.key) > 0) {
                 continue;
             }
             JPanel target = main;
@@ -780,7 +871,7 @@ final class RspsSidebar extends JPanel {
         arrow.setPreferredSize(new Dimension(18, 0));
         header.add(arrow, BorderLayout.WEST);
         JLabel title = new JLabel(name);
-        title.setForeground(ColorScheme.BRAND_ORANGE);
+        title.setForeground("pkhotkeys".equals(plugin) ? accent() : ColorScheme.BRAND_ORANGE);
         title.setFont(FontManager.getRunescapeBoldFont());
         String description = RspsHudConfig.SECTION_DESCRIPTIONS.get(name);
         if (description != null) {
@@ -892,6 +983,96 @@ final class RspsSidebar extends JPanel {
                 row.add(spinner, BorderLayout.EAST);
                 break;
             }
+            case RspsHudConfig.KEY: {
+                // v3: RuneLite's hotkey button - click it, press the key (Esc = None). A key shared with another action shows
+                // a note under the row (sharing is allowed: the first action that fits the prayer book / spellbook runs).
+                final RspsKeybindButton button = new RspsKeybindButton(RspsHudConfig.get(key), bind -> set(key, bind));
+                button.setName(key);
+                final JLabel shared = new JLabel();
+                shared.setForeground(ColorScheme.BRAND_ORANGE);
+                shared.setFont(FontManager.getRunescapeSmallFont());
+                final int script = scriptOfKey(key);
+                Runnable update = () -> {
+                    if (script > 0) {
+                        // v4: "Hotkey 4 · G maul" - the script's name next to its key, like UG's Hotkey list but readable.
+                        String custom = RspsScripts.customName(script);
+                        name.setText(custom.isEmpty() ? "Hotkey " + script : "Hotkey " + script + " \u00b7 " + custom);
+                    }
+                    button.setValue(RspsHudConfig.get(key));
+                    String others = sharedWith(setting);
+                    shared.setText(others.isEmpty() ? "" : "Same key: " + others);
+                    shared.setToolTipText(others.isEmpty() ? null : "<html>Also on this key: " + others + ".<br>The first one that fits your prayer book / spellbook runs.</html>");
+                    shared.setVisible(!others.isEmpty());
+                    row.setMaximumSize(null);
+                    row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
+                    row.revalidate();
+                };
+                refreshers.put(key, update);
+                row.add(name, BorderLayout.CENTER);
+                row.add(button, BorderLayout.EAST);
+                row.add(shared, BorderLayout.SOUTH);
+                update.run();
+                break;
+            }
+            case RspsHudConfig.INFO: {
+                // v3: a live line (the PK last target), read-only.
+                final JLabel info = new JLabel(infoText(key));
+                info.setName(key);
+                info.setForeground(ColorScheme.BRAND_ORANGE);
+                refreshers.put(key, () -> info.setText(infoText(key)));
+                row.add(name, BorderLayout.WEST);
+                row.add(info, BorderLayout.EAST);
+                name.setPreferredSize(new Dimension(50, 16));
+                break;
+            }
+            case RspsHudConfig.PROFILES: {
+                // v4: UG's blue Preset / green Save buttons (Codex, RspsProfilesPanel).
+                final RspsProfilesPanel profiles = new RspsProfilesPanel(this::openWiki);
+                profiles.setName(key);
+                refreshers.put(key, profiles::refresh);
+                return profiles;
+            }
+            case RspsHudConfig.SCRIPTTOOLS: {
+                // v4: Template + Wipe for the "Add to" script (Codex, RspsScriptTools).
+                final RspsScriptTools tools = new RspsScriptTools();
+                tools.setName(key);
+                refreshers.put(key, tools::refresh);
+                return tools;
+            }
+            case RspsHudConfig.SCRIPTBOX: {
+                // v4: one script, its coloured steps and the "+ Step" row (Codex, RspsScriptBox).
+                final RspsScriptBox box = new RspsScriptBox(Integer.parseInt(setting.defaultValue));
+                box.setName(key);
+                refreshers.put(key, box::refresh);
+                return box;
+            }
+            case RspsHudConfig.PRESETCARD: {
+                // v3.2: one compact preset card (Codex, RspsPresetCard); its hidden settings are refreshed through the card.
+                final RspsPresetCard card = new RspsPresetCard(Integer.parseInt(setting.defaultValue), () -> showConfig("pkhotkeys"));
+                card.setName(key);
+                refreshers.put(key, card::refresh);
+                return card;
+            }
+            case RspsHudConfig.SPELLROW: {
+                // v3.2: one compact spell row (Codex, RspsSpellRow).
+                final RspsSpellRow spell = new RspsSpellRow(setting.defaultValue);
+                spell.setName(key);
+                refreshers.put(key, spell::refresh);
+                return spell;
+            }
+            case RspsHudConfig.PRESETITEMS: {
+                // v3.1: the preset's own item ids (Codex, RspsPresetItemsRow); "Open gear editor" jumps to the Gear Switcher page.
+                int preset = Integer.parseInt(key.replaceAll("\\D", ""));
+                RspsPresetItemsRow items = new RspsPresetItemsRow(preset, () -> showConfig("pkhotkeys"));
+                items.setName(key);
+                return items;
+            }
+            case RspsHudConfig.GEARSETS: {
+                // v3: the hand editor of the 10 gear sets (Codex, RspsGearSetEditor); the sets stay in this client.
+                RspsGearSetEditor editor = new RspsGearSetEditor();
+                editor.setName(key);
+                return editor;
+            }
             case RspsHudConfig.ENUM: {
                 final JComboBox<String> combo = new JComboBox<String>(setting.optionNames);
                 combo.setName(key);
@@ -909,8 +1090,16 @@ final class RspsSidebar extends JPanel {
                         combo.setSelectedIndex(index);
                     }
                 });
-                row.add(name, BorderLayout.CENTER);
-                row.add(combo, BorderLayout.EAST);
+                if (longOptions(setting)) {
+                    // v3: long choices ("Protect from Missiles (C)") - the name on its own line, the list the full width under
+                    // it, so neither is cut off in the narrow panel.
+                    name.setPreferredSize(null);
+                    row.add(name, BorderLayout.NORTH);
+                    row.add(combo, BorderLayout.SOUTH);
+                } else {
+                    row.add(name, BorderLayout.CENTER);
+                    row.add(combo, BorderLayout.EAST);
+                }
                 break;
             }
             case RspsHudConfig.COLOR: {
@@ -959,6 +1148,93 @@ final class RspsSidebar extends JPanel {
         }
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
         return row;
+    }
+
+    /** v3: true when a choice list has names too long to share a row with the setting's name. */
+    private static boolean longOptions(RspsHudConfig.Setting setting) {
+        for (String n : setting.optionNames) {
+            if (n.length() > 12) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** v4: the script number of "pkhotkeys.bind.script<n>Key", else 0. */
+    static int scriptOfKey(String key) {
+        if (!key.startsWith("pkhotkeys.bind.script") || !key.endsWith("Key")) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(key.substring("pkhotkeys.bind.script".length(), key.length() - 3));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /** v4 "Open Wiki": a short cheat sheet in a dialog (the full one is PK-HOTKEYS SPIEKBRIEF.md / BRUINE-BONEN-GEBRUIK.md). */
+    private void openWiki() {
+        String text = "<html><body style='width:270px'><b>Bruine Bonen Technologia</b><br><br>"
+            + "<b>Presets</b>: click = load your whole setup, Shift+click = save it, right-click = name.<br>"
+            + "<b>Scripts</b>: each script's key button is in its header (click, press a key, Esc = none). Click a script's row to "
+            + "open it; '+ Step' adds Wear item, Wear gear set, Prayer ON / OFF / toggle, Quick prayers, Cast / Select spell, "
+            + "Attack target, Step under, Special, Eat, Drink, Vengeance. Steps run top to bottom from one key press; wear steps "
+            + "next to each other switch together. Drag a step to move it. '+ Script' shows a new empty script.<br>"
+            + "<b>Right Click Setup</b>: right-click an item or prayer: 'Add ... to Script N' (N = Add to).<br>"
+            + "<b>Template</b>: e.g. 'G maul double spec' = granite maul (ornate handle), Special, Special, Attack target "
+            + "(100% energy = two smashes).<br>"
+            + "<b>PK HUD</b>: your target's health, overhead prayer ('Hit:' = the styles he does not pray), weapon and freeze; "
+            + "a warning when he holds a special weapon; your spec, prayer and attack timer; the right protect prayer outlined "
+            + "in your prayer tab; a summary after each fight. Information only.<br>"
+            + "<b>Target</b>: the player you attacked or cast on last, or 'Set target' in a player's right-click menu.<br><br>"
+            + "Fair play: one key press = the clicks you would make yourself. Nothing happens without a key press.</body></html>";
+        if (GraphicsEnvironmentCheck.headless()) {
+            return;
+        }
+        JOptionPane.showMessageDialog(this, text, "Open Wiki", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    /** v3.2: {@link #sharedWith} for a card (RspsPresetCard / RspsSpellRow) that draws a hidden KEY item itself. */
+    static String sharedWithKey(String key) {
+        RspsHudConfig.Setting setting = RspsHudConfig.setting(key);
+        return setting == null ? "" : sharedWith(setting);
+    }
+
+    /** v3: the other PK Hotkeys / Gear Switcher actions bound to the same key as [setting] ("" = none). */
+    private static String sharedWith(RspsHudConfig.Setting setting) {
+        int[] mine = RspsKeyBind.parse(RspsHudConfig.get(setting.key));
+        if (mine == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (RspsHudConfig.Setting other : RspsHudConfig.SETTINGS) {
+            if (other == setting || other.type != RspsHudConfig.KEY || other.hidden) {
+                continue; // v4: hidden = the old v3.2 preset / Spell A-D keys, no longer used
+            }
+            // v4: a script that is switched off or empty does not use its key.
+            int otherScript = scriptOfKey(other.key);
+            if (otherScript > 0 && (!RspsScripts.enabled(otherScript) || RspsScripts.steps(otherScript).isEmpty())) {
+                continue;
+            }
+            int[] theirs = RspsKeyBind.parse(RspsHudConfig.get(other.key));
+            if (theirs != null && theirs[0] == mine[0] && theirs[1] == mine[1]) {
+                if (sb.length() > 0) sb.append(", ");
+                String label = other.name;
+                if (scriptOfKey(other.key) > 0) {
+                    label = "Hotkey " + scriptOfKey(other.key);
+                }
+                sb.append(other.plugin.equals(setting.plugin) ? label : pluginName(other.plugin) + ": " + label);
+            }
+        }
+        return sb.toString();
+    }
+
+    /** v3: text of a live INFO line. */
+    private static String infoText(String key) {
+        if (key.equals("pkhotkeys.targetInfo")) {
+            return RspsPkTarget.describe();
+        }
+        return "";
     }
 
     private static void colourButton(JButton button, int argb) {
@@ -1120,7 +1396,25 @@ final class RspsSidebar extends JPanel {
         }
     }
 
+    /** v4: the accent colour the open Bruine Bonen page was built with (section titles are drawn once). */
+    private Color shownAccent;
+
     void refresh() {
+        boolean botStaff = RspsBotPanel.isStaff();
+        if (botStaffVisible != botStaff) {
+            botStaffVisible = botStaff;
+            if (plugin == null && !lootView && !questView) { showList(); return; }
+        }
+        if ("botpanel".equals(plugin)) {
+            if (!botStaff || botPanel == null || !botPanel.currentSession()) showList();
+            else botPanel.refresh();
+            return;
+        }
+        // v4: a new accent colour (Main Config, a preset load or the server) rebuilds the page so every title follows it.
+        if ("pkhotkeys".equals(plugin) && !lootView && !questView && shownAccent != null && !shownAccent.equals(accent())) {
+            showConfig("pkhotkeys");
+            return;
+        }
         boolean lootOn = RspsHudConfig.enabled("loottracker");
         if (lootNav != null && lootNav.isVisible() != lootOn) {
             lootNav.setVisible(lootOn);
@@ -1250,7 +1544,7 @@ final class RspsSidebar extends JPanel {
     }
 
     /** RuneLite SwingUtil.removeButtonDecorations. */
-    private static void undecorate(javax.swing.AbstractButton button) {
+    static void undecorate(javax.swing.AbstractButton button) {
         button.setBorderPainted(false);
         button.setContentAreaFilled(false);
         button.setFocusPainted(false);

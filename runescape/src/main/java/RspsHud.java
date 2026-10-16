@@ -60,6 +60,10 @@ final class RspsHud {
                 RspsHudBoosts.update(rest);
             } else if (kind.equals("opp")) {
                 RspsHudOpponent.update(rest);
+            } else if (kind.equals("pkh") || kind.equals("pkfight")) {
+                RspsPkHud.handle(kind, rest); // v5 Bruine Bonen PK HUD (server PkHudSync)
+            } else if (kind.equals("botsstaff") || kind.equals("bots")) {
+                RspsBotPanel.handle(kind, rest); // Staff permission and bot-panel state.
             } else if (kind.equals("tmr")) {
                 RspsHudTimers.update(rest);
             } else if (kind.equals("gi")) {
@@ -96,9 +100,16 @@ final class RspsHud {
     }
 
     /** Login, logout, reconnect: the server resends everything, so no state may survive. */
-    static void reset() {
+    static void reset() { reset(true); }
+
+    /** Bot permission was cleared before the login handshake; retain this connection's first staff push. */
+    static void resetForLogin() { reset(false); }
+
+    private static void reset(boolean resetBots) {
         RspsHudBoosts.reset();
         RspsHudOpponent.reset();
+        RspsPkHud.reset();
+        if (resetBots) RspsBotPanel.reset(); // General resets still revoke permission and pending staff commands.
         RspsHudTimers.reset();
         RspsHudGroundItems.reset();
         DeadmanSkullHud.reset();
@@ -126,6 +137,7 @@ final class RspsHud {
         if (!com.jagex.core.constants.MainLogicStep.isAtGameScreen(MainLogicManager.step)) {
             return;
         }
+        RspsBotPanel.tickInput(); // Same typed-command helper, on the game thread only.
         for (String command = commands.poll(); command != null; command = commands.poll()) {
             lastSent = command;
             try {
@@ -177,15 +189,23 @@ final class RspsHud {
             RspsHudGroundItems.render(x, y);
         }
         RspsQuestHelperHints.drawNpcHighlight(x, y);
+        RspsScriptOverlay.drawTarget(x, y); // v4 Bruine Bonen Technologia: box + name on your target
         int top = y + PANEL_GAP;
         if (InterfaceManager.optionsComponent != null) {
             top = Math.max(top, InterfaceManager.optionsY + HOVER_TEXT_CLEARANCE);
         }
         int stackY = top;
-        if (RspsHudConfig.enabled("opponent")) {
+        // v5: against a player the PK HUD already shows name + health, so Opponent Information keeps to npcs then.
+        if (RspsHudConfig.enabled("opponent") && !(RspsHudOpponent.playerIndex() >= 0 && RspsPkHud.showing())) {
             int opponentHeight = RspsHudOpponent.height();
             stackY = panel(RspsHudOpponent.ID, RspsHudOpponent.width(), opponentHeight, x, y, width, height, stackY);
         }
+        // v4 Bruine Bonen Technologia: status panel (target, last script, special energy).
+        // v5: height() first - it builds this frame's PK HUD rows that width() measures.
+        int pkHudHeight = RspsScriptOverlay.height();
+        stackY = panel(RspsScriptOverlay.ID, RspsScriptOverlay.width(), pkHudHeight, x, y, width, height, stackY);
+        int fightHeight = RspsPkHud.fightHeight();
+        stackY = panel(RspsPkHud.FIGHT_ID, RspsPkHud.fightWidth(), fightHeight, x, y, width, height, stackY);
         RspsInfoBoxes.clear();
         if (RspsHudConfig.enabled("boosts")) {
             RspsHudBoosts.checkThreshold();
@@ -214,6 +234,10 @@ final class RspsHud {
         int[] at = RspsOverlayLayout.place(id, viewX + PANEL_GAP, stackY, panelWidth, panelHeight, viewX, viewY, viewWidth, viewHeight);
         if (id.equals(RspsHudOpponent.ID)) {
             RspsHudOpponent.draw(at[0], at[1]);
+        } else if (id.equals(RspsScriptOverlay.ID)) {
+            RspsScriptOverlay.draw(at[0], at[1]);
+        } else if (id.equals(RspsPkHud.FIGHT_ID)) {
+            RspsPkHud.drawFight(at[0], at[1]);
         } else if (id.equals(RspsHudBoosts.ID)) {
             RspsHudBoosts.draw(at[0], at[1], panelHeight);
         } else {

@@ -136,6 +136,7 @@ public final class LoginManager {
         }
 
         reset();
+        RspsBotPanel.reset(); // Revoke staff permission immediately on logout.
         client.cacheReset();
         Static563.method7461();
 
@@ -869,6 +870,8 @@ public final class LoginManager {
             return;
         }
 
+        if (type == TYPE_GAME) RspsBotPanel.reset(); // Clear the old session before the new handshake/pushes.
+
         ServerConnection.active.errored = false;
         if (type != TYPE_LOBBY) {
             profileTransferTicks = 0;
@@ -988,7 +991,7 @@ public final class LoginManager {
         Static346.spotAnimations.clear();
         TextCoordList.textCoords.clear();
         Static497.objStacks.clear();
-        RspsHud.reset();
+        RspsHud.resetForLogin(); // Bot state was reset at login start; preserve this connection's first grant.
         RspsChatbox.reset();
         Static159.changes = new Deque();
         Static227.customisations = new Deque();

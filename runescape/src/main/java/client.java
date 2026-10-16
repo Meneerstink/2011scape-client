@@ -968,8 +968,21 @@ public final class client extends GameShell {
             if (RspsDev.placing && RspsDev.key(log)) {
                 continue;
             }
+            // 78Legacy v3 hotkeys on any key: the rest of a press a PK / gear hotkey handled (repeats, typed character,
+            // release) reaches nothing - not the chat, not the teleport shortcuts below (RspsKeyBind).
+            if (RspsKeyBind.swallowing(log)) {
+                continue;
+            }
             // RSPS house teleport screens (owner bug 183223): OSRS key shortcuts 1-9 / A-Z of the nexus and jewellery box.
             if (RspsTeleportKeys.key(log)) {
+                continue;
+            }
+            // 78Legacy gear switcher (RspsGearSwitcher): SHIFT+F1..F5 equips a saved set, CTRL+SHIFT+F1..F5 saves the worn gear.
+            if (RspsGearSwitcher.key(log)) {
+                continue;
+            }
+            // 78Legacy PK hotkeys (RspsPkHotkeys): SHIFT+F6..F12 = protect prayers, special attack, eat, brew, restore.
+            if (RspsPkHotkeys.key(log)) {
                 continue;
             }
             // OSRS keybinding (owner 2026-10-11): F1-F12 / Esc open the bound side tab; the key still reaches the server.
@@ -1077,7 +1090,8 @@ public final class client extends GameShell {
 
         Static369.updateObjSprites(Toolkit.active);
         // Loot Tracker item icons: made here, where the game makes its own inventory icons (outside the scene pass).
-        if (Toolkit.active != null && RspsHudConfig.enabled("loottracker")) {
+        // 78Legacy v5: Bruine Bonen Technologia's script chips show item icons too.
+        if (Toolkit.active != null && (RspsHudConfig.enabled("loottracker") || RspsHudConfig.enabled("pkhotkeys"))) {
             RspsLootTracker.renderIcons(Toolkit.active);
         }
         Static226.mouseLogs.removeFirst();

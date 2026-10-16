@@ -51,6 +51,17 @@ final class RspsHudOpponent {
         active = false;
     }
 
+    /** v5 PK HUD: the server's player opponent (high-resolution index), -1 = none or an npc. */
+    static int playerIndex() {
+        return active && !npc ? index : -1;
+    }
+
+    /** v5 PK HUD: the health ratio (0-255) when [p] is the server's opponent, else -1. */
+    static int playerRatio(PlayerEntity p) {
+        int i = playerIndex();
+        return p != null && i >= 0 && i < PlayerList.highResolutionPlayers.length && PlayerList.highResolutionPlayers[i] == p ? ratio : -1;
+    }
+
     /** RuneLite: marks the Attack option of an npc that is the opponent or is attacking the local player. */
     static String menuTarget(NPCEntity entity, String option, String target) {
         if (!RspsHudConfig.enabled("opponent") || !RspsHudConfig.bool("opponent.showOpponentsInMenu") || option == null || !option.equalsIgnoreCase("Attack")) {

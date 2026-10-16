@@ -20,8 +20,26 @@ final class RspsHudConfig {
     static final int ENUM = 2;
     static final int COLOR = 3;
     /** RuneLite's double config items (CameraConfig.cameraSpeed). */
-    static final int DECIMAL = 4;
+    static final int DECIMAL = 14; // 2026-10-16 merge: Bruine Bonen took 4 for LIST (types are client-only)
     static final int LIST = 4;
+    /** v3: a key binding (RspsKeyBind text, e.g. "CTRL+SHIFT+F6" or "NONE"), recorded with a key press in the sidebar. */
+    static final int KEY = 5;
+    /** v3: a read-only line the sidebar fills live (e.g. the PK last target); never stored, never sent to the server. */
+    static final int INFO = 6;
+    /** v3: the Gear Switcher's set editor (RspsGearSetEditor); the sets live in the client, never sent to the server. */
+    static final int GEARSETS = 7;
+    /** v3.1: a PK preset's own item ids (RspsPresetItemsRow); client only, like the gear sets. */
+    static final int PRESETITEMS = 8;
+    /** v3.2: one compact PK preset card (RspsPresetCard): on/off, key, gear or items, prayers, last-target step. Not stored. */
+    static final int PRESETCARD = 9;
+    /** v3.2: one compact spell row (RspsSpellRow): spell, key, cast/select. Not stored. */
+    static final int SPELLROW = 10;
+    /** v4: the Presets block (RspsProfilesPanel): whole-setup profiles, client only. */
+    static final int PROFILES = 11;
+    /** v4: Template + Wipe for the "Add to" script (RspsScriptTools). */
+    static final int SCRIPTTOOLS = 12;
+    /** v4: one script box (RspsScriptBox), default value = the script number. */
+    static final int SCRIPTBOX = 13;
 
     /** One config item as the sidebar shows it. */
     static final class Setting {
@@ -37,6 +55,8 @@ final class RspsHudConfig {
         final int max;
         /** Lowest value of an INT item (RuneLite @Range min; 0 when it has none). */
         int min;
+        /** v3.2: stored and synced like any item, but drawn by a card (PRESETCARD / SPELLROW) instead of its own row. */
+        boolean hidden;
 
         Setting(String plugin, String key, int type, String name, String description, String defaultValue, String section, int max, String[] options, String[] optionNames) {
             this.plugin = plugin;
@@ -54,6 +74,8 @@ final class RspsHudConfig {
 
     /** Plugin id, name and description (RuneLite's plugin list). */
     static final String[][] PLUGINS = {
+        // PK Bots staff UI: visibility comes only from the server's botsstaff message.
+        {"botpanel", "PK Bots (staff)", "Staff only: spawn and steer the server's PK bots"},
         {"boosts", "Boosts Information", "Show combat and/or skill boost information"},
         {"opponent", "Opponent Information", "Show name and hitpoints information about the NPC you are fighting"},
         {"grounditems", "Ground Items", "Highlight ground items and/or show price information"},
@@ -68,6 +90,9 @@ final class RspsHudConfig {
         {"questhelper", "Quest Helper", "An in-game interactive guide for quests"},
         // Owner 2026-10-11 (bug 012046 "we need the runelite stretched plugin"): RuneLite's Stretched Mode (com.jagex.StretchedMode).
         {"stretchedmode", "Stretched Mode", "Stretches the game in fixed and resizable modes."},
+        // 78Legacy Gear Switcher (RspsGearSwitcher, 2026-10-11).
+        // v4 (user 2026-10-12): Gear Switcher + PK Hotkeys merged into one plugin, named by the user.
+        {"pkhotkeys", "Bruine Bonen Technologia", "Gear switches, prayers, spells and attacks as scripts on any key; presets, gear sets, target overlay"},
     };
 
     static final List<Setting> SETTINGS = new ArrayList<Setting>();
@@ -109,6 +134,30 @@ final class RspsHudConfig {
 
     private static void decimal(String plugin, String key, String name, String description, double def, String section) {
         add(plugin, key, DECIMAL, name, description, Double.toString(def), section, 0, null, null);
+    }
+
+    private static void keybind(String plugin, String key, String name, String description, String def, String section) {
+        add(plugin, key, KEY, name, description, def, section, 0, null, null);
+    }
+
+    /** True for the types the server stores (KEY included); INFO and GEARSETS live only in the client. */
+    static boolean stored(int type) {
+        return type != LIST && type != INFO && type != GEARSETS && type != PRESETITEMS && type != PRESETCARD && type != SPELLROW
+            && type != PROFILES && type != SCRIPTTOOLS && type != SCRIPTBOX;
+    }
+
+    /** v4: shows the item added last on [plugin]'s page while its key keeps its own prefix (gearswitcher.* on pkhotkeys). */
+    private static void regroup(String plugin) {
+        Setting s = SETTINGS.get(SETTINGS.size() - 1);
+        Setting moved = new Setting(plugin, s.key, s.type, s.name, s.description, s.defaultValue, s.section, s.max, s.options, s.optionNames);
+        moved.min = s.min;
+        moved.hidden = s.hidden;
+        SETTINGS.set(SETTINGS.size() - 1, moved);
+    }
+
+    /** v3.2: marks the item added last as drawn by a card. */
+    private static void hide() {
+        SETTINGS.get(SETTINGS.size() - 1).hidden = true;
     }
 
     private static void colour(String plugin, String key, String name, String description, String def, String section) {
@@ -224,6 +273,132 @@ final class RspsHudConfig {
         // No @Range on RuneLite's scalingFactor: its spinner runs 0 .. Integer.MAX_VALUE (the 100 cap blocked 200%, night run 2026-10-12).
         integer(st, "scalingFactor", "Resizable scaling", "In resizable mode, the game is reduced in size this much before it's stretched.", 50, Integer.MAX_VALUE, null);
 
+        // v4 (user 2026-10-12, layout version C): Gear Switcher + PK Hotkeys are ONE plugin page ("Bruine Bonen Technologia",
+        // plugin id pkhotkeys). The stored keys keep their names (gearswitcher.* / pkhotkeys.*), so nobody loses a binding.
+        String pk = "pkhotkeys";
+        String gs = "gearswitcher";
+        // Presets (UG's blue Preset / green Save buttons): whole-setup profiles, client only.
+        add(pk, "profiles", PROFILES, "Presets", "Load or save your whole setup: scripts, keys and gear sets.", "", "Presets", 0, null, null);
+        // v5 (user 2026-10-12, layout version D): Scripts first, each with its own key in its header (Hotkey 1-15 are no
+        // longer drawn under Hotkeys), then the PK HUD, Hotkeys, Target Overlay and Settings.
+        String sc = "Scripts";
+        bool(pk, "rightClickSetup", "[Easy Setup] Right Click Setup", "Right-click an item or prayer: 'Add Wear / Prayer ON / Prayer OFF to Script N' (N = Add to).", true, sc);
+        String[] nums = new String[RspsScripts.COUNT];
+        String[] numNames = new String[RspsScripts.COUNT];
+        for (int n = 1; n <= RspsScripts.COUNT; n++) {
+            nums[n - 1] = Integer.toString(n);
+            numNames[n - 1] = "Script " + n;
+        }
+        choice(pk, "addTo", "Add to", "The script that right-click setup, Template and Wipe work on.", "1", nums, numNames, sc);
+        add(pk, "scriptTools", SCRIPTTOOLS, "Template", "Templates and wipe for the script chosen at 'Add to'.", "", sc, 0, null, null);
+        for (int n = 1; n <= RspsScripts.COUNT; n++) {
+            add(pk, "script" + n, SCRIPTBOX, "Script " + n, "Script " + n + ": its steps, in order.", Integer.toString(n), sc, 0, null, null);
+        }
+        // v5 PK HUD (RspsPkHud): information only - it never clicks. The server switch allowCombatHints turns C/D/E off.
+        String hud = "PK HUD";
+        bool(pk, "showStatusPanel", "Show PK HUD", "A panel in the game: your target (health, overhead prayer, weapon), your special energy, prayer and attack timer, the last script.", true, hud);
+        bool(pk, "hudHitWith", "'Hit with' hint", "Shows the attack styles your target does NOT protect against (his overhead prayer).", true, hud);
+        bool(pk, "hudWeapon", "Target weapon + style", "Shows the weapon your target holds and its style (staff = Magic, crossbow = Ranged, whip = Melee).", true, hud);
+        bool(pk, "hudSpecWarning", "Special weapon warning", "Warns when your target holds a special attack weapon such as dragon claws.", true, hud);
+        bool(pk, "hudPrayHighlight", "Highlight protect prayer", "Outlines the protect prayer against your target's weapon in your prayer tab. You click it yourself.", true, hud);
+        integer(pk, "hudLowHp", "Low HP warning (%)", "The panel turns red below this share of your hitpoints (0 = off). Also warns at low prayer points.", 50, 0, 99, hud);
+        bool(pk, "hudAttackTimer", "Attack timer", "Dots until your next attack: whip 4, staff 5, crossbow 6 ticks.", true, hud);
+        bool(pk, "hudTargetFrozen", "Target frozen timer", "How long your target stays frozen.", true, hud);
+        bool(pk, "hudFightSummary", "Summary after a fight", "After a fight against a player: damage, hits into his protection, how well you prayed, your biggest mistake.", true, hud);
+        // Hotkeys (v4 Hotkey Config).
+        String hk = "Hotkeys";
+        keybind(pk, "bind.toggleKey", "Start/Stop plugin", "Switches the whole plugin on or off.", "NONE", hk);
+        keybind(pk, "bind.cancelKey", "Cancel running script", "Stops a script that is still waiting for its gear clicks.", "NONE", hk);
+        keybind(pk, "bind.clearTargetKey", "Clear target", "Forgets your last target.", "NONE", hk);
+        keybind(pk, "bind.attackKey", "Attack target", "Attacks the last target (melee or ranged: whatever you wield).", "CTRL+F1", hk);
+        keybind(pk, "bind.stepUnderKey", "Step under target", "Walks onto the tile your last target stands on (one 'Walk here' click on that tile).", "CTRL+F6", hk);
+        for (int n = 1; n <= RspsScripts.COUNT; n++) {
+            // Drawn in the script's header (RspsScriptBox), skipped in this section by RspsSidebar.
+            keybind(pk, "bind.script" + n + "Key", "Hotkey " + n, "Runs script " + n + ".", RspsScriptRunner.DEFAULT_KEYS[n - 1], hk);
+        }
+        // Target Overlay.
+        String to = "Target Overlay";
+        add(pk, "targetInfo", INFO, "Target", "The last player you attacked or cast on: target steps act on this player only.", "", to, 0, null, null);
+        bool(pk, "showTargetBox", "Show target clickbox", "Draws a box around your target in the game.", true, to);
+        colour(pk, "targetBoxColour", "Clickbox color", "Colour of the box and name around your target.", "00ffff", to);
+        bool(pk, "fillTargetBox", "Fill clickbox", "Fills the target box with a see-through colour.", false, to);
+        bool(pk, "showTargetName", "Show target name", "Writes your target's name above the box.", true, to);
+        // Settings (v4 Main Config).
+        String mc = "Settings";
+        bool(pk, "ignoreDuplicateStarts", "Ignore duplicate starts", "Pressing a script's key again while it still runs does nothing.", true, mc);
+        bool(pk, "setTargetRightClick", "Set target (right click)", "Adds 'Set target' to the right-click menu of other players.", true, mc);
+        bool(pk, "chatMessages", "Chat messages", "Write in the chatbox what a key did or did not do.", true, mc);
+        choice(pk, "chatLevel", "Chat detail", "Errors only: just what went wrong (no target, no food, ...). All: also what was switched. The same line is never repeated within 3 seconds.", "ERRORS",
+            new String[]{"ERRORS", "ALL"}, new String[]{"Errors only", "All"}, mc);
+        choice(pk, "accentColour", "Accent colour", "Colour of this page's section titles and buttons.", "ORANGE",
+            new String[]{"ORANGE", "BLUE", "GREEN", "PURPLE"}, new String[]{"Orange", "Blue", "Green", "Purple"}, mc);
+        bool(gs, "chatMessages", "Gear chat messages", "Write in the chatbox what the switcher saved or switched.", true, mc);
+        hide();
+        // Gear sets (the former Gear Switcher page), shown on this page.
+        add(gs, "editor", GEARSETS, "Gear sets", "Edit your 10 gear sets.", "", "Gear sets", 0, null, null);
+        regroup(pk);
+        for (int n = 1; n <= RspsGearSets.COUNT; n++) {
+            keybind(gs, "bind.equip" + n, "Equip set " + n, "Key that puts gear set " + n + " on (click, then press a key).", n <= 5 ? "SHIFT+F" + n : "NONE", "Gear keys");
+            regroup(pk);
+        }
+        for (int n = 1; n <= RspsGearSets.COUNT; n++) {
+            keybind(gs, "bind.save" + n, "Save set " + n, "Key that saves what you wear now as gear set " + n + ".", n <= 5 ? "CTRL+SHIFT+F" + n : "NONE", "Gear keys");
+            regroup(pk);
+        }
+        // Quick keys: one action per key (prayers, special, food, potions).
+        String bk = "Quick keys";
+        keybind(pk, "bind.protectMagicKey", "Protect from Magic", "Turns Protect from Magic (Deflect Magic with curses) on or off.", "SHIFT+F6", bk);
+        keybind(pk, "bind.protectMissilesKey", "Protect from Missiles", "Turns Protect from Missiles (Deflect Missiles) on or off.", "SHIFT+F7", bk);
+        keybind(pk, "bind.protectMeleeKey", "Protect from Melee", "Turns Protect from Melee (Deflect Melee) on or off.", "SHIFT+F8", bk);
+        keybind(pk, "bind.pietyKey", "Piety / Turmoil", "Turns Piety (Turmoil with curses) on or off.", "CTRL+SHIFT+F6", bk);
+        keybind(pk, "bind.rigourKey", "Rigour", "Turns Rigour on or off (normal prayer book).", "CTRL+SHIFT+F7", bk);
+        keybind(pk, "bind.auguryKey", "Augury", "Turns Augury on or off (normal prayer book).", "CTRL+SHIFT+F8", bk);
+        keybind(pk, "bind.quickPrayersKey", "Quick prayers", "Turns your quick prayers on or off (like a click on the orb).", "CTRL+SHIFT+F9", bk);
+        keybind(pk, "bind.specialKey", "Special attack", "Turns the special attack bar on or off.", "SHIFT+F9", bk);
+        keybind(pk, "bind.vengeanceKey", "Vengeance", "Casts Vengeance (Lunar spellbook).", "CTRL+SHIFT+F10", bk);
+        keybind(pk, "bind.eatKey", "Eat", "Eats one food from your inventory.", "SHIFT+F10", bk);
+        bool(pk, "comboEat", "Combo eat", "The eat key also eats a cooked karambwan in the same tick, like a manual combo eat.", false, bk);
+        keybind(pk, "bind.brewKey", "Saradomin brew", "Drinks a Saradomin brew (lowest dose first).", "SHIFT+F11", bk);
+        keybind(pk, "bind.restoreKey", "Restore", "Drinks a super restore or prayer potion (lowest dose first).", "SHIFT+F12", bk);
+
+        // v3.2 settings kept hidden (never drawn, never dispatched): the client turns them into scripts once
+        // (RspsScriptRunner.migrate) and the server moves their keys to the script keys (ClientHudConfig migrateV4).
+        String old = "Legacy";
+        String[] sp = RspsPkData.SPELL_IDS;
+        String[] spn = RspsPkData.SPELL_NAMES;
+        String[][] spellDefaults = {{"A", "ICE_BARRAGE", "CTRL+F2"}, {"B", "BLOOD_BARRAGE", "CTRL+F3"}, {"C", "ICE_BLITZ", "CTRL+F4"}, {"D", "TELEPORT_BLOCK", "CTRL+F5"}};
+        for (String[] d : spellDefaults) {
+            choice(pk, "spell" + d[0], "Spell " + d[0], "v3 spell " + d[0] + ".", d[1], sp, spn, old);
+            hide();
+            keybind(pk, "bind.spell" + d[0] + "Key", "Spell " + d[0] + " key", "v3 spell key " + d[0] + ".", d[2], old);
+            hide();
+            choice(pk, "spell" + d[0] + "Mode", "Spell " + d[0] + " mode", "v3 spell mode " + d[0] + ".", "TARGET", RspsPkHotkeys.SPELL_MODES, RspsPkHotkeys.SPELL_MODE_NAMES, old);
+            hide();
+        }
+        String[] pn = RspsPkData.withNone(RspsPkData.PRAYER_IDS, "NONE");
+        String[] pnn = RspsPkData.withNone(RspsPkData.PRAYER_NAMES, "None");
+        for (int n = 1; n <= RspsPkHotkeys.PRESETS; n++) {
+            String[] d = RspsPkHotkeys.PRESET_DEFAULTS[n - 1]; // {key, gear, prayer1, prayer2, toggle, target, targetDo, spell}
+            bool(pk, "preset" + n + "On", "On", "v3.2 preset " + n + ".", true, old);
+            hide();
+            keybind(pk, "bind.preset" + n + "Key", "Key", "v3.2 preset key " + n + ".", d[0], old);
+            hide();
+            choice(pk, "preset" + n + "Gear", "Gear set", "v3.2", d[1], RspsPkHotkeys.PRESET_GEAR, RspsPkHotkeys.PRESET_GEAR_NAMES, old);
+            hide();
+            choice(pk, "preset" + n + "PrayerOne", "Prayer 1", "v3.2", d[2], pn, pnn, old);
+            hide();
+            choice(pk, "preset" + n + "PrayerTwo", "Prayer 2", "v3.2", d[3], pn, pnn, old);
+            hide();
+            bool(pk, "preset" + n + "PrayerToggle", "Prayer on/off", "v3.2", Boolean.parseBoolean(d[4]), old);
+            hide();
+            bool(pk, "preset" + n + "Target", "Last target", "v3.2", Boolean.parseBoolean(d[5]), old);
+            hide();
+            choice(pk, "preset" + n + "TargetDo", "Target step", "v3.2", d[6], RspsPkHotkeys.TARGET_DO, RspsPkHotkeys.TARGET_DO_NAMES, old);
+            hide();
+            choice(pk, "preset" + n + "Spell", "Spell", "v3.2", d[7], sp, spn, old);
+            hide();
+        }
+
         String l = "loottracker";
         choice(l, "priceType", "Price type", "What type of price to use for calculating value.", "GRAND_EXCHANGE",
             new String[]{"GRAND_EXCHANGE", "HIGH_ALCHEMY"}, new String[]{"Grand Exchange", "High Alchemy"}, null);
@@ -266,9 +441,17 @@ final class RspsHudConfig {
     }
 
     static synchronized void resetToDefaults() {
+        // Server-only switches (pkhotkeys.allow*): the owner decides them, a local reset must not drop them.
+        Map<String, String> serverOnly = new java.util.HashMap<String, String>();
+        for (Map.Entry<String, String> e : values.entrySet()) {
+            if (e.getKey().startsWith("pkhotkeys.allow")) {
+                serverOnly.put(e.getKey(), e.getValue());
+            }
+        }
         values.clear();
+        values.putAll(serverOnly);
         for (Setting setting : SETTINGS) {
-            if (setting.type != LIST) {
+            if (stored(setting.type)) {
                 values.put(setting.key, setting.defaultValue);
             }
         }
@@ -335,6 +518,15 @@ final class RspsHudConfig {
     }
 
     static boolean enabled(String plugin) {
+        // v4: the Gear Switcher is part of the pkhotkeys plugin; its own old switch no longer counts.
+        if (plugin.equals("gearswitcher")) {
+            plugin = "pkhotkeys";
+        }
+        // Owner 2026-10-16: Bruine Bonen Technologia (gear switcher, PK hotkeys, scripts) is for moderators only. The server
+        // says who is staff at login ("botsstaff|1", BotPanel.onLogin: mod power); everyone else never runs or sees it.
+        if (plugin.equals("pkhotkeys") && !RspsBotPanel.isStaff()) {
+            return false;
+        }
         return bool(plugin + ".enabled");
     }
 
@@ -384,12 +576,26 @@ final class RspsHudConfig {
         }
     }
 
+    /** v4: the keys the server has sent this session (the one-time script migration waits for the old preset keys). */
+    private static final java.util.Set<String> RECEIVED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** v4: true once every hidden v3.2 preset / Spell A-D setting has come from the server. */
+    static boolean receivedLegacy() {
+        for (Setting s : SETTINGS) {
+            if ("Legacy".equals(s.section) && !RECEIVED.contains(s.key)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     static synchronized void handle(String kind, String rest) {
         if (kind.equals("cfg")) {
             for (String pair : rest.split(";")) {
                 int eq = pair.indexOf('=');
                 if (eq > 0 && acceptPush(pair.substring(0, eq), pair.substring(eq + 1))) {
                     values.put(pair.substring(0, eq), pair.substring(eq + 1));
+                    RECEIVED.add(pair.substring(0, eq));
                 }
             }
             revision++;

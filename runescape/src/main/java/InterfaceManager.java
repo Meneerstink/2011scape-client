@@ -498,6 +498,7 @@ public final class InterfaceManager {
 
             @Pc(125) int offsetX = screenX + child.x;
             @Pc(130) int offsetY = screenY + child.y;
+            if (child.slot == RspsPkHotkeys.PRAYER_HASH) RspsPkHud.prayerCell(child.id, offsetX, offsetY, child.width, child.height); // 78Legacy v5 PK HUD
 
             // RSPS Deadman: both layers of the PvP overlay (381:0 zone state, 381:3 skull timer) are
             // drawn as custom panels (guarded / dangerous icon + text; the player's own head-icon
@@ -1418,6 +1419,7 @@ public final class InterfaceManager {
         // map): drawn here, after every top level (gameframe, world map, fullscreen screens) and every modal, with the whole canvas
         // as clip - so no interface slot, overlay, top-level switch or clip can hide it.
         DeadmanSkullHud.drawOverlay(x1, y1);
+        RspsPkHud.drawInterfaceOverlay(); // 78Legacy v5 PK HUD: outline of the protect prayer against your target's weapon
 
         if (dragChildren != null) {
             draw(dragChildren, ROOT, dragOffsetX, dragOffsetY, x1, y1, x1 + GameShell.canvasWid, y1 + GameShell.canvasHei, dragLayer.rectangle, true);
@@ -2223,6 +2225,8 @@ public final class InterfaceManager {
         if (MainLogicManager.step != 11 || !serverActiveProperties(button).isOpEnabled(op - 1)) {
             return;
         }
+        // 78Legacy v4: every prayer / quick-prayer click that really goes out counts in the script prayer model.
+        RspsPrayerModel.sent(idAndSlot, component, op);
 
         if (op == 1) {
             @Pc(64) ClientMessage message = ClientMessage.create(ClientProt.IF_BUTTON1, ServerConnection.GAME.isaac);
@@ -2788,7 +2792,8 @@ public final class InterfaceManager {
 
         if (newMode == WindowMode.FIXED) {
             GameShell.topMargin = 0;
-            GameShell.leftMargin = (GameShell.frameWid - Client.loadingScreenWidth) / 2;
+            // Never negative (like the resizable branch): a window narrower than the fixed frame must not push its left side off screen.
+            GameShell.leftMargin = Math.max(0, (GameShell.frameWid - Client.loadingScreenWidth) / 2);
             GameShell.canvasHei = Client.loadingScreenHeight;
             GameShell.canvasWid = Client.loadingScreenWidth;
         } else {
@@ -2853,6 +2858,11 @@ public final class InterfaceManager {
 
     @OriginalMember(owner = "client!nea", name = "a", descriptor = "(ILclient!hda;II)V")
     public static void addMiniMenuOptions(@OriginalArg(1) Component component, @OriginalArg(2) int arg1, @OriginalArg(3) int arg2) {
+        // Diagnostic logging for gear switcher - log component data when menu opens
+        RspsGearSwitcher.observeMenuComponent(component);
+        // 78Legacy v4: right-click setup "Add Wear / Prayer ... to Script N" (RspsScriptMenu; client only).
+        RspsScriptMenu.addComponentOptions(component);
+
         if (targetMode) {
             @Pc(16) ParamType param = targetParam == -1 ? null : ParamTypeList.instance.list(targetParam);
 

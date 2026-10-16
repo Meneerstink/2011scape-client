@@ -63,6 +63,11 @@ public final class RspsTeleportKeys {
         return true;
     }
 
+    /** v3 (PK Hotkeys): true while the nexus or jewellery box teleport screen is open (its letter/digit shortcuts win). */
+    static boolean menuOpen() {
+        return isOpen(NEXUS) || isOpen(JEWELLERY_BOX);
+    }
+
     /** OSRS enum 1401/1402: 1-9 are 0..8, A-Z (either case) 9..34. */
     static int keyIndex(char c) {
         if (c >= '1' && c <= '9') {

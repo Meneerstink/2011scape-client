@@ -626,6 +626,8 @@ public final class MainLogicManager {
         RspsCamera.tick();
         rs2.client.event.mouse.MouseMonitor mouse = rs2.client.event.mouse.MouseMonitor.instance;
         RspsCamera.mouseCamera(RspsCamera.middleForCamera(mouse.isMiddleDown(), mouse.isRightDown()), mouse.getRecordedX(), mouse.getRecordedY());
+        // 78Legacy GearSwitcher: finishes a gear switch whose items wait for the inventory display (keys: client.java key loop)
+        RspsGearSwitcher.tick();
         // RuneLite Minimap "Zoom": the wheel over the minimap zooms the minimap, not the camera.
         if (RspsMinimapZoom.wheel(Static611.mouseWheelRotation)) {
             Static611.mouseWheelRotation = 0;

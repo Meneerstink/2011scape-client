@@ -1257,6 +1257,10 @@ public final class MiniMenu {
             if (diffentLevel) {
                 addEntryInner(true, 0, 0L, 0, 0, "<col=cccccc>" + name, -1, false, -1, "", player.slot, false);
             } else {
+                // 78Legacy v4: "Set target" (Bruine Bonen Technologia, Main Config); added first = lowest player option.
+                if (RspsScriptMenu.setTargetOption()) {
+                    addEntryInner(false, -1, player.slot, 0, 0, "Set target", RspsScriptMenu.ACTION_SET_TARGET + 2000, true, -1, "<col=ffffff>" + name, player.slot, false);
+                }
                 for (@Pc(318) int op = 7; op >= 0; op--) {
                     if (playerOps[op] != null) {
                         @Pc(325) short offset = 0;
@@ -1310,6 +1314,13 @@ public final class MiniMenu {
             action -= 2000;
         }
         @Pc(35) long v1Long = entry.v1;
+        // 78Legacy PK hotkeys v2: remember the player of a real Attack / spell-on-player click as the "last target".
+        RspsPkTarget.observe(action, v1);
+
+        // 78Legacy v4: right-click setup and "Set target" (RspsScriptMenu; client only, nothing is sent).
+        if (RspsScriptMenu.handle(action, v1Long)) {
+            return;
+        }
 
         // RuneLite Minimap: "Reset Zoom" (client only).
         if (action == RspsMinimapZoom.ACTION_RESET) {
