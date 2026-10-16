@@ -6809,8 +6809,9 @@ public final class ScriptRunner {
                 if (toolkit < ToolkitType.JAVA || toolkit > ToolkitType.GLX) {
                     toolkit = ToolkitType.SSE;
                 }
-                ClientOptions.instance.update(toolkit, ClientOptions.instance.toolkitDefault);
-                // No Custom here: script 2697/2705 follows with DETAIL_TOOLKIT_DEFAULT, whose flag decides (Jagex, D3 round 2).
+                // Jagex: only switch the renderer. The saved renderer (toolkitDefault) and the level are set by
+                // DETAIL_TOOLKIT_DEFAULT once the player accepts (script 2705 Confirm) or picks Software (script 2697);
+                // Cancel / the 10 s timer reads toolkitDefault back to revert (script 2705, D3 round 3).
                 Static32.setToolkit(toolkit, false);
                 return;
             }

@@ -1,4 +1,5 @@
 import com.jagex.EnvironmentContext;
+import com.jagex.core.constants.ClientScriptOpCode;
 import com.jagex.core.constants.ModeGame;
 import com.jagex.core.io.Packet;
 import com.jagex.graphics.ToolkitType;
@@ -157,6 +158,113 @@ public final class GraphicsDisplayRegressionTest {
             "AUTOSETUP_SETCUSTOM still makes Custom and Custom survives a restart");
         customOnlyFromScripts();
         sceneSaveKeepsPlayerSettings(fresh);
+        rendererRevert(fresh);
+    }
+
+    /**
+     * Graphics Options renderer buttons (D3 audit 92). Jagex scripts, decoded from the 667 cache (tools\cache667\cs2dis.py):
+     * 2697 = DETAIL_TOOLKIT(new) [6031]; Software -> DETAIL_TOOLKIT_DEFAULT(new, 0) [6032] at once; a hardware renderer ->
+     * 2700 'Accept this setting? Reverting in: 10' -> 2705(arg). 2705(1) Confirm = DETAILGET_TOOLKIT [6131], 1 ->
+     * DETAIL_TOOLKIT_DEFAULT. 2705(0) Cancel or timeout = DETAILGET_TOOLKIT_DEFAULT [6132] -> DETAIL_TOOLKIT(that) - so trying a
+     * renderer must leave the saved renderer (toolkitDefault) alone until the player accepts. Every start renderer x every
+     * hardware target x every level x Cancel/timeout + Confirm, through the real opcode handlers, plus the restart.
+     */
+    private static void rendererRevert(ClientOptions fresh) {
+        String[] toolkitNames = {"Java", "OpenGL", "Software", "DirectX", "4", "GLX"};
+        String[] levelNames = {"CUSTOM", "MIN", "LOW", "MID", "HIGH"};
+        int[] starts = {ToolkitType.JAVA, ToolkitType.GL, ToolkitType.SSE, ToolkitType.D3D};
+        int[] hardware = {ToolkitType.GL, ToolkitType.D3D};
+        ClientOptions saved = ClientOptions.instance;
+        boolean hadDx = rs2.client.loading.library.LibraryManager.libraries.containsKey("jagdx");
+        // A PC where DirectX is available (the owner's and the Keurmeester's laptop): ToolkitOption.canSet(3) needs jagdx.
+        if (!hadDx) rs2.client.loading.library.LibraryManager.libraries.put("jagdx", new java.io.File("jagdx.dll"));
+        try {
+            for (int start : starts) {
+                for (int target : hardware) {
+                    if (target == start) continue;
+                    for (int level = 0; level <= 4; level++) {
+                        for (boolean accept : new boolean[] {false, true}) {
+                            ClientOptions options = read(fresh.encodeLocal());
+                            ClientOptions.instance = options;
+                            options.update(start, options.toolkitDefault);
+                            options.toolkit.value = start;
+                            options.graphicsQuality.setValue(level);
+                            String what = toolkitNames[start] + " -> " + toolkitNames[target] + " -> "
+                                + (accept ? "Accept" : "Cancel/timeout") + " on " + levelNames[level];
+                            switchToolkit(options, target); // script 2697: DETAIL_TOOLKIT(new), then the 2700 dialog
+                            check(options.toolkitDefault.getValue() == start, what + ": saved renderer untouched while the dialog asks");
+                            if (accept) { // script 2705(1)
+                                int current = op(ClientScriptOpCode.DETAILGET_TOOLKIT);
+                                check(current == target, what + ": DETAILGET_TOOLKIT reads the new renderer");
+                                op(ClientScriptOpCode.DETAIL_TOOLKIT_DEFAULT, current, 1);
+                            } else { // script 2705(0)
+                                int back = op(ClientScriptOpCode.DETAILGET_TOOLKIT_DEFAULT);
+                                check(back == start, what + ": DETAILGET_TOOLKIT_DEFAULT reads the old renderer (" + toolkitNames[Math.max(0, Math.min(5, back))] + ")");
+                                switchToolkit(options, back);
+                            }
+                            int expected = accept ? target : start;
+                            check(options.toolkit.getValue() == expected, what + ": session renderer " + toolkitNames[expected]);
+                            check(options.toolkitDefault.getValue() == expected, what + ": saved renderer " + toolkitNames[expected]);
+                            ClientOptions restarted = read(options.encodeLocal());
+                            check(restarted.toolkitDefault.getValue() == expected && restarted.toolkit.getValue() == expected,
+                                what + ": next start on " + toolkitNames[expected]);
+                            check(options.graphicsQuality.getValue() == level && restarted.graphicsQuality.getValue() == level,
+                                what + ": level kept");
+                        }
+                    }
+                }
+                // Software (script 2697 pc 40-54): no dialog, DETAIL_TOOLKIT_DEFAULT(Software, 0) = saved at once, level Custom (Jagex).
+                if (start == ToolkitType.SSE) continue;
+                ClientOptions options = read(fresh.encodeLocal());
+                ClientOptions.instance = options;
+                options.update(start, options.toolkitDefault);
+                options.toolkit.value = start;
+                options.graphicsQuality.setValue(4);
+                switchToolkit(options, ToolkitType.SSE);
+                op(ClientScriptOpCode.DETAIL_TOOLKIT_DEFAULT, ToolkitType.SSE, 0);
+                ClientOptions restarted = read(options.encodeLocal());
+                check(options.toolkitDefault.getValue() == ToolkitType.SSE && restarted.toolkitDefault.getValue() == ToolkitType.SSE,
+                    toolkitNames[start] + " -> Software: saved and next start on Software");
+                check(restarted.graphicsQuality.getValue() == 0, toolkitNames[start] + " -> Software: Custom (script 2697 flag 0)");
+            }
+        } finally {
+            if (!hadDx) rs2.client.loading.library.LibraryManager.libraries.remove("jagdx");
+            ClientOptions.instance = saved;
+            ScriptRunner.intStackPointer = 0;
+        }
+        // Source guard: of the CS2 opcodes only DETAIL_TOOLKIT_DEFAULT writes the saved renderer (Jagex d641b445).
+        try {
+            List<String> lines = Files.readAllLines(Path.of("src", "main", "java", "ScriptRunner.java"));
+            List<String> writers = new ArrayList<>();
+            for (int n = 0; n < lines.size(); n++) {
+                if (lines.get(n).matches(".*update\\(.*toolkitDefault\\).*")) writers.add("ScriptRunner.java:" + (n + 1));
+            }
+            check(writers.size() == 1, "Only DETAIL_TOOLKIT_DEFAULT writes toolkitDefault in ScriptRunner, found " + writers);
+        } catch (java.io.IOException e) {
+            check(false, "ScriptRunner.java readable: " + e);
+        }
+    }
+
+    /**
+     * DETAIL_TOOLKIT through the real opcode handler. The renderer itself cannot start in a headless test JVM
+     * (Static32.setToolkit needs a canvas and the native libraries), so its failure is caught and the result of a
+     * successful start (Static595.setToolkit: update(toolkit, toolkit)) is applied here.
+     */
+    private static void switchToolkit(ClientOptions options, int toolkit) {
+        try {
+            op(ClientScriptOpCode.DETAIL_TOOLKIT, toolkit);
+        } catch (Throwable headless) {
+            // no canvas / natives in the test JVM
+        }
+        ScriptRunner.intStackPointer = 0;
+        options.toolkit.value = toolkit;
+    }
+
+    private static int op(int opcode, int... args) {
+        ScriptRunner.intStackPointer = 0;
+        for (int arg : args) ScriptRunner.intStack[ScriptRunner.intStackPointer++] = arg;
+        ScriptRunner.handleLargeOp(opcode, false);
+        return ScriptRunner.intStackPointer > 0 ? ScriptRunner.intStack[--ScriptRunner.intStackPointer] : -1;
     }
 
     /**
