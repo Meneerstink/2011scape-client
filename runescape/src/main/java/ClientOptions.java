@@ -168,20 +168,15 @@ public final class ClientOptions extends Node {
     /** RuneLite ClientUI "clientMaximized": the window was maximised when it was last laid out (trailer version 3). */
     boolean windowMaximised;
 
-    public void markCustom() {
-        traceCustom("markCustom");
-        graphicsQuality.setValue(0);
-    }
-
-    /** Owner D3 2026-10-11: every switch of the graphics level to Custom is named in the client log, with its cause. */
-    private void traceCustom(String why) {
+    /**
+     * Owner D3 2026-10-11: every switch of the graphics level to Custom is named in the client log, with its cause. Since D3
+     * round 2 (2026-10-16) the only causes are the Jagex ones: AUTOSETUP_SETCUSTOM (script 2699 after a detail option the player
+     * changed, script 3388 the CUSTOM button) and DETAIL_TOOLKIT_DEFAULT with its flag 0 (script 2697/2705).
+     */
+    private void traceCustom() {
         if (graphicsQuality != null && graphicsQuality.getValue() != 0) {
             StackTraceElement caller = new Throwable().getStackTrace()[2];
-            // The HIGH / LOW / MIN presets set every option and then their own level: not a switch to Custom.
-            if (caller.getClassName().equals("Static395") || caller.getClassName().equals("Static75") || caller.getClassName().equals("Static468")) {
-                return;
-            }
-            System.out.println("[78] graphics level " + graphicsQuality.getValue() + " -> Custom: " + why + " from "
+            System.out.println("[78] graphics level " + graphicsQuality.getValue() + " -> Custom from "
                 + caller.getClassName() + "." + caller.getMethodName() + ":" + caller.getLineNumber() + " (script " + ScriptRunner.currentScriptId + ")");
         }
     }
@@ -196,11 +191,15 @@ public final class ClientOptions extends Node {
             update(mode, screenSizeDefault);
             update(mode, screenSize);
         }
-        // Not a graphics level option (update() leaves screenSize out of markCustom too): the chosen level stays.
+        // Script 2698 (SETWINDOWMODE) never touches the graphics level (Jagex never calls AUTOSETUP_SETCUSTOM there): the
+        // chosen level stays (owner D3 round 2, 2026-10-16).
         save();
     }
 
     byte[] encodeLocal() {
+        // While the intro scene shows its own profile, the saved file keeps the player's settings (owner D3 round 2).
+        ClientOptions player = RspsCinematic.playerSettings(this);
+        if (player != this) return player.encodeLocal();
         Packet packet = encode();
         // Trailer version 2 (owner 2026-09-30, RuneLite Camera + Minimap zoom): the camera zoom in OSRS units and the
         // minimap zoom in thousandths of a pixel per tile (RuneLite MinimapPlugin "zoomLevel").
@@ -521,23 +520,16 @@ public final class ClientOptions extends Node {
 
     @OriginalMember(owner = "client!kv", name = "a", descriptor = "(IILclient!ta;)V")
     public void update(@OriginalArg(1) int value, @OriginalArg(2) Option option) {
-        int previous = option.value;
         if (option == graphicsQuality && value == 0) {
-            traceCustom("level set to Custom");
+            traceCustom();
         }
+        // Jagex client!kv.a only sets the value and validates (initial commit d641b445, Class2_Sub34.method5104). The level turns
+        // Custom only where the Graphics Options scripts say so (AUTOSETUP_SETCUSTOM, DETAIL_TOOLKIT_DEFAULT flag 0): a window-mode
+        // switch, a loc change, a bloom fallback or any other non-UI caller keeps the player's chosen level (owner D3 round 2).
         option.setSafeValue(value);
         option.validate();
         if (option == antialiasingQuality) antialiasingMode.value = option.value;
         if (option == antialiasingMode) antialiasingQuality.value = option.value;
-        // The renderer is no quality level (toolkit was already left out): a first start picks OpenGL through toolkitDefault
-        // (Loading, needsDefaultRenderer), which turned the 78 profile into "Custom" (owner D3 2026-10-11).
-        if (previous != option.value && option != graphicsQuality && option != toolkit && option != toolkitDefault
-            && option != safeMode && option != loadingSequence && option != stereoSound
-            && !(option instanceof VolumeOption) && option != animateBackground
-            && option != removeRoofsOverride && option != screenSize) {
-            traceCustom(option.getClass().getSimpleName() + " " + previous + " -> " + option.value);
-            graphicsQuality.setValue(0);
-        }
         if (option == maxScreenSize) Fullscreen.modes = null;
     }
 

@@ -107,6 +107,26 @@ public final class RspsCinematic {
         }
     }
 
+    /**
+     * What a {@link ClientOptions#save()} must write: during the scene the live options carry the 78 MID scene profile, so every
+     * save (a wheel zoom, a window-mode switch, ...) wrote that profile as the player's own, and a scene that never reached cine|0
+     * (client closed, crash, logout) left the player on MID (owner D3 round 2, 2026-10-16: "keep the player's own choice"). The
+     * player's kept settings are written instead, with the live window / zoom trailer (those stay the player's while the scene runs).
+     */
+    static ClientOptions playerSettings(ClientOptions live) {
+        byte[] own = kept;
+        if (own == null || live != ClientOptions.instance) {
+            return live;
+        }
+        ClientOptions player = new ClientOptions(new Packet(own), live.getModeGame(), keptToolkit, live.getEnvironment());
+        player.preferredWindowMode = live.preferredWindowMode;
+        player.windowWidth = live.windowWidth;
+        player.windowHeight = live.windowHeight;
+        player.cameraZoom = live.cameraZoom;
+        player.windowMaximised = live.windowMaximised;
+        return player;
+    }
+
     /** InterfaceManager.draw: true when [child] is not drawn this frame. */
     static boolean hide(Component child) {
         if (!active || child == null || InterfaceManager.topLevelInterface == WORLD_MAP) {

@@ -45,13 +45,12 @@ public final class Static235 {
         }
 
         if (id >= 0) {
-            // Ground decoration is switched on only for this one load (a changed loc always shows). The value is set directly:
-            // ClientOptions.update counts a change as the player's choice, so every Min / Low / Mid level became "Custom" at the
-            // first loc change (owner D3 2026-10-11, "settings reset").
+            // Ground decoration is switched on only for this one load (a changed loc always shows) - Jagex's own code; update()
+            // no longer marks the level Custom, so a loc change keeps the player's level (owner D3 round 2, 2026-10-16).
             @Pc(93) int valueBefore = ClientOptions.instance.groundDecor.getValue();
-            ClientOptions.instance.groundDecor.setSafeValue(1);
+            ClientOptions.instance.update(1, ClientOptions.instance.groundDecor);
             MapRegion.active.loadLocation(x, z, level, virtualLevel, id, shape, rotation, animation, Client.collisionMaps[level], Toolkit.active);
-            ClientOptions.instance.groundDecor.setSafeValue(valueBefore);
+            ClientOptions.instance.update(valueBefore, ClientOptions.instance.groundDecor);
         }
     }
 

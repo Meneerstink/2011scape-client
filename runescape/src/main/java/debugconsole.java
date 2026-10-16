@@ -925,7 +925,6 @@ public final class debugconsole {
                     @Pc(2748) int toolkit = StringTools.parseDecimal(command.substring("tk ".length()));
                     if (toolkit >= ToolkitType.JAVA && toolkit <= ToolkitType.GLX) {
                         ClientOptions.instance.update(toolkit, ClientOptions.instance.toolkitDefault);
-                        ClientOptions.instance.markCustom();
                         Static32.setToolkit(toolkit, false);
                     }
                     addline("toolkit=" + ClientOptions.instance.toolkit.getValue() + " " + Toolkit.active.getClass().getSimpleName());

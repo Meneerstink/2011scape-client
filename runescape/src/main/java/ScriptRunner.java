@@ -6810,7 +6810,7 @@ public final class ScriptRunner {
                     toolkit = ToolkitType.SSE;
                 }
                 ClientOptions.instance.update(toolkit, ClientOptions.instance.toolkitDefault);
-                ClientOptions.instance.markCustom();
+                // No Custom here: script 2697/2705 follows with DETAIL_TOOLKIT_DEFAULT, whose flag decides (Jagex, D3 round 2).
                 Static32.setToolkit(toolkit, false);
                 return;
             }
