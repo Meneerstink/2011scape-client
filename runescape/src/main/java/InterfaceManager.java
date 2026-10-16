@@ -266,70 +266,64 @@ public final class InterfaceManager {
     }
 
     /**
-     * Owner A4 2026-10-11 (foto\dy.png, Smol Heredit): some OSRS pet heads overflow the chat dialogue and the Follower Details
-     * frame. Every head is posed at one fixed scale (the classic head poses scale an OSRS head x2.5, PetChatheadRigTool), so an
-     * OSRS head modelled bigger than a person's (winged helmets, beasts) comes out bigger than the frame. Per head component a
-     * largest size, as a multiple of the component's own box (the projected bounding box of the posed head): the npc chat
-     * heads (241-244:2) draw past their small box on purpose - measured native 667 heads 2.7-3.1 wide, 3.1-3.6 high (GE clerk,
-     * Man, Pikkupstix) - so their limit sits above that; the Follower Details head (662:1) has to stay inside its panel (Smol Heredit, the
-     * owner's example, comes out at 0.74 in the chat and 0.81 in the panel).
-     * A head over the limit is drawn smaller around the same anchor; a head within it is never touched. Kept per component and
-     * npc like fitModelToBox, so the talking animation does not pump the size.
+     * Owner A4 (foto\dy.png, Smol Heredit): the npc chat heads (241-244:2) and the Follower Details head (662:1) must fit
+     * their frame. The size is the server's choice - 2009scape DialogueInterpreter sends IF_SETANGLE (zoom) with every npc
+     * dialogue; ours sends a measured zoom per pet (server NpcChatheadZoom, data\cfg\pets\pet_chathead_zoom.tsv). The client
+     * draws exactly what it is sent and only MEASURES here, so the data can be checked and regenerated: per npc head drawn
+     * on those components it keeps the largest projected bounding box over all animation frames (pixels from the head's
+     * anchor) and prints it with the parent's clip box whenever it grows:
+     * "[78] npc head N on IF:C zoom Z ext up/down/left/right room up/down/left/right".
      */
-    private static final int[][] NPC_HEAD_LIMITS = {
-        // interface, component, max width x100, max height x100
-        { 241, 2, 360, 440 }, { 242, 2, 360, 440 }, { 243, 2, 360, 440 }, { 244, 2, 360, 440 },
-        { 662, 1, 145, 175 },
-    };
-    private static final java.util.HashMap<Integer, int[]> headCapCache = new java.util.HashMap<>();
-    private static final java.util.HashSet<Long> headTraced = new java.util.HashSet<>();
+    private static final int[][] NPC_HEAD_COMPONENTS = { { 241, 2 }, { 242, 2 }, { 243, 2 }, { 244, 2 }, { 662, 1 } };
+    private static final java.util.HashMap<Long, int[]> headExtents = new java.util.HashMap<>();
+    /** Only the team's test client (test hook) or -Drsps.measureHeads=true measures - never a player's client log. */
+    private static final boolean MEASURE_HEADS = System.getProperty("rsps.testHook") != null || Boolean.getBoolean("rsps.measureHeads");
 
-    private static void capNpcHead(Component child, Model model, int centreX, int centreY, int scaleX, int scaleY) {
-        int[] limit = null;
-        for (int[] l : NPC_HEAD_LIMITS) {
-            if (l[0] == child.slot >>> 16 && l[1] == (child.slot & 0xFFFF)) {
-                limit = l;
+    private static void measureNpcHead(Component child, Model model, int anchorX, int anchorY, int scaleX, int scaleY, int clipX1, int clipY1, int clipX2, int clipY2) {
+        boolean listed = false;
+        for (int[] c : NPC_HEAD_COMPONENTS) {
+            if (c[0] == child.slot >>> 16 && c[1] == (child.slot & 0xFFFF)) {
+                listed = true;
             }
         }
-        if (limit == null) {
+        if (!listed || !MEASURE_HEADS) {
             return;
         }
-        int[] cached = headCapCache.get(child.slot);
-        if (cached == null || cached[0] != child.obj || cached[1] != child.width || cached[2] != child.height) {
-            int[] xs = { model.V(), model.RA() };
-            int[] ys = { model.fa(), model.EA() };
-            int[] zs = { model.HA(), model.G() };
-            float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, minY = Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
-            for (int x : xs) {
-                for (int y : ys) {
-                    for (int z : zs) {
-                        Static59.aMatrix_5.project(x, y, z, fitCorner);
-                        if (fitCorner[2] <= 16) {
-                            return;
-                        }
-                        float sx = (float) fitCorner[0] / fitCorner[2];
-                        float sy = (float) fitCorner[1] / fitCorner[2];
-                        minX = Math.min(minX, sx);
-                        maxX = Math.max(maxX, sx);
-                        minY = Math.min(minY, sy);
-                        maxY = Math.max(maxY, sy);
+        int[] xs = { model.V(), model.RA() };
+        int[] ys = { model.fa(), model.EA() };
+        int[] zs = { model.HA(), model.G() };
+        float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, minY = Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+        for (int x : xs) {
+            for (int y : ys) {
+                for (int z : zs) {
+                    Static59.aMatrix_5.project(x, y, z, fitCorner);
+                    if (fitCorner[2] <= 16) {
+                        return;
                     }
+                    float sx = (float) fitCorner[0] / fitCorner[2];
+                    float sy = (float) fitCorner[1] / fitCorner[2];
+                    minX = Math.min(minX, sx);
+                    maxX = Math.max(maxX, sx);
+                    minY = Math.min(minY, sy);
+                    maxY = Math.max(maxY, sy);
                 }
             }
-            float width = (maxX - minX) * scaleX / Math.max(1, child.width);
-            float height = (maxY - minY) * scaleY / Math.max(1, child.height);
-            float factor = Math.min(1.0F, Math.min(limit[2] / 100.0F / Math.max(width, 0.0001F), limit[3] / 100.0F / Math.max(height, 0.0001F)));
-            cached = new int[] { child.obj, child.width, child.height, (int) (factor * 4096) };
-            headCapCache.put(child.slot, cached);
-            if (headTraced.add(((long) child.slot << 32) | child.obj)) {
-                System.out.println("[78] npc head " + child.obj + " in " + (child.slot >>> 16) + ":" + (child.slot & 0xFFFF) + " size "
-                    + String.format(java.util.Locale.ROOT, "%.2f x %.2f", width, height) + " of its box -> scale "
-                    + String.format(java.util.Locale.ROOT, "%.2f", factor));
-            }
         }
-        if (cached[3] < 4096) {
-            Toolkit.active.DA(centreX, centreY, scaleX * cached[3] >> 12, scaleY * cached[3] >> 12);
+        int up = Math.round(-minY * scaleY);
+        int down = Math.round(maxY * scaleY);
+        int left = Math.round(-minX * scaleX);
+        int right = Math.round(maxX * scaleX);
+        long key = ((long) child.slot << 32) | ((long) (child.obj & 0xFFFF) << 16) | (child.zoom2d & 0xFFFF);
+        int[] seen = headExtents.get(key);
+        if (seen != null && up <= seen[0] && down <= seen[1] && left <= seen[2] && right <= seen[3]) {
+            return;
         }
+        seen = seen == null ? new int[] { up, down, left, right }
+            : new int[] { Math.max(up, seen[0]), Math.max(down, seen[1]), Math.max(left, seen[2]), Math.max(right, seen[3]) };
+        headExtents.put(key, seen);
+        System.out.println("[78] npc head " + child.obj + " on " + (child.slot >>> 16) + ":" + (child.slot & 0xFFFF) + " zoom " + child.zoom2d
+            + " ext " + seen[0] + "/" + seen[1] + "/" + seen[2] + "/" + seen[3]
+            + " room " + (anchorY - clipY1) + "/" + (clipY2 - anchorY) + "/" + (anchorX - clipX1) + "/" + (clipX2 - anchorX));
     }
 
     @OriginalMember(owner = "client!ls", name = "j", descriptor = "I")
@@ -1075,7 +1069,7 @@ public final class InterfaceManager {
                             if (!child.orthoView && hasFittedModel(child) && isFittedPreview(child)) {
                                 fitModelToBox(child, model, offsetX, offsetY);
                             } else if (!child.orthoView && child.objType == Component.OBJ_TYPE_NPCHEAD && model != null) {
-                                capNpcHead(child, model, local779, local792, local1255, local777);
+                                measureNpcHead(child, model, local779, local792, local1255, local777, x1, y1, x2, y2);
                             }
 
                             if (clipComponents || clipModelComponents && isFittedPreview(child)) {
