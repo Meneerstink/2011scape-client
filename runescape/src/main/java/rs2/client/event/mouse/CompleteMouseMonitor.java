@@ -125,7 +125,8 @@ public final class CompleteMouseMonitor extends MouseMonitor implements MouseLis
     @OriginalMember(owner = "client!ht", name = "a", descriptor = "(Ljava/awt/event/MouseEvent;B)I")
     public int getClickType(@OriginalArg(0) MouseEvent event) {
         if (event.getButton() == MouseEvent.BUTTON1) {
-            return event.isMetaDown() ? CLICK_TYPE_RIGHT : CLICK_TYPE_LEFT;
+            // 2026-10-17 (MAC): Ctrl+click is the macOS right click
+            return event.isMetaDown() || (com.jagex.RspsPlatform.MAC && event.isControlDown()) ? CLICK_TYPE_RIGHT : CLICK_TYPE_LEFT;
         } else if (event.getButton() == MouseEvent.BUTTON2) {
             return CLICK_TYPE_MIDDLE;
         } else if (event.getButton() == MouseEvent.BUTTON3) {

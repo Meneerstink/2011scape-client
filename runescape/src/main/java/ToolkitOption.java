@@ -45,7 +45,8 @@ public final class ToolkitOption extends Option {
     @Override
     protected int getDefaultValue() {
         this.dflt = true;
-        return super.options.getEnvironment().isSigned() ? com.jagex.graphics.ToolkitType.GL : 0;
+        // 2026-10-17 (MAC): a Mac starts on the Software renderer (0); OpenGL stays selectable in the Graphics options
+        return super.options.getEnvironment().isSigned() && !com.jagex.RspsPlatform.MAC ? com.jagex.graphics.ToolkitType.GL : 0;
     }
 
     @OriginalMember(owner = "client!tba", name = "a", descriptor = "(ZI)V")

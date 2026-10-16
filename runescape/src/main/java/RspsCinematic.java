@@ -90,7 +90,8 @@ public final class RspsCinematic {
                 kept = java.util.Arrays.copyOf(own.data, own.pos);
                 keptToolkit = options.toolkit.getValue();
             }
-            int hardware = ToolkitType.isHardware(keptToolkit) ? keptToolkit : ToolkitType.GL;
+            // 2026-10-17 (MAC): no forced switch to OpenGL on a Mac - the intro plays on the player's own renderer
+            int hardware = ToolkitType.isHardware(keptToolkit) || com.jagex.RspsPlatform.MAC ? keptToolkit : ToolkitType.GL;
             options.update(hardware, options.toolkit);
             RspsGraphicsProfile.apply(options);
             Static32.setToolkit(hardware, false);
