@@ -32,6 +32,10 @@ tasks.named<JavaExec>("run") {
     // Owner A2 2026-10-11: agent test clients pass -Prsps.preferencesDir so they never write the owner's
     // jagex_runescape_preferences.dat or ~/.rsps78 (window size, HUD position, sidebar pins). The owner's launcher passes nothing.
     providers.gradleProperty("rsps.preferencesDir").orNull?.let { systemProperty("rsps.preferencesDir", it) }
+    // Agent team 2026-10-14: the agent's test client takes clicks/keys/screenshots on this local port (com.jagex.TestHook)
+    // instead of the owner's real mouse and screen. Only tools\live\RestartClient.ps1 passes it.
+    providers.gradleProperty("rsps.testHook").orNull?.let { systemProperty("rsps.testHook", it) }
+    providers.gradleProperty("rsps.testSound").orNull?.let { systemProperty("rsps.testSound", it) }
 
     // Owner D3 2026-10-11 (crash "NoClassDefFoundError: Static304", 2026-10-10 21:20:02): the client ran straight from
     // runescape/build/libs/runescape.jar; 75 s after the owner started his client another session ran `gradlew :client:jar`,
@@ -91,6 +95,9 @@ tasks.named<Jar>("jar") {
         configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) }
     }) {
         exclude("META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA")
+        // Owner 2026-10-17 (T18): the agent team's test hook (local click/key/screenshot port) is never in the player jar;
+        // the client reaches it only through RspsTestBridge, which stays off when these classes are missing.
+        exclude("com/jagex/TestHook.class", "com/jagex/TestHook$*.class", "RspsTestDetail.class", "RspsTestDetail$*.class")
         // Owner 2026-10-11: the 27 MB player client could not be sent over Discord. Left out of the player jar:
         // - META-INF/versions: Java 9+ copies of library classes, never read (this manifest is not Multi-Release);
         // - BouncyCastle beyond what com.jagex.crypto reaches (jdeps closure 2026-10-11: 264 classes in asn1, asn1.pkcs/x509/x9,

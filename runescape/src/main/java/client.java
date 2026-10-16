@@ -839,6 +839,9 @@ public final class client extends GameShell {
             debugconsole.draw(Toolkit.active);
         }
 
+        // Agent team test client (-Drsps.testHook): a waiting screenshot request takes this finished frame.
+        RspsTestBridge.beforeFlip();
+
         if (GameShell.signLink.microsoftjava && MainLogicStep.method6445(MainLogicManager.step) && InterfaceManager.rectDebug == 0 && InterfaceManager.getWindowMode() == 1 && !local209) {
             @Pc(110) int rectangle = 0;
 
@@ -933,6 +936,7 @@ public final class client extends GameShell {
         }
 
         RspsGraphicsProfile.processPendingRestore();
+        RspsTestBridge.processDetail();
         RspsCinematic.process();
         TimeUtils.clock++;
 
@@ -1166,6 +1170,7 @@ public final class client extends GameShell {
 
         KeyboardMonitor.instance = KeyboardMonitor.create(GameShell.canvas);
         MouseMonitor.instance = MouseMonitor.create(GameShell.canvas);
+        RspsTestBridge.start();
 
         try {
             if (GameShell.signLink.cacheDat != null) {

@@ -49,6 +49,10 @@ public final class PcmPlayer_Sub1 extends PcmPlayer {
     @OriginalMember(owner = "client!cb", name = "b", descriptor = "()V")
     @Override
     protected void method3590() {
+        // Agent team test client: silent speakers, the whole sound path (and its [avtrace]) still runs (RspsTestBridge.SILENT).
+        if (RspsTestBridge.SILENT) {
+            java.util.Arrays.fill(super.anIntArray315, 0);
+        }
         @Pc(1) short local1 = 256;
         if (Node_Sub6_Sub5.stereo) {
             local1 = 512;
