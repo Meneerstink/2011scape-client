@@ -3332,7 +3332,9 @@ public final class GlToolkit extends Toolkit {
     private void rspsStretchSync() {
         // Only the game canvas is stretched; any other canvas this toolkit draws on gets the window itself.
         boolean gameCanvas = this.aCanvas11 != null && this.aCanvas11 == com.jagex.game.runetek6.client.GameShell.canvas;
-        if (com.jagex.StretchedMode.glSync(gameCanvas && this.rspsStretchSupported(), this.anInt7864, this.anInt7904)) {
+        // The scissor test is on whenever the clip is not the whole surface (as in flip): a clear after a buffer change must reach every pixel.
+        boolean scissor = this.anInt8000 != 0 || this.anInt8032 != 0 || this.anInt8028 != this.anInt7869 || this.anInt8012 != this.anInt7956;
+        if (com.jagex.StretchedMode.glSync(gameCanvas && this.rspsStretchSupported(), this.anInt7864, this.anInt7904, scissor)) {
             InterfaceManager.redrawAll();
         }
     }

@@ -466,6 +466,11 @@ final class RspsHudConfig {
         hidden.clear();
         highlightedNames.clear();
         hiddenNames.clear();
+        // fresh memory (start / tests): no local change waits for a server confirmation
+        if (pending != null) { // null while the static block runs (declared further down)
+            pending.clear();
+            pendingAt.clear();
+        }
         revision++;
     }
 
@@ -573,6 +578,99 @@ final class RspsHudConfig {
         // Resizable scaling does nothing in fixed mode).
         if (!wasOn && com.jagex.StretchedMode.fillsWindow() && InterfaceManager.getWindowMode() == com.jagex.core.constants.WindowMode.FIXED) {
             InterfaceManager.restoreRememberedWindow();
+        }
+        saveClientSettings();
+    }
+
+    // ---- Stretched Mode in the client's own config (A2 round 4, Keurmeester A2 round 3 reason 2) -------------------------
+    //
+    // RuneLite keeps StretchedModeConfig in the client's config (its settings.properties), so its login screen is stretched
+    // right after a start and a choice survives a restart before any login. Here the values lived only in memory and came back
+    // with an account's push after login: a restarted client showed the login screen unstretched and forgot Keep aspect ratio /
+    // scaling set before the restart (owner done-list 8 "alles wordt onthouden na uitloggen, client-herstart en dagen
+    // offline"). The client now keeps the five Stretched keys in stretchedmode.properties in the same folder as its overlay
+    // positions (RspsOverlayLayout.file); an account's own saved values still come with its login push and are remembered here
+    // from then on, and a new account adopts these (cfgadopt).
+
+    private static final String[] CLIENT_KEYS = {"stretchedmode.enabled", "stretchedmode.keepAspectRatio", "stretchedmode.increasedPerformance",
+        "stretchedmode.integerScaling", "stretchedmode.scalingFactor"};
+    /** Null until the client read its file at start: unit tests and tools never write a prefs folder. */
+    private static java.io.File clientFile;
+    private static String savedClient = "";
+    private static volatile boolean clientApplyPending;
+
+    /** RS2Loader, once at start (before the sidebar is made): reads the client's own Stretched Mode settings. */
+    static synchronized void loadClientSettings() {
+        java.io.File file = new java.io.File(RspsOverlayLayout.file().getParentFile(), "stretchedmode.properties");
+        if (file.isFile()) {
+            java.util.Properties properties = new java.util.Properties();
+            try (java.io.Reader reader = new java.io.InputStreamReader(new java.io.FileInputStream(file), "UTF-8")) {
+                properties.load(reader);
+            } catch (Exception unreadable) {
+                properties.clear();
+            }
+            for (String key : CLIENT_KEYS) {
+                String value = properties.getProperty(key);
+                if (value != null && validClientValue(key, value.trim())) {
+                    values.put(key, value.trim());
+                }
+            }
+        }
+        clientFile = file;
+        savedClient = clientSnapshot();
+        revision++;
+        clientApplyPending = true;
+    }
+
+    /** The game loop: once after the start-up read, the settings go to the stretching (the login screen is laid out with them). */
+    static boolean takeClientApply() {
+        boolean pending = clientApplyPending;
+        clientApplyPending = false;
+        return pending;
+    }
+
+    private static boolean validClientValue(String key, String value) {
+        if (key.endsWith(".scalingFactor")) {
+            try {
+                return Integer.parseInt(value) >= 0;
+            } catch (NumberFormatException bad) {
+                return false;
+            }
+        }
+        return value.equals("true") || value.equals("false");
+    }
+
+    private static String clientSnapshot() {
+        StringBuilder text = new StringBuilder();
+        for (String key : CLIENT_KEYS) {
+            String value = values.get(key);
+            if (value != null) {
+                text.append(key).append('=').append(value).append('\n');
+            }
+        }
+        return text.toString();
+    }
+
+    /** After every change: the client's file follows its Stretched values (only when they changed). */
+    private static synchronized void saveClientSettings() {
+        java.io.File file = clientFile;
+        if (file == null) {
+            return;
+        }
+        String now = clientSnapshot();
+        if (now.equals(savedClient)) {
+            return;
+        }
+        savedClient = now;
+        java.io.File dir = file.getParentFile();
+        if (dir != null && !dir.isDirectory() && !dir.mkdirs()) {
+            return;
+        }
+        try (java.io.Writer writer = new java.io.OutputStreamWriter(new java.io.FileOutputStream(file), "UTF-8")) {
+            writer.write("# 78 client: RuneLite Stretched Mode settings (kept by the client, like RuneLite's settings.properties)\n");
+            writer.write(now);
+        } catch (java.io.IOException unwritable) {
+            // kept for this session; the account still has them on the server
         }
     }
 

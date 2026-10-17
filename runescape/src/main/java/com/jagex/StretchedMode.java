@@ -351,6 +351,53 @@ public final class StretchedMode {
         return canvas != null && canvas.getHeight() > 0 ? canvas.getHeight() : stretchedHeight;
     }
 
+    /**
+     * The OpenGL calls of the stretch framebuffer, behind one seam so StretchedFrameRegressionTest can follow every buffer
+     * the game draws into and what the window shows (the real client: {@link jaggl.OpenGL}).
+     */
+    public interface Gl {
+        void glBindFramebufferEXT(int target, int framebuffer);
+        void glBlitFramebufferEXT(int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0, int dstX1, int dstY1, int mask, int filter);
+        void glDisable(int cap);
+        void glEnable(int cap);
+        void glGenFramebuffersEXT(int n, int[] ids, int offset);
+        void glGenRenderbuffersEXT(int n, int[] ids, int offset);
+        void glBindRenderbufferEXT(int target, int renderbuffer);
+        void glRenderbufferStorageEXT(int target, int format, int width, int height);
+        void glFramebufferRenderbufferEXT(int target, int attachment, int renderbufferTarget, int renderbuffer);
+        int glCheckFramebufferStatusEXT(int target);
+        void glDeleteFramebuffersEXT(int n, int[] ids, int offset);
+        void glDeleteRenderbuffersEXT(int n, int[] ids, int offset);
+        void glClearColor(float red, float green, float blue, float alpha);
+        void glClear(int mask);
+    }
+
+    private static final class NativeGl implements Gl {
+        public void glBindFramebufferEXT(int target, int framebuffer) { OpenGL.glBindFramebufferEXT(target, framebuffer); }
+        public void glBlitFramebufferEXT(int a, int b, int c, int d, int e, int f, int g, int h, int mask, int filter) { OpenGL.glBlitFramebufferEXT(a, b, c, d, e, f, g, h, mask, filter); }
+        public void glDisable(int cap) { OpenGL.glDisable(cap); }
+        public void glEnable(int cap) { OpenGL.glEnable(cap); }
+        public void glGenFramebuffersEXT(int n, int[] ids, int offset) { OpenGL.glGenFramebuffersEXT(n, ids, offset); }
+        public void glGenRenderbuffersEXT(int n, int[] ids, int offset) { OpenGL.glGenRenderbuffersEXT(n, ids, offset); }
+        public void glBindRenderbufferEXT(int target, int renderbuffer) { OpenGL.glBindRenderbufferEXT(target, renderbuffer); }
+        public void glRenderbufferStorageEXT(int target, int format, int width, int height) { OpenGL.glRenderbufferStorageEXT(target, format, width, height); }
+        public void glFramebufferRenderbufferEXT(int target, int attachment, int rbTarget, int rb) { OpenGL.glFramebufferRenderbufferEXT(target, attachment, rbTarget, rb); }
+        public int glCheckFramebufferStatusEXT(int target) { return OpenGL.glCheckFramebufferStatusEXT(target); }
+        public void glDeleteFramebuffersEXT(int n, int[] ids, int offset) { OpenGL.glDeleteFramebuffersEXT(n, ids, offset); }
+        public void glDeleteRenderbuffersEXT(int n, int[] ids, int offset) { OpenGL.glDeleteRenderbuffersEXT(n, ids, offset); }
+        public void glClearColor(float red, float green, float blue, float alpha) { OpenGL.glClearColor(red, green, blue, alpha); }
+        public void glClear(int mask) { OpenGL.glClear(mask); }
+    }
+
+    /** The real driver; tests put a recording one in ({@link #useGlForTest}). */
+    private static Gl gl = new NativeGl();
+
+    /** Tests: draw through [fake] instead of the driver (null = the driver again); forgets every framebuffer. */
+    public static void useGlForTest(Gl fake) {
+        gl = fake == null ? new NativeGl() : fake;
+        glContextLost();
+    }
+
     // ---- OpenGL (RuneLite GpuPlugin) ------------------------------------------------------------------------------------
     //
     // The game draws into an offscreen framebuffer at its real size, bound as the toolkit's "window"; every flip blits it
@@ -412,12 +459,49 @@ public final class StretchedMode {
      * client draws into changed, so every interface has to be drawn again.
      */
     public static boolean glSync(boolean supported, int width, int height) {
+        return glSync(supported, width, height, false);
+    }
+
+    /**
+     * {@link #glSync(boolean, int, int)} with the toolkit's scissor state ([scissor] = the scissor test is on now).
+     *
+     * A2 round 4 / N93 (Keurmeester A2 round 3 reason 1): the 2011 client never clears pixels no interface covers - the intro
+     * hides the fixed side panel, minimap and chat tabs, so x 516..765 is simply not drawn. Every change of the buffer the game
+     * draws into left an old picture there: Stretched OFF went back to the window, which still held the last stretched blit
+     * (a frozen ghost of the scene and a second Deadman label); Stretched ON / a new real size / a new GL context stores new
+     * renderbuffers, whose contents are undefined. The window's own pixels are black because the client cleared it at start.
+     * So after every such change the target is cleared black for {@link #CLEAR_FLIPS} flips (both window buffers, also with
+     * triple buffering) before the client draws into it; RuneLite's GPU plugin clears its framebuffers every frame.
+     */
+    public static boolean glSync(boolean supported, int width, int height, boolean scissor) {
+        boolean changed = glSyncBuffer(supported, width, height);
+        if (changed) {
+            clearFlips = CLEAR_FLIPS;
+        }
+        if (clearFlips > 0) {
+            clearFlips--;
+            if (scissor) {
+                gl.glDisable(GL_SCISSOR_TEST);
+            }
+            gl.glClearColor(0F, 0F, 0F, 1F);
+            gl.glClear(GL_COLOR_BUFFER_BIT);
+            if (scissor) {
+                gl.glEnable(GL_SCISSOR_TEST);
+            }
+        }
+        return changed;
+    }
+
+    /** Flips that still clear the target after a buffer change (front + back + one spare for triple buffering). */
+    static final int CLEAR_FLIPS = 3;
+    private static int clearFlips;
+    private static boolean glSyncBuffer(boolean supported, int width, int height) {
         boolean want = supported && !glFailed && active() && width > 0 && height > 0;
         if (!want) {
             if (!bound) {
                 return false;
             }
-            OpenGL.glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
+            gl.glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
             deleteBuffer();
             return true;
         }
@@ -431,7 +515,7 @@ public final class StretchedMode {
             Client.changingWindowMode = true;
             return true;
         }
-        OpenGL.glBindFramebufferEXT(GL_FRAMEBUFFER, framebuffer);
+        gl.glBindFramebufferEXT(GL_FRAMEBUFFER, framebuffer);
         bound = true;
         return true;
     }
@@ -452,38 +536,38 @@ public final class StretchedMode {
             return;
         }
         if (scissor) {
-            OpenGL.glDisable(GL_SCISSOR_TEST);
+            gl.glDisable(GL_SCISSOR_TEST);
         }
-        OpenGL.glBindFramebufferEXT(GL_READ_FRAMEBUFFER, framebuffer);
-        OpenGL.glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, 0);
-        OpenGL.glBlitFramebufferEXT(0, 0, bufferWidth, bufferHeight, 0, 0, canvasWidth, canvasHeight, GL_COLOR_BUFFER_BIT, fast ? GL_NEAREST : GL_LINEAR);
-        OpenGL.glBindFramebufferEXT(GL_FRAMEBUFFER, framebuffer);
+        gl.glBindFramebufferEXT(GL_READ_FRAMEBUFFER, framebuffer);
+        gl.glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, 0);
+        gl.glBlitFramebufferEXT(0, 0, bufferWidth, bufferHeight, 0, 0, canvasWidth, canvasHeight, GL_COLOR_BUFFER_BIT, fast ? GL_NEAREST : GL_LINEAR);
+        gl.glBindFramebufferEXT(GL_FRAMEBUFFER, framebuffer);
         if (scissor) {
-            OpenGL.glEnable(GL_SCISSOR_TEST);
+            gl.glEnable(GL_SCISSOR_TEST);
         }
     }
 
     private static boolean createBuffer(int width, int height) {
         int[] ids = new int[1];
         if (framebuffer == 0) {
-            OpenGL.glGenFramebuffersEXT(1, ids, 0);
+            gl.glGenFramebuffersEXT(1, ids, 0);
             framebuffer = ids[0];
-            OpenGL.glGenRenderbuffersEXT(1, ids, 0);
+            gl.glGenRenderbuffersEXT(1, ids, 0);
             colourBuffer = ids[0];
-            OpenGL.glGenRenderbuffersEXT(1, ids, 0);
+            gl.glGenRenderbuffersEXT(1, ids, 0);
             depthBuffer = ids[0];
         }
-        OpenGL.glBindRenderbufferEXT(GL_RENDERBUFFER, colourBuffer);
-        OpenGL.glRenderbufferStorageEXT(GL_RENDERBUFFER, GL_RGBA8, width, height);
+        gl.glBindRenderbufferEXT(GL_RENDERBUFFER, colourBuffer);
+        gl.glRenderbufferStorageEXT(GL_RENDERBUFFER, GL_RGBA8, width, height);
         // The 3D scene needs a depth buffer like the window's (the client uses no stencil).
-        OpenGL.glBindRenderbufferEXT(GL_RENDERBUFFER, depthBuffer);
-        OpenGL.glRenderbufferStorageEXT(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height);
-        OpenGL.glBindRenderbufferEXT(GL_RENDERBUFFER, 0);
-        OpenGL.glBindFramebufferEXT(GL_FRAMEBUFFER, framebuffer);
-        OpenGL.glFramebufferRenderbufferEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colourBuffer);
-        OpenGL.glFramebufferRenderbufferEXT(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
-        int status = OpenGL.glCheckFramebufferStatusEXT(GL_FRAMEBUFFER);
-        OpenGL.glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
+        gl.glBindRenderbufferEXT(GL_RENDERBUFFER, depthBuffer);
+        gl.glRenderbufferStorageEXT(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height);
+        gl.glBindRenderbufferEXT(GL_RENDERBUFFER, 0);
+        gl.glBindFramebufferEXT(GL_FRAMEBUFFER, framebuffer);
+        gl.glFramebufferRenderbufferEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colourBuffer);
+        gl.glFramebufferRenderbufferEXT(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
+        int status = gl.glCheckFramebufferStatusEXT(GL_FRAMEBUFFER);
+        gl.glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
         bufferWidth = width;
         bufferHeight = height;
         if (status != GL_FRAMEBUFFER_COMPLETE) {
@@ -497,11 +581,11 @@ public final class StretchedMode {
         int[] ids = new int[1];
         if (framebuffer != 0) {
             ids[0] = framebuffer;
-            OpenGL.glDeleteFramebuffersEXT(1, ids, 0);
+            gl.glDeleteFramebuffersEXT(1, ids, 0);
             ids[0] = colourBuffer;
-            OpenGL.glDeleteRenderbuffersEXT(1, ids, 0);
+            gl.glDeleteRenderbuffersEXT(1, ids, 0);
             ids[0] = depthBuffer;
-            OpenGL.glDeleteRenderbuffersEXT(1, ids, 0);
+            gl.glDeleteRenderbuffersEXT(1, ids, 0);
         }
         framebuffer = colourBuffer = depthBuffer = 0;
         bufferWidth = bufferHeight = 0;

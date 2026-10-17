@@ -107,6 +107,8 @@ public final class RS2Loader implements AppletStub {
         frame.setMenuBar(menuBar);
 
         frame.add(applet);
+        // A2 round 4: the client's own Stretched Mode settings (RuneLite client config) before the sidebar shows them.
+        RspsHudConfig.loadClientSettings();
         // The 78 Plugins sidebar (RuneLite's look and feel and layout) on the right of the game view.
         RspsSidebar.install(frame);
         frame.addWindowListener(new CloseWindowListener());

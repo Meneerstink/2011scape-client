@@ -617,7 +617,9 @@ public final class Loading {
             // RSPS: a fixed-mode start keeps the window at the fixed canvas (changeWindowMode fits it).
             // RuneLite rememberScreenBounds: size and maximised state come back (a fixed start with Stretched Mode gets them when
             // the account's setting arrives at login, RspsHudConfig.applyStretchedMode).
-            if (ClientOptions.instance.startupWindowMode() != WindowMode.FIXED) {
+            // A2 round 4: Stretched Mode is known at start now (the client's own settings, RspsHudConfig.loadClientSettings), so a
+            // stretched fixed start gets the remembered window here as well - it no longer waits for a login push.
+            if (ClientOptions.instance.startupWindowMode() != WindowMode.FIXED || com.jagex.StretchedMode.fillsWindow()) {
                 InterfaceManager.restoreRememberedWindow(true);
             }
             InterfaceManager.changeWindowMode(ClientOptions.instance.startupWindowMode(), -1, -1, false);

@@ -81,6 +81,26 @@ val stretchedSidebarRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
+val stretchedFrameRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "A2 round 4 / N93: after every stretch buffer change (on/off, scaling, resize, new GL context) the screen shows no older frame or undefined memory (recording GL)."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("StretchedFrameRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
+val stretchedClientConfigRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "A2 round 4: the client keeps its own Stretched Mode settings over a restart (RuneLite client config) - login screen stretched before any login."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("StretchedClientConfigRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
 val rspsCameraRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks the RuneLite Camera plugin (mouse remapping, speed, pitch limit, shake) and OSRS's mouse camera and zoom without a display."

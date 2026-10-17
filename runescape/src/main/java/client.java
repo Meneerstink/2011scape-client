@@ -713,6 +713,11 @@ public final class client extends GameShell {
             Static719.aPcmPlayer_5.method3592();
         }
 
+        // A2 round 4: the client's own Stretched Mode settings (read at start) lay the login screen out before any login.
+        if (RspsHudConfig.takeClientApply()) {
+            RspsHudConfig.applyStretchedMode();
+        }
+
         if (MainLogicStep.method6445(MainLogicManager.step)) {
             // RuneLite Stretched Mode switched on or off with Anti-aliasing on: OpenGL needs a window with other multisampling.
             if (Toolkit.active instanceof GlToolkit && ((GlToolkit) Toolkit.active).rspsWindowNeedsRebuild()) {
