@@ -67,11 +67,11 @@ public final class StretchedModeRegressionTest {
         window(900, 600, 900, 600);
         StretchedMode.layout(false);
         check(GameShell.canvasWid >= 765 && GameShell.canvasHei >= 503, "Resizable: the game never gets smaller than 765x503");
-        // 667 layout floor (2026-10-11): the two-row side panel needs 520 px under the minimap; truncation gave 502 before.
+        // RuneLite floor 765x503 (A2 round 3; was the 667 layout floor 520 from 10-11 to 10-17): a truncated 502 is held on 503.
         window(1254, 761, 1254, 761);
         StretchedMode.configure(true, false, false, false, 58);
         StretchedMode.layout(false);
-        check(GameShell.canvasHei == 520 && GameShell.canvasWid >= 765, "Resizable 58% in 1254x761: game 520 high, not 502");
+        check(GameShell.canvasHei == 503 && GameShell.canvasWid >= 765, "Resizable 58% in 1254x761: game 503 high, not 502");
         check(StretchedMode.active() && StretchedMode.canvasHeight() == 761, "Resizable 58%: still drawn over the window");
         // Every Resizable scaling step fills the window (no black borders) and the game shrinks as the percentage grows.
         int previous = Integer.MAX_VALUE;
@@ -81,10 +81,10 @@ public final class StretchedModeRegressionTest {
             StretchedMode.layout(false);
             check(StretchedMode.canvasWidth() == 1648 && StretchedMode.canvasHeight() == 989 && GameShell.leftMargin == 0 && GameShell.topMargin == 0,
                 "Resizable " + percent + "%: fills the window");
-            check(GameShell.canvasWid <= previous && GameShell.canvasHei >= 520, "Resizable " + percent + "%: game " + GameShell.canvasWid + "x" + GameShell.canvasHei);
+            check(GameShell.canvasWid <= previous && GameShell.canvasHei >= 503, "Resizable " + percent + "%: game " + GameShell.canvasWid + "x" + GameShell.canvasHei);
             previous = GameShell.canvasWid;
         }
-        // Night run 2026-10-12: never shrunk. A window lower than the 520 floor (765x503) drew the 791x520 game shrunk into it and
+        // Night run 2026-10-12: never shrunk. A window lower than the (then 520) floor (765x503) drew the 791x520 game shrunk into it and
         // Increased performance dropped pixel rows out of the text; RuneLite never draws the game smaller than it is.
         StretchedMode.configure(true, false, false, false, 50);
         window(765, 503, 765, 503);
@@ -92,9 +92,9 @@ public final class StretchedModeRegressionTest {
         check(GameShell.canvasWid == 765 && GameShell.canvasHei == 503, "Resizable in a 765x503 window: 1:1, not shrunk: " + GameShell.canvasWid + "x" + GameShell.canvasHei);
         window(900, 510, 900, 510);
         StretchedMode.layout(false);
-        check(GameShell.canvasHei == 510 && GameShell.canvasWid <= 900, "Resizable in a 510 px high window: the game is 510 high: " + GameShell.canvasWid + "x" + GameShell.canvasHei);
+        check(GameShell.canvasHei == 503 && GameShell.canvasWid <= 900, "Resizable 50% in a 510 px high window: the game is on the 503 floor: " + GameShell.canvasWid + "x" + GameShell.canvasHei);
         // Every window from the smallest the frame allows up to the laptop screen, every scaling step 0..200 % (RuneLite has no
-        // maximum): the game is never larger than the window it is drawn over, and never lower than 520 where the window allows it.
+        // maximum): the game is never larger than the window it is drawn over, and never lower than 503 where the window allows it.
         int[][] windows = {{765, 503}, {765, 519}, {765, 520}, {800, 560}, {854, 581}, {944, 581}, {1029, 761}, {1254, 761}, {1648, 989}, {1890, 989}, {1920, 1080}};
         for (int[] w : windows) {
             for (int percent = 0; percent <= 200; percent += 5) {
@@ -103,7 +103,7 @@ public final class StretchedModeRegressionTest {
                 StretchedMode.layout(false);
                 check(GameShell.canvasWid <= w[0] && GameShell.canvasHei <= w[1],
                     "Resizable " + percent + "% in " + w[0] + "x" + w[1] + ": game " + GameShell.canvasWid + "x" + GameShell.canvasHei + " never larger than the window");
-                check(GameShell.canvasWid >= Math.min(765, w[0]) && GameShell.canvasHei >= Math.min(520, w[1]),
+                check(GameShell.canvasWid >= Math.min(765, w[0]) && GameShell.canvasHei >= Math.min(503, w[1]),
                     "Resizable " + percent + "% in " + w[0] + "x" + w[1] + ": floor " + GameShell.canvasWid + "x" + GameShell.canvasHei);
                 for (boolean keep : new boolean[] {false, true}) {
                     for (boolean integer : new boolean[] {false, true}) {

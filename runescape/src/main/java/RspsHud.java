@@ -56,6 +56,10 @@ final class RspsHud {
                 RspsHudConfig.handle(kind, rest);
                 RspsHudGroundItems.markDirty();
                 RspsSidebar.refreshLater();
+            } else if (kind.equals("cfgadopt")) {
+                // A2 round 3 / N93: the account never set these Stretched Mode settings - it takes this client's (RuneLite: the
+                // client's config wins; a login never switches Stretched Mode off).
+                RspsHudConfig.adopt(rest);
             } else if (kind.equals("boost")) {
                 RspsHudBoosts.update(rest);
             } else if (kind.equals("opp")) {

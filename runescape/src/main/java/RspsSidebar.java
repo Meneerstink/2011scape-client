@@ -391,13 +391,10 @@ final class RspsSidebar extends JPanel {
                 }
             }
         }
-        // The open panel takes its width from the window: the minimum size grows with it, so the window can't be dragged
-        // narrower than the game view (in fixed mode that pushed the frame's left side off screen).
-        if (frame != null) {
-            Dimension min = frame.getMinimumSize();
-            int panel = PANEL_WIDTH + SCROLLBAR_WIDTH;
-            frame.setMinimumSize(new Dimension(Math.max(0, min.width + (open ? panel : -panel)), min.height));
-        }
+        // revalidateMinimumSize already counts the open panel (RuneLite ClientUI: frame minimum = layout minimum). The 10-11
+        // code added / subtracted the panel width once more here: opening made the minimum 765+30+242+242, so the owner's 944
+        // px game jumped to 1007 and the window could not get narrower than 1279; closing dropped it to 765+30-242, so the game
+        // could be dragged to 570 px (A2 round 3, Keurmeester round 2 reason 1).
         revalidate();
         repaint();
     }

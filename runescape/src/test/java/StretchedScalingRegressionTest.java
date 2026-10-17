@@ -37,7 +37,7 @@ public final class StretchedScalingRegressionTest {
         GameShell.canvas = new Canvas();
         StretchedMode.toolkitChanged(true);
 
-        // 1. The formula (RuneLite getRealDimensions + the owner's 520 floor) over every window from the smallest frame to the
+        // 1. The formula (RuneLite getRealDimensions, 765x503 floor since A2 round 3) over every window from the smallest frame to the
         //    laptop screen: below the maximum every step changes the game, above it nothing does.
         List<int[]> windows = new ArrayList<int[]>();
         for (int w = 765; w <= 1920; w += 23) {
@@ -64,6 +64,24 @@ public final class StretchedScalingRegressionTest {
             }
             checkedWindows++;
         }
+
+        // 1b. A2 round 3 (Keurmeester round 2 reason 2; owner 10-17 VRAGEN 23 C "precies RuneLite", "nooit kleiner dan 765x503"):
+        //     every resizable size equals OpenOSRS StretchedModeMixin.getRealDimensions (ported verbatim below as an
+        //     independent oracle) - the 10-11 520 floor is gone. The one named difference: a truncated mixin size that falls a
+        //     pixel under 765x503 by float rounding is held on 765x503 (the 667 game never runs below its own minimum).
+        for (int[] w : windows) {
+            for (int p = 0; p <= 400; p = p < 120 ? p + 1 : p + 7) {
+                int[] mixin = runeLiteRealDimensions(w[0], w[1], p);
+                int[] expected = {Math.max(765, mixin[0]), Math.max(503, mixin[1])};
+                int[] ours = real(w[0], w[1], p);
+                check(java.util.Arrays.equals(ours, expected), w, "RuneLite getRealDimensions at " + p + "%: " + size(expected) + " (mixin " + size(mixin) + "), ours " + size(ours));
+            }
+        }
+        // The owner's window 944x581 by name (RuneLite numbers worked out by hand from the mixin): 15 % = 820x505, from 16 %
+        // the game is 817x503 - so the spinner runs 0..16.
+        check(java.util.Arrays.equals(real(944, 581, 15), new int[] {820, 505}), new int[] {944, 581}, "15% = 820x505 (" + size(real(944, 581, 15)) + ")");
+        check(java.util.Arrays.equals(real(944, 581, 16), new int[] {817, 503}), new int[] {944, 581}, "16% = 817x503 (" + size(real(944, 581, 16)) + ")");
+        check(oracleMax(944, 581) == 16, new int[] {944, 581}, "the owner's window: maximum 16% (" + oracleMax(944, 581) + ")");
 
         // 2. The sidebar spinner (the control the player uses).
         RspsHudConfig.resetToDefaults();
@@ -168,6 +186,30 @@ public final class StretchedScalingRegressionTest {
             "fixed without stretching (client-fitted 765x503): keeps the player's window maximum " + maxBig + "% (" + ((SpinnerNumberModel) spinner.getModel()).getMaximum() + ")");
         check(((Number) spinner.getValue()).intValue() == 50, new int[] {765, 503}, "fixed without stretching: shows the stored 50% (" + spinner.getValue() + ")");
 
+        // 3. N93 / A2 round 3: a new account's login never switches Stretched Mode off (RuneLite: the client's config). The
+        //    player switches it on at the login screen with his own values; the login push of an account that never set them
+        //    leaves them out (server ClientHudConfig.push) and asks for them ("cfgadopt"): the client keeps them and sends each
+        //    as a `hud set`, so the account remembers them.
+        int[] login = {1648, 989};
+        RspsHudConfig.resetToDefaults();
+        RspsHud.drainForTest();
+        RspsHudConfig.put("stretchedmode.enabled", "true");
+        RspsHudConfig.put("stretchedmode.scalingFactor", "30");
+        RspsHudConfig.put("stretchedmode.keepAspectRatio", "true");
+        RspsHud.handle("cfg|boosts.enabled=true;opponent.enabled=true");
+        check(StretchedMode.enabled(), login, "a login push without Stretched Mode keys keeps the player's Stretched Mode on");
+        String[][] own = {{"stretchedmode.enabled", "true"}, {"stretchedmode.scalingFactor", "30"}, {"stretchedmode.keepAspectRatio", "true"},
+            {"stretchedmode.integerScaling", "false"}, {"stretchedmode.increasedPerformance", "false"}};
+        for (String[] kv : own) {
+            RspsHud.drainForTest();
+            RspsHud.handle("cfgadopt|" + kv[0]);
+            String answer = RspsHud.drainForTest();
+            check(("hud set " + kv[0] + " " + kv[1]).equals(answer), login, "cfgadopt " + kv[0] + ": the client hands its own value " + kv[1] + " to the account (sent '" + answer + "')");
+        }
+        RspsHud.handle("cfgadopt|boosts.enabled");
+        check(RspsHud.drainForTest() == null, login, "cfgadopt takes only Stretched Mode keys");
+        check(StretchedMode.enabled(), login, "after the adopt the player's Stretched Mode is still on");
+
         report(checkedWindows);
     }
 
@@ -180,6 +222,24 @@ public final class StretchedScalingRegressionTest {
         GameShell.canvasHei = height;
         StretchedMode.layout(false);
         return new int[] {GameShell.canvasWid, GameShell.canvasHei};
+    }
+
+    /**
+     * OpenOSRS StretchedModeMixin.getRealDimensions, resizable branch, verbatim (github.com/open-osrs/runelite
+     * runelite-mixins/.../StretchedModeMixin.java l.92-130): scalingFactor = 1 + factor / 100D (setScalingFactor l.78-81).
+     */
+    private static int[] runeLiteRealDimensions(int parentWidth, int parentHeight, int factor) {
+        double scalingFactor = 1 + (factor / 100D);
+        int newWidth = (int) (parentWidth / scalingFactor);
+        int newHeight = (int) (parentHeight / scalingFactor);
+        if (newWidth < 765 || newHeight < 503) {
+            double scalingFactorW = (double) parentWidth / 765;
+            double scalingFactorH = (double) parentHeight / 503;
+            double clamp = Math.min(scalingFactorW, scalingFactorH);
+            newWidth = (int) (parentWidth / clamp);
+            newHeight = (int) (parentHeight / clamp);
+        }
+        return new int[] {newWidth, newHeight};
     }
 
     /** The first percentage whose game size equals that of every larger percentage (the spinner's maximum). */

@@ -72,6 +72,15 @@ val stretchedScalingRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
+val stretchedSidebarRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "A2 round 3: opening/closing the 78 Plugins sidebar keeps the game area (RuneLite KEEP_GAME_SIZE) and the window minimum = game 765 + sidebar (needs a desktop; the frame is never shown)."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("StretchedSidebarRegressionTest")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
 val rspsCameraRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks the RuneLite Camera plugin (mouse remapping, speed, pitch limit, shake) and OSRS's mouse camera and zoom without a display."

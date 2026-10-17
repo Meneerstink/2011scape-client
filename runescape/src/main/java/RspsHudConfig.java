@@ -589,6 +589,21 @@ final class RspsHudConfig {
         return true;
     }
 
+    /**
+     * A2 round 3 / N93 (server ClientHudConfig.login "cfgadopt"): the account has never set these Stretched Mode settings, so the
+     * login push left them out and this client keeps its own values (RuneLite keeps Stretched Mode in the client's config - a new
+     * player who switched it on at the login screen kept it on). They go to the server as ordinary changes, so the account
+     * remembers them from now on. Only Stretched Mode keys are taken.
+     */
+    static synchronized void adopt(String keys) {
+        for (String key : keys.split(",")) {
+            String value = values.get(key);
+            if (key.startsWith("stretchedmode.") && value != null) {
+                RspsHud.command("hud set " + key + " " + value);
+            }
+        }
+    }
+
     static synchronized void handle(String kind, String rest) {
         if (kind.equals("cfg")) {
             for (String pair : rest.split(";")) {

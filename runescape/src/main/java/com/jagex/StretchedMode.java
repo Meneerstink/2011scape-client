@@ -24,13 +24,13 @@ public final class StretchedMode {
     private static final int FIXED_WIDTH = 765;
     private static final int FIXED_HEIGHT = 503;
     /**
-     * RuneLite never makes the resizable game smaller than OSRS's 765x503, the size OSRS's resizable layout fits in. The
-     * 667 resizable layout (interface 746) is taller: below ~1000 px wide it puts the tabs in two rows, and the side panel
-     * with both tab rows (345 px) then needs the minimap and its orbs (174 px) above it - measured 2026-10-11 in an
-     * unstretched 850x561 client. At 503 px the panel covered the summoning orb and the world map button (owner A2:
-     * "resizable: interfaces too big / cut off"), so the stretched resizable game is never lower than this.
+     * RuneLite never makes the resizable game smaller than 765x503 (StretchedModeMixin.getRealDimensions, Constants
+     * GAME_FIXED_HEIGHT). From 10-11 to 10-17 this was 520 (the 667 two-row side panel can cover the summoning orb / world map
+     * button in a 503 px high game - the same picture an unstretched 503 px resizable window shows, the client's own minimum).
+     * Owner 2026-10-17 (VRAGEN 23 C, "precies RuneLite", "nooit kleiner dan 765x503") and Keurmeester A2 round 2: RuneLite's
+     * 503. On the owner's 944x581 window Resizable scaling now changes the game up to 16 % (was 12 %).
      */
-    static final int RESIZABLE_MIN_HEIGHT = 520;
+    static final int RESIZABLE_MIN_HEIGHT = FIXED_HEIGHT;
 
     private static boolean enabled;
     private static boolean keepAspectRatio;
@@ -213,7 +213,7 @@ public final class StretchedMode {
         int newHeight = (int) (parentHeight / factor);
         // The floor never exceeds the window: RuneLite stretches, it never shrinks the game into a smaller window (night run
         // 2026-10-12: a 765x503 window drew the 791x520 game shrunk, and with Increased performance letters fell out of the
-        // chat text). A window lower than 520 px shows the game 1:1, exactly as without the plugin.
+        // chat text). A window lower than 503 px shows the game 1:1, exactly as without the plugin.
         int minWidth = Math.min(FIXED_WIDTH, parentWidth);
         int minHeight = Math.min(RESIZABLE_MIN_HEIGHT, parentHeight);
         if (newWidth < minWidth || newHeight < minHeight) {
