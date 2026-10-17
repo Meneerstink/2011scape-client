@@ -252,7 +252,8 @@ public final class StretchedScalingRegressionTest {
                 OUT.println("     e.g. " + kind.getValue().get(i));
             }
         }
-        OUT.println("StretchedScalingRegressionTest: " + windows + " windows, " + assertions + " checks, " + failures.size() + " failed");
+        OUT.println("StretchedScalingRegressionTest: " + windows + " windows, " + assertions + " checks, "
+            + (failures.isEmpty() ? "all passed" : failures.size() + " failed"));
         if (!failures.isEmpty()) {
             throw new AssertionError(failures.size() + " Resizable scaling checks failed (first: " + failures.get(0) + ")");
         }
