@@ -673,6 +673,8 @@ public final class MainLogicManager {
                                     do {
                                         local2006 = (HookRequest) InterfaceManager.hookRequests.removeFirst();
                                         if (local2006 == null) {
+                                            // N72: re-probe spells whose redraw ran, re-layout when a filter result changed, draw the menu.
+                                            RspsSpellFilters.afterHooks();
                                             if (WorldMap.component == null) {
                                                 MiniMenu.anInt6964 = 0;
                                             }

@@ -2862,6 +2862,8 @@ public final class InterfaceManager {
         RspsGearSwitcher.observeMenuComponent(component);
         // 78Legacy v4: right-click setup "Add Wear / Prayer ... to Script N" (RspsScriptMenu; client only).
         RspsScriptMenu.addComponentOptions(component);
+        // N72: OSRS spell filters - "Enable/Disable spell filtering" on the magic tab stone, the Filters button, the filter menu.
+        RspsSpellFilters.addOptions(component);
 
         if (targetMode) {
             @Pc(16) ParamType param = targetParam == -1 ? null : ParamTypeList.instance.list(targetParam);

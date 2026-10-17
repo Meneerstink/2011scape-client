@@ -124,6 +124,18 @@ val runePouchRegression by tasks.registering(JavaExec::class) {
 
 tasks.check { dependsOn(runePouchRegression) }
 
+val spellFiltersRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "N72: the OSRS spell filters - which spells hide (lacks level / runes / requirements, open menu), the layout hook, the probe."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("RspsSpellFiltersRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
+tasks.check { dependsOn(spellFiltersRegression) }
+
 val debugOverlayRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks debug overlay startup defaults and explicit toggle behavior"

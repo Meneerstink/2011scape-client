@@ -1321,6 +1321,10 @@ public final class MiniMenu {
         if (RspsScriptMenu.handle(action, v1Long)) {
             return;
         }
+        // N72: OSRS spell filters (tab-stone op, Filters button, filter menu).
+        if (RspsSpellFilters.handle(action, v1Long)) {
+            return;
+        }
 
         // RuneLite Minimap: "Reset Zoom" (client only).
         if (action == RspsMinimapZoom.ACTION_RESET) {

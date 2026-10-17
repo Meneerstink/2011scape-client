@@ -43,6 +43,9 @@ final class RspsSprites {
     /** RuneLite Boosts' own infobox images (plugins/boosts/debuffed.png, buffed.png), in /boosts. */
     static final int RES_DEBUFFED = -1003;
     static final int RES_BUFFED = -1004;
+    /** N72: the OSRS spell-filter menu tick / cross (OSRS cache 2686 sprites 8384 / 8383, script 2606). */
+    static final int RES_FILTER_ON = -1005;
+    static final int RES_FILTER_OFF = -1006;
 
     /**
      * The OSRS hitsplat sprites RuneLite's infoboxes use, as OsrsHitsplatImportTool put them in this cache (tx-20261009-035259):
@@ -65,7 +68,8 @@ final class RspsSprites {
 
     private static Sprite resource(Toolkit toolkit, int id) {
         String name = id == RES_VENOM ? "hitsplats/venom" : id == RES_BURN ? "hitsplats/burn"
-            : id == RES_DEBUFFED ? "boosts/debuffed" : id == RES_BUFFED ? "boosts/buffed" : null;
+            : id == RES_DEBUFFED ? "boosts/debuffed" : id == RES_BUFFED ? "boosts/buffed"
+            : id == RES_FILTER_ON ? "spellbook/filter-on" : id == RES_FILTER_OFF ? "spellbook/filter-off" : null;
         if (name == null) {
             return null;
         }

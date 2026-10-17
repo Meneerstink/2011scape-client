@@ -1436,6 +1436,9 @@ public final class ScriptRunner {
 
             if (op == CC_IF_SETGRAPHIC) {
                 @Pc(21) int graphic = intStack[--intStackPointer];
+                if (RspsSpellFilters.probeGraphic(currentScriptId, graphic)) {
+                    return;
+                }
 
                 if (component.graphic != graphic) {
                     component.graphic = graphic;
@@ -3138,7 +3141,7 @@ public final class ScriptRunner {
                         return;
                     }
 
-                    intStack[intStackPointer++] = enumType.getInt(key);
+                    intStack[intStackPointer++] = RspsSpellFilters.layoutCategory(currentScriptId, id, key, enumType.getInt(key));
                     return;
                 }
 
@@ -4716,6 +4719,8 @@ public final class ScriptRunner {
 
     public static void executeScript(@OriginalArg(0) ClientScript script, @OriginalArg(1) int maxOps) {
         currentScriptId = script.id;
+        // N72: OSRS spell filters (spell redraw args, rune-counter probe, layout script).
+        RspsSpellFilters.enter(script.id, intVars);
         chatBackgroundTouched = RspsChatbox.touchesBackground(script.id);
         intStackPointer = 0;
         stringStackPointer = 0;
@@ -4885,6 +4890,7 @@ public final class ScriptRunner {
                     intVars = intArgs;
                     stringVars = stringArgs;
                     longVars = longArgs;
+                    RspsSpellFilters.enter(callee.id, intArgs);
                 } else if (op == PUSH_VARC) {
                     intStack[intStackPointer++] = Static511.varcs[operands[pc]];
                 } else if (op == POP_VARC) {
@@ -4916,7 +4922,7 @@ public final class ScriptRunner {
                     if (index < 0 || index >= arrayLengths[id]) {
                         throw new RuntimeException();
                     }
-                    intStack[intStackPointer++] = arrayVars[id][index];
+                    intStack[intStackPointer++] = RspsSpellFilters.layoutArray(currentScriptId, arrayVars[id][index]);
                 } else if (op == POP_ARRAY_INT) {
                     @Pc(96) int id = operands[pc];
                     intStackPointer -= 2;
