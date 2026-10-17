@@ -81,6 +81,16 @@ val stretchedSidebarRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
+val gameframeSwitchRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "A2 round 6 (class 206): no frame draws a window mode with the other mode's gameframe at any in-game fixed/resizable/fullscreen switch (GameframeSwitch + a server that answers like ours)."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("GameframeSwitchRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
 val stretchedFrameRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "A2 round 4 / N93: after every stretch buffer change (on/off, scaling, resize, new GL context) the screen shows no older frame or undefined memory (recording GL)."

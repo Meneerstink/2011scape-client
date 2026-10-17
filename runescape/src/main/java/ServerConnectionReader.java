@@ -737,6 +737,8 @@ public final class ServerConnectionReader {
             if (type == 2) {
                 WorldMap.close();
             }
+            // A2 round 6 (class 206): the gameframe a window-mode switch waits for - the mode changes in this same frame.
+            GameframeSwitch.gameframeOpened(id);
             InterfaceManager.topLevelInterface = id;
             InterfaceManager.restartInterfaceAnims(id);
             InterfaceManager.refreshTopLevelInterface(false);
@@ -2484,8 +2486,14 @@ public final class ServerConnectionReader {
 
     @OriginalMember(owner = "client!lma", name = "b", descriptor = "(I)V")
     public static void sendWindowStatus() {
+        // A resize / Stretched relayout while a switch waits for its gameframe keeps reporting the chosen mode (GameframeSwitch).
+        sendWindowStatus(GameframeSwitch.reportedMode(InterfaceManager.getWindowMode()));
+    }
+
+    /** A2 round 6: GameframeSwitch reports the player's new mode before the client draws it (the server answers with its gameframe). */
+    public static void sendWindowStatus(int windowMode) {
         @Pc(22) ClientMessage local22 = ClientMessage.create(ClientProt.WINDOW_STATUS, ServerConnection.GAME.isaac);
-        local22.bitPacket.p1(InterfaceManager.getWindowMode());
+        local22.bitPacket.p1(windowMode);
         local22.bitPacket.p2(GameShell.canvasWid);
         local22.bitPacket.p2(GameShell.canvasHei);
         local22.bitPacket.p1(ClientOptions.instance.antialiasingQuality.getValue());

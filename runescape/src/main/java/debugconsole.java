@@ -902,13 +902,13 @@ public final class debugconsole {
                     @Pc(2748) int mode = StringTools.parseDecimal(command.substring("wm ".length()));
                     if (mode == com.jagex.core.constants.WindowMode.FULLSCREEN) {
                         java.awt.Rectangle desktop = com.jagex.graphics.awt.DesktopDisplay.bounds();
-                        InterfaceManager.changeWindowMode(mode, desktop.width, desktop.height, false);
-                        if (GameShell.fsframe != null) ClientOptions.instance.rememberWindowMode(mode);
+                        InterfaceManager.requestWindowMode(mode, desktop.width, desktop.height);
+                        if (GameShell.fsframe != null || GameframeSwitch.wantedMode() == mode) ClientOptions.instance.rememberWindowMode(mode);
                     } else if (mode == com.jagex.core.constants.WindowMode.FIXED || mode == com.jagex.core.constants.WindowMode.RESIZABLE) {
-                        InterfaceManager.changeWindowMode(mode, -1, -1, false);
+                        InterfaceManager.requestWindowMode(mode, -1, -1);
                         ClientOptions.instance.rememberWindowMode(mode);
                     }
-                    addline("window mode=" + InterfaceManager.getWindowMode());
+                    addline("window mode=" + InterfaceManager.getWindowMode() + (GameframeSwitch.awaitedMode() == -1 ? "" : " (mode " + GameframeSwitch.awaitedMode() + " waits for its gameframe)"));
                     return;
                 }
                 // Camera state for the Camera plugin tests (night run 2026-10-11, D1): angles in OSRS units (this client's / 8).

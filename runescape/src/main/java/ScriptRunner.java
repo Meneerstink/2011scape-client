@@ -5912,16 +5912,18 @@ public final class ScriptRunner {
                 intStackPointer -= 2;
                 @Pc(192) int width = intStack[intStackPointer];
                 @Pc(834) int height = intStack[intStackPointer + 1];
-                InterfaceManager.changeWindowMode(WindowMode.FULLSCREEN, width, height, false);
-                if (GameShell.fsframe != null) ClientOptions.instance.rememberWindowMode(WindowMode.FULLSCREEN);
-                intStack[intStackPointer++] = GameShell.fsframe == null ? 0 : 1;
+                // A2 round 6: from fixed the switch waits for the resizable gameframe (GameframeSwitch) - that counts as entered.
+                InterfaceManager.requestWindowMode(WindowMode.FULLSCREEN, width, height);
+                boolean entered = GameShell.fsframe != null || GameframeSwitch.wantedMode() == WindowMode.FULLSCREEN;
+                if (entered) ClientOptions.instance.rememberWindowMode(WindowMode.FULLSCREEN);
+                intStack[intStackPointer++] = entered ? 1 : 0;
                 return;
             }
 
             if (opcode == FULLSCREEN_EXIT) {
-                if (GameShell.fsframe != null) {
-                    InterfaceManager.changeWindowMode(ClientOptions.instance.screenSizeDefault.getValue(), -1, -1, false);
-                    ClientOptions.instance.rememberWindowMode(InterfaceManager.getWindowMode());
+                if (GameShell.fsframe != null || GameframeSwitch.wantedMode() == WindowMode.FULLSCREEN) {
+                    InterfaceManager.requestWindowMode(ClientOptions.instance.screenSizeDefault.getValue(), -1, -1);
+                    ClientOptions.instance.rememberWindowMode(GameframeSwitch.wantedMode());
                 }
                 return;
             }
@@ -5967,7 +5969,8 @@ public final class ScriptRunner {
             if (opcode == SETWINDOWMODE) {
                 @Pc(192) int mode = intStack[--intStackPointer];
                 if (mode >= 1 && mode <= 2) {
-                    InterfaceManager.changeWindowMode(mode, -1, -1, false);
+                    // A2 round 6: in game a fixed <-> resizable switch is drawn together with its gameframe (GameframeSwitch).
+                    InterfaceManager.requestWindowMode(mode, -1, -1);
                     ClientOptions.instance.rememberWindowMode(mode);
                     return;
                 }

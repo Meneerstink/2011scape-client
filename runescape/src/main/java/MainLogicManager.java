@@ -168,11 +168,14 @@ public final class MainLogicManager {
             MiniMenu.reset();
         }
 
-        for (@Pc(34) int i = 0; i < 100; i++) {
+        // A2 round 6: in the cycle a window-mode switch lands, the new gameframe's panels (the IF_OPENSUBs right behind its
+        // IF_OPENTOP) are decoded too - the 100-packet cap left one frame of the bare gameframe without chatbox/tabs.
+        for (@Pc(34) int i = 0; i < 100 || GameframeSwitch.landedThisCycle(); i++) {
             if (!Static236.readPacket(ServerConnection.GAME)) {
                 break;
             }
         }
+        GameframeSwitch.endPacketCycle();
 
         if (step != MainLogicStep.STEP_GAME_SCREEN) {
             return;

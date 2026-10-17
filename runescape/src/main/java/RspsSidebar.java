@@ -1303,7 +1303,16 @@ final class RspsSidebar extends JPanel {
                     button.removeActionListener(listener);
                 }
             }
-            final javax.swing.Timer repeat = new javax.swing.Timer(60, e -> step(spinner, next));
+            // Keurmeester A2 round 5 (busy PC, 3 of ~22 single clicks stepped 2-3): a repeat only runs while the button is still
+            // held - never when the player's release already waits in the event queue behind a slow frame (a single click).
+            final javax.swing.Timer repeat = new javax.swing.Timer(60, e -> {
+                if (button.getModel().isPressed()
+                    && java.awt.Toolkit.getDefaultToolkit().getSystemEventQueue().peekEvent(MouseEvent.MOUSE_RELEASED) == null) {
+                    step(spinner, next);
+                } else {
+                    ((javax.swing.Timer) e.getSource()).stop();
+                }
+            });
             repeat.setInitialDelay(400);
             ARROW_REPEATS.add(repeat);
             button.addMouseListener(new MouseAdapter() {

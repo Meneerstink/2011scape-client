@@ -718,6 +718,9 @@ public final class client extends GameShell {
             RspsHudConfig.applyStretchedMode();
         }
 
+        // A2 round 6: a window-mode switch waiting for its gameframe - left the game / timed out, then the next queued choice.
+        GameframeSwitch.tick();
+
         if (MainLogicStep.method6445(MainLogicManager.step)) {
             // RuneLite Stretched Mode switched on or off with Anti-aliasing on: OpenGL needs a window with other multisampling.
             if (Toolkit.active instanceof GlToolkit && ((GlToolkit) Toolkit.active).rspsWindowNeedsRebuild()) {

@@ -2637,6 +2637,60 @@ public final class InterfaceManager {
         }
     }
 
+    /** Set while GameframeSwitch applies a mode whose WINDOW_STATUS the server already has. */
+    private static boolean windowStatusAlreadySent;
+
+    /**
+     * A2 round 6 (class 206): the player's own window-mode choice (Graphics Options, fullscreen enter/leave, dev console "wm").
+     * In game a switch to the other gameframe (fixed 548 <-> resizable/fullscreen 746) waits until the server's new gameframe
+     * arrives and then changes the canvas in the same frame (GameframeSwitch); everything else switches at once.
+     */
+    public static void requestWindowMode(int mode, int width, int height) {
+        if (GameframeSwitch.host == null) {
+            GameframeSwitch.host = new ClientHost();
+        }
+        GameframeSwitch.request(mode, width, height);
+    }
+
+    /** The client side of GameframeSwitch. */
+    static final class ClientHost implements GameframeSwitch.Host {
+        @Override
+        public int appliedMode() {
+            return getWindowMode();
+        }
+
+        @Override
+        public boolean inGame() {
+            return ServerConnection.GAME.connection != null && MainLogicStep.isAtGameScreen(MainLogicManager.step);
+        }
+
+        @Override
+        public void apply(int mode, int width, int height, boolean sendStatus) {
+            boolean before = windowStatusAlreadySent;
+            windowStatusAlreadySent = !sendStatus;
+            try {
+                changeWindowMode(mode, width, height, false);
+            } finally {
+                windowStatusAlreadySent = before;
+            }
+        }
+
+        @Override
+        public void sendWindowStatus(int mode) {
+            ServerConnectionReader.sendWindowStatus(mode);
+        }
+
+        @Override
+        public long now() {
+            return com.jagex.core.util.SystemTimer.safetime();
+        }
+
+        @Override
+        public void log(String line) {
+            System.out.println(line);
+        }
+    }
+
     @OriginalMember(owner = "client!mt", name = "a", descriptor = "(IIIZI)V")
     public static void changeWindowMode(@OriginalArg(1) int mode, @OriginalArg(2) int width, @OriginalArg(4) int height, @OriginalArg(3) boolean different) {
         if (mode == WindowMode.FULLSCREEN) {
@@ -2840,7 +2894,8 @@ public final class InterfaceManager {
             refreshTopLevelInterface(true);
         }
 
-        if (ServerConnection.GAME.connection != null && MainLogicStep.isAtGameScreen(MainLogicManager.step)) {
+        // A2 round 6: a switch drawn together with its gameframe already sent its WINDOW_STATUS when the player chose it.
+        if (ServerConnection.GAME.connection != null && MainLogicStep.isAtGameScreen(MainLogicManager.step) && !windowStatusAlreadySent) {
             ServerConnectionReader.sendWindowStatus();
         }
 
