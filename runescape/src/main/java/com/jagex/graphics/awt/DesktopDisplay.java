@@ -53,7 +53,35 @@ public final class DesktopDisplay {
                 boundsTimer.restart();
             }
         });
-        frame.addWindowStateListener(e -> boundsTimer.restart());
+        frame.addWindowStateListener(e -> {
+            traceMaximise(e.getOldState(), e.getNewState(), System.currentTimeMillis());
+            boundsTimer.restart();
+        });
+    }
+
+    /** When the client itself last maximised the window (restoreIfGameSized, the remembered window); 0 = never. */
+    private static volatile long clientMaximisedAt;
+
+    /**
+     * A2 round 5 (Keurmeester round 4 reason 2: "the window MAXIMISED BY ITSELF between two intro clicks"): the client has
+     * exactly one call that maximises the window - [restoreIfGameSized] for a player who left it maximised (RuneLite
+     * rememberScreenBounds), and it logs "remembered window: maximised" first. Every other maximise comes from Windows (title-bar
+     * double-click, Win+Up, dragging to the top edge, another program's ShowWindow). Say which one it was, so a maximise in a log
+     * is never unexplained again.
+     */
+    public static String traceMaximise(int oldState, int newState, long now) {
+        boolean was = (oldState & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
+        boolean is = (newState & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
+        String line = null;
+        if (is && !was) {
+            boolean byClient = clientMaximisedAt != 0 && now - clientMaximisedAt < 3000;
+            line = byClient ? "[78] window maximised by the client (the player's remembered maximised window)"
+                : "[78] window maximised by Windows (title bar / Win+Up / snap / another program) - the client did not maximise it";
+        } else if (was && !is) {
+            line = "[78] window restored from maximised";
+        }
+        if (line != null) System.out.println(line);
+        return line;
     }
 
     /** The game area's size (the loader applet in the player client), or null without a window. */
@@ -85,6 +113,7 @@ public final class DesktopDisplay {
                 frame.setBounds(screen.x + Math.max(0, (screen.width - w) / 2), screen.y + Math.max(0, (screen.height - h) / 2), w, h);
             }
             if (maximised) {
+                clientMaximisedAt = System.currentTimeMillis();
                 frame.setExtendedState(frame.getExtendedState() | Frame.MAXIMIZED_BOTH);
             }
         });

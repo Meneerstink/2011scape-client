@@ -20,5 +20,15 @@ public final class DesktopDisplayRegressionTest {
             } finally { frame.dispose(); }
         }
         System.out.println("Desktop fullscreen regression passed: 5 enter/exit cycles, native bounds, unchanged desktop mode, no leaked windows");
+        // A2 round 5: a maximise the client did not make is named in the log (the client's only maximise is the remembered window).
+        long now = System.currentTimeMillis();
+        String external = DesktopDisplay.traceMaximise(Frame.NORMAL, Frame.MAXIMIZED_BOTH, now);
+        if (external == null || !external.contains("by Windows")) throw new AssertionError("external maximise not named: " + external);
+        String restored = DesktopDisplay.traceMaximise(Frame.MAXIMIZED_BOTH, Frame.NORMAL, now);
+        if (restored == null || !restored.contains("restored")) throw new AssertionError("restore not named: " + restored);
+        if (DesktopDisplay.traceMaximise(Frame.NORMAL, Frame.NORMAL, now) != null) throw new AssertionError("a non-change was traced");
+        if (DesktopDisplay.traceMaximise(Frame.MAXIMIZED_BOTH, Frame.MAXIMIZED_BOTH | Frame.ICONIFIED, now) != null)
+            throw new AssertionError("minimising a maximised window was traced as a maximise");
+        System.out.println("Window maximise provenance passed: external maximise named, restore named, no false lines");
     }
 }
