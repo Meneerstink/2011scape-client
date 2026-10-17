@@ -367,6 +367,8 @@ public final class RspsSpellFilters {
         place(border, 63, 224, 64, 18);
         border.colour = panelOpen ? 0xffffff : 0x726451;
         filtersButton = text(layer, "Filters", 63, 224, 64, 18, 1);
+        // InterfaceManager.logicComponentList only hit-tests (hover, menu entries) components with hasHook / events / layers.
+        filtersButton.hasHook = true;
         if (panelOpen) {
             // OSRS script 2603: a 180 wide box, 28 + 25 per line high; script 2604 per line: the 17x17 tick / cross at (5, y + 4),
             // the text (font 494, 0xff981f, shadow, left / centre) from x 25 to 5 from the right, 25 high.
@@ -386,8 +388,10 @@ public final class RspsSpellFilters {
                 Component tick = create(layer, Component.TYPE_GRAPHIC);
                 place(tick, boxX + 5, y + 4, 17, 17);
                 tick.graphic = shown ? RspsSprites.RES_FILTER_ON : RspsSprites.RES_FILTER_OFF;
+                tick.hasHook = true;
                 optionBoxes[i] = tick;
                 optionLines[i] = text(layer, OPTIONS[i], boxX + 25, y, MENU_WIDTH - 30, LINE, 0);
+                optionLines[i].hasHook = true;
             }
         } else if (!layoutSpells.isEmpty() && noneShown(iface)) {
             text(layer, "No spells match your selected filters.", 10, 90, 170, 40, 1);
