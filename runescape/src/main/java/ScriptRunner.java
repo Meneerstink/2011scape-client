@@ -5962,7 +5962,9 @@ public final class ScriptRunner {
             }
 
             if (opcode == GETWINDOWMODE) {
-                intStack[intStackPointer++] = RspsChatbox.windowModeFor(currentScriptId, InterfaceManager.getWindowMode());
+                // A2 round 6: while a switch waits for its gameframe the scripts see the chosen mode (the one WINDOW_STATUS reported) -
+                // the Graphics Options script checks it right after SETWINDOWMODE and printed "unable to enter that display mode".
+                intStack[intStackPointer++] = RspsChatbox.windowModeFor(currentScriptId, GameframeSwitch.reportedMode(InterfaceManager.getWindowMode()));
                 return;
             }
 
