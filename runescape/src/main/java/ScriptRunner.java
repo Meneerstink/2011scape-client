@@ -4714,14 +4714,26 @@ public final class ScriptRunner {
     /** The script (or gosub callee) now running, for RspsChatbox's GETWINDOWMODE. */
     static int currentScriptId = -1;
 
+    /** The script (frame) that runs now - entry, gosub and return set it with currentScriptId (A2 round 6, GETWINDOWMODE). */
+    static ClientScript currentScript;
+
     /** A script of this run wrote the chat background (RspsChatbox.touchesBackground). */
     private static boolean chatBackgroundTouched;
 
+    /**
+     * A2 round 6 (nakijker / ROOT_CAUSES class 208): this script run (the script and its gosub callees) chose a window mode
+     * (SETWINDOWMODE / FULLSCREEN_ENTER / FULLSCREEN_EXIT). Only this run reads the chosen mode from GETWINDOWMODE while the
+     * switch waits for its gameframe; every other script reads the mode that is drawn.
+     */
+    private static boolean windowModeChosenThisRun;
+
     public static void executeScript(@OriginalArg(0) ClientScript script, @OriginalArg(1) int maxOps) {
         currentScriptId = script.id;
+        currentScript = script;
         // N72: OSRS spell filters (spell redraw args, rune-counter probe, layout script).
         RspsSpellFilters.enter(script.id, intVars);
         chatBackgroundTouched = RspsChatbox.touchesBackground(script.id);
+        windowModeChosenThisRun = false;
         intStackPointer = 0;
         stringStackPointer = 0;
 
@@ -4806,6 +4818,7 @@ public final class ScriptRunner {
                     @Pc(270) StackFrame frame = frames[--framePointer];
                     script = frame.script;
                     currentScriptId = script.id;
+                    currentScript = script;
                     opcodes = script.opcodes;
                     operands = script.intOperands;
                     pc = frame.pc;
@@ -4883,6 +4896,7 @@ public final class ScriptRunner {
                     frames[framePointer++] = frame;
                     script = callee;
                     currentScriptId = callee.id;
+                    currentScript = callee;
                     chatBackgroundTouched |= RspsChatbox.touchesBackground(callee.id);
                     opcodes = callee.opcodes;
                     operands = callee.intOperands;
@@ -5914,6 +5928,7 @@ public final class ScriptRunner {
                 @Pc(834) int height = intStack[intStackPointer + 1];
                 // A2 round 6: from fixed the switch waits for the resizable gameframe (GameframeSwitch) - that counts as entered.
                 InterfaceManager.requestWindowMode(WindowMode.FULLSCREEN, width, height);
+                windowModeChosenThisRun = true;
                 boolean entered = GameShell.fsframe != null || GameframeSwitch.wantedMode() == WindowMode.FULLSCREEN;
                 if (entered) ClientOptions.instance.rememberWindowMode(WindowMode.FULLSCREEN);
                 intStack[intStackPointer++] = entered ? 1 : 0;
@@ -5923,6 +5938,7 @@ public final class ScriptRunner {
             if (opcode == FULLSCREEN_EXIT) {
                 if (GameShell.fsframe != null || GameframeSwitch.wantedMode() == WindowMode.FULLSCREEN) {
                     InterfaceManager.requestWindowMode(ClientOptions.instance.screenSizeDefault.getValue(), -1, -1);
+                    windowModeChosenThisRun = true;
                     ClientOptions.instance.rememberWindowMode(GameframeSwitch.wantedMode());
                 }
                 return;
@@ -5962,9 +5978,13 @@ public final class ScriptRunner {
             }
 
             if (opcode == GETWINDOWMODE) {
-                // A2 round 6: while a switch waits for its gameframe the scripts see the chosen mode (the one WINDOW_STATUS reported) -
-                // the Graphics Options script checks it right after SETWINDOWMODE and printed "unable to enter that display mode".
-                intStack[intStackPointer++] = RspsChatbox.windowModeFor(currentScriptId, GameframeSwitch.reportedMode(InterfaceManager.getWindowMode()));
+                // A2 round 6 (nakijker, class 208): while a switch waits for its gameframe, a script that chooses window modes (it holds
+                // SETWINDOWMODE / FULLSCREEN_ENTER / FULLSCREEN_EXIT - the Graphics Options scripts) or a run that already chose one reads
+                // the mode the player chose last: 2698 starts with "if GETWINDOWMODE == arg0 return" (a click back to the still-drawn mode)
+                // and checks it right after SETWINDOWMODE ("unable to enter that display mode"). Every other script reads the DRAWN mode -
+                // it lays out the gameframe that is still on screen.
+                boolean chooser = windowModeChosenThisRun || currentScript != null && currentScript.choosesWindowMode();
+                intStack[intStackPointer++] = RspsChatbox.windowModeFor(currentScriptId, GameframeSwitch.modeForScript(chooser, InterfaceManager.getWindowMode()));
                 return;
             }
 
@@ -5973,7 +5993,10 @@ public final class ScriptRunner {
                 if (mode >= 1 && mode <= 2) {
                     // A2 round 6: in game a fixed <-> resizable switch is drawn together with its gameframe (GameframeSwitch).
                     InterfaceManager.requestWindowMode(mode, -1, -1);
-                    ClientOptions.instance.rememberWindowMode(mode);
+                    windowModeChosenThisRun = true;
+                    if (ClientOptions.instance != null) { // never null in the client; null in gameframeSwitchRegression (no prefs written)
+                        ClientOptions.instance.rememberWindowMode(mode);
+                    }
                     return;
                 }
                 return;

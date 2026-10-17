@@ -115,4 +115,15 @@ public final class ClientScript extends Node2 {
 
     @OriginalMember(owner = "client!fj", name = "D", descriptor = "I")
     public int longArgCount;
+
+    /** A2 round 6 (class 208): 1 = this script chooses a window mode (GameframeSwitch.choosesWindowMode), 0 = not, -1 = not scanned yet. */
+    public int choosesWindowMode = -1;
+
+    /** True when this script holds SETWINDOWMODE / FULLSCREEN_ENTER / FULLSCREEN_EXIT (scanned once, then cached). */
+    public boolean choosesWindowMode() {
+        if (choosesWindowMode == -1) {
+            choosesWindowMode = GameframeSwitch.choosesWindowMode(opcodes) ? 1 : 0;
+        }
+        return choosesWindowMode == 1;
+    }
 }

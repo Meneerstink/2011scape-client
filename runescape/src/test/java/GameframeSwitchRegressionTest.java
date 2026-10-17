@@ -42,6 +42,8 @@ public final class GameframeSwitchRegressionTest {
         String name;
         int mismatchedFrames;
         String firstMismatch;
+        int gameframesSent; // IF_OPENTOP of a gameframe the server sent
+        int serverMode = -1, serverWidth = -1, serverHeight = -1; // the last WINDOW_STATUS the server got (mode + canvas size)
 
         Sim(String name, int start, int phase, int latency) {
             this.name = name;
@@ -60,6 +62,8 @@ public final class GameframeSwitchRegressionTest {
                 modeChanges++;
             }
             applied = mode;
+            // The real InterfaceManager.getWindowMode() (ScriptRunner GETWINDOWMODE) follows the drawn mode (no fullscreen frame here).
+            InterfaceManager.resizableScreen = mode >= RESIZABLE;
             // InterfaceManager.windowModeChanged ends with sendWindowStatus() at the game screen (unless already sent).
             if (sendStatus && inGame) {
                 server(GameframeSwitch.reportedMode(applied));
@@ -77,6 +81,10 @@ public final class GameframeSwitchRegressionTest {
         /** WINDOW_STATUS reaches the server; it answers on its next tick (+ latency) only when the gameframe changes. */
         void server(int reportedMode) {
             windowStatusSent++;
+            // ServerConnectionReader.sendWindowStatus writes the canvas size of the moment it is sent.
+            serverMode = reportedMode;
+            serverWidth = canvasWidth(applied);
+            serverHeight = canvasHeight(applied);
             if (!serverAnswers) {
                 return;
             }
@@ -103,6 +111,7 @@ public final class GameframeSwitchRegressionTest {
                     pending.remove(p);
                     if (p[1] != serverClassTop) {
                         serverClassTop = p[1];
+                        gameframesSent++;
                         pending.add(new int[] {p[0] + latency, p[1], 0});
                     }
                 }
@@ -151,6 +160,7 @@ public final class GameframeSwitchRegressionTest {
     private static Sim start(String name, int mode, int phase, int latency) {
         Sim sim = new Sim(name, mode, phase, latency);
         GameframeSwitch.reset(sim);
+        InterfaceManager.resizableScreen = mode >= RESIZABLE;
         return sim;
     }
 
@@ -167,6 +177,20 @@ public final class GameframeSwitchRegressionTest {
         expect(sim.top == GameframeSwitch.gameframeFor(finalMode), sim.name + ": ends with gameframe " + sim.top + " for mode " + finalMode);
         expect(sim.serverClassTop == GameframeSwitch.gameframeFor(finalMode), sim.name + ": server ends with gameframe " + sim.serverClassTop);
         expect(GameframeSwitch.awaitedMode() == -1, sim.name + ": still waiting for mode " + GameframeSwitch.awaitedMode());
+        // Nakijker A2 round 6 (class 208) point 3: the server must end with the drawn mode AND its canvas size - the status sent at the
+        // choice carries the OLD canvas, so the client reports the new size once the new mode is drawn.
+        expect(sim.serverMode == finalMode && sim.serverWidth == canvasWidth(finalMode) && sim.serverHeight == canvasHeight(finalMode),
+            sim.name + ": server's last WINDOW_STATUS = mode " + sim.serverMode + " " + sim.serverWidth + "x" + sim.serverHeight
+                + ", the client draws mode " + finalMode + " " + canvasWidth(finalMode) + "x" + canvasHeight(finalMode));
+    }
+
+    /** Canvas size per mode (the owner's 944x581 window; fixed 765x503 canvas; fullscreen 1920x1080). */
+    static int canvasWidth(int mode) {
+        return mode == FIXED ? 765 : mode == RESIZABLE ? 944 : 1920;
+    }
+
+    static int canvasHeight(int mode) {
+        return mode == FIXED ? 503 : mode == RESIZABLE ? 581 : 1080;
     }
 
     private static String mode(int m) {
@@ -175,6 +199,37 @@ public final class GameframeSwitchRegressionTest {
 
     private static int fsWidth(int m) {
         return m == FULLSCREEN ? 1920 : -1;
+    }
+
+    private static final int PUSH_CONSTANT_INT = 0, RETURN = 21, GETWINDOWMODE = 5306, SETWINDOWMODE = 5307;
+
+    /** Runs a script of [opcode, operand] pairs through the real ScriptRunner.executeScript; returns the int it left on the stack. */
+    private static int runScript(int id, int... opsAndOperands) {
+        ClientScript script = new ClientScript();
+        script.id = id;
+        script.opcodes = new int[opsAndOperands.length / 2];
+        script.intOperands = new int[opsAndOperands.length / 2];
+        script.stringOperands = new String[opsAndOperands.length / 2];
+        for (int i = 0; i < script.opcodes.length; i++) {
+            script.opcodes[i] = opsAndOperands[i * 2];
+            script.intOperands[i] = opsAndOperands[i * 2 + 1];
+        }
+        ScriptRunner.executeScript(script, 200000);
+        return ScriptRunner.intStackPointer == 1 ? ScriptRunner.intStack[0] : -100 - ScriptRunner.intStackPointer;
+    }
+
+    private static final int PUSH_INT_LOCAL = 33, BRANCH = 6, BRANCH_EQUALS = 8;
+
+    /**
+     * The Graphics Options button script 2698 (arg0 = the mode), its first 14 ops as in the 667 cache (tools\cache667\cs2dis.py
+     * 2698): "iload 0; getwindowmode; if_icmpeq -> return; iload 0; setwindowmode; getwindowmode" (then istore 5 + the "unable to
+     * enter" check). Returns the mode it read after SETWINDOWMODE, or -100 when it returned early ("already in that mode").
+     */
+    private static int graphicsOptions(int mode) {
+        ScriptRunner.intVars = new int[] {mode, 0, 0, 0, 0, 0};
+        return runScript(2698,
+            PUSH_INT_LOCAL, 0, GETWINDOWMODE, 0, BRANCH_EQUALS, 1, BRANCH, 1, RETURN, 0,
+            PUSH_INT_LOCAL, 0, SETWINDOWMODE, 0, GETWINDOWMODE, 0, RETURN, 0);
     }
 
     public static void main(String[] args) {
@@ -193,7 +248,9 @@ public final class GameframeSwitchRegressionTest {
                         sim.settle();
                         expectClean(sim, to);
                         expect(sim.modeChanges == 1, sim.name + ": the drawn mode changed " + sim.modeChanges + " times");
-                        expect(sim.windowStatusSent == 1, sim.name + ": " + sim.windowStatusSent + " WINDOW_STATUS sent (one per switch)");
+                        boolean newGameframe = GameframeSwitch.gameframeFor(from) != GameframeSwitch.gameframeFor(to);
+                        expect(sim.gameframesSent == (newGameframe ? 1 : 0), sim.name + ": the server opened " + sim.gameframesSent + " gameframes");
+                        expect(sim.windowStatusSent <= 2, sim.name + ": " + sim.windowStatusSent + " WINDOW_STATUS sent (the choice + the new size)");
                         cases++;
                     }
                 }
@@ -313,6 +370,78 @@ public final class GameframeSwitchRegressionTest {
             sim.settle();
             expectClean(sim, pair[1]);
             cases++;
+        }
+
+        // 8. CS2 GETWINDOWMODE while a switch waits (nakijker A2 round 6 / ROOT_CAUSES class 208), through the REAL ScriptRunner:
+        //    a. the Graphics Options script 2698 does SETWINDOWMODE then GETWINDOWMODE in the same run (l.11-14: iload 0,
+        //       setwindowmode, getwindowmode, istore 5, then compares) - it must read the mode it chose, else it prints
+        //       "RuneScape was unable to enter that display mode";
+        //    b. every OTHER script that runs while the old mode is still drawn (gameframe layout scripts 8/103/2729 here; also the
+        //       chatbox look scripts 84/1301/1362/1558 - 99 scripts read GETWINDOWMODE) must read the DRAWN mode, or it lays out the new mode inside the old
+        //       gameframe (the wrong-frame class this round removes);
+        //    c. after the gameframe landed every script reads the new mode; on the login screen the switch is at once.
+        for (int from : new int[] {FIXED, RESIZABLE}) {
+            int to = from == FIXED ? RESIZABLE : FIXED;
+            for (int latency : new int[] {0, 5, 60, 175}) {
+                for (boolean inGame : new boolean[] {true, false}) {
+                    String name = mode(from) + " -> " + mode(to) + " via Graphics Options (CS2 SETWINDOWMODE) latency " + (latency * FRAME_MS) + " ms" + (inGame ? "" : " on the login screen");
+                    Sim sim = start(name, from, 13, latency);
+                    sim.inGame = inGame;
+                    int chosen = runScript(2698, PUSH_CONSTANT_INT, to, SETWINDOWMODE, 0, GETWINDOWMODE, 0, RETURN, 0);
+                    expect(chosen == to, name + ": the script that chose mode " + to + " reads GETWINDOWMODE " + chosen + " right after SETWINDOWMODE (\"unable to enter that display mode\")");
+                    int other = runScript(103, GETWINDOWMODE, 0, RETURN, 0);
+                    int drawn = inGame ? from : to;
+                    expect(other == drawn, name + ": another script run while mode " + sim.applied + " is drawn reads GETWINDOWMODE " + other + " (must be the drawn mode " + drawn + ")");
+                    sim.run(3);
+                    other = runScript(8, GETWINDOWMODE, 0, RETURN, 0);
+                    expect(other == sim.applied, name + ": a gameframe layout script 3 frames later reads " + other + ", drawn " + sim.applied);
+                    if (inGame) {
+                        sim.settle();
+                        expectClean(sim, to);
+                    }
+                    other = runScript(2729, GETWINDOWMODE, 0, RETURN, 0);
+                    expect(other == to, name + ": after the gameframe landed a script reads " + other + ", drawn " + to);
+                    cases++;
+                }
+            }
+        }
+
+        // 9. Graphics Options clicked AGAIN while a switch waits (class 208 follow-up). Script 2698 starts with "if GETWINDOWMODE ==
+        //    arg0 return" (l.0-4) in a NEW run, before it chooses. A script that chooses a window mode (it holds SETWINDOWMODE /
+        //    FULLSCREEN_ENTER / FULLSCREEN_EXIT: 2582, 2698, 2699, 2705, 2710) must read the mode the player chose last there - with
+        //    the drawn mode the click back to the still-drawn mode returns early, the switch in flight runs on and the client ends
+        //    in the mode the player left. Click back / click the same button again, at 3 gaps x 3 latencies; a gameframe layout
+        //    script in the same wait still reads the drawn mode.
+        for (int from : new int[] {FIXED, RESIZABLE}) {
+            int to = from == FIXED ? RESIZABLE : FIXED;
+            for (int latency : new int[] {5, 60, 175}) {
+                for (int gap : new int[] {1, 3, 10}) {
+                    for (boolean back : new boolean[] {true, false}) {
+                        int second = back ? from : to;
+                        String name = mode(from) + " -> " + mode(to) + " -> " + mode(second) + " via Graphics Options clicked " + (gap * FRAME_MS)
+                            + " ms apart, latency " + (latency * FRAME_MS) + " ms";
+                        Sim sim = start(name, from, 13, latency);
+                        int first = graphicsOptions(to);
+                        expect(first == to, name + ": the first click reads GETWINDOWMODE " + first + " after SETWINDOWMODE " + to);
+                        sim.run(gap);
+                        boolean waiting = GameframeSwitch.awaitedMode() != -1;
+                        int layout = runScript(103, GETWINDOWMODE, 0, RETURN, 0);
+                        expect(layout == sim.applied, name + ": a layout script during the wait reads " + layout + ", drawn " + sim.applied);
+                        int again = graphicsOptions(second);
+                        if (!back) {
+                            expect(again == -100, name + ": the same button again (" + (waiting ? "its switch still waits" : "already drawn")
+                                + ") must return early - it must read the chosen mode, got " + again);
+                        } else {
+                            expect(again == second, name + ": the second click (to " + mode(second) + ") was dropped - script 2698 read GETWINDOWMODE "
+                                + "and returned early (" + again + ")");
+                        }
+                        sim.settle();
+                        expectClean(sim, second);
+                        expect(sim.applied == second, name + ": ends drawing mode " + sim.applied + ", the player's last choice was " + second);
+                        cases++;
+                    }
+                }
+            }
         }
 
         System.out.println("GameframeSwitchRegressionTest: " + cases + " switch cases, " + checks + " checks"

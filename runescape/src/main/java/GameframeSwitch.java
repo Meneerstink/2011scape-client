@@ -1,3 +1,4 @@
+import com.jagex.core.constants.ClientScriptOpCode;
 import com.jagex.core.constants.WindowMode;
 
 /**
@@ -75,6 +76,34 @@ public final class GameframeSwitch {
         return awaitedMode != -1 ? awaitedMode : appliedMode;
     }
 
+    /**
+     * CS2 GETWINDOWMODE while a switch waits for its gameframe (nakijker A2 round 6, ROOT_CAUSES class 208). [chooser] = the
+     * running script chooses window modes itself (it holds SETWINDOWMODE / FULLSCREEN_ENTER / FULLSCREEN_EXIT - the Graphics
+     * Options scripts 2582/2698/2699/2705/2710) or this script run already chose one: it reads the mode the player chose last -
+     * 2698 starts with "if GETWINDOWMODE == arg0 return" and checks GETWINDOWMODE right after SETWINDOWMODE ("unable to enter that
+     * display mode"). Every other script reads the DRAWN mode: it lays out the gameframe that is still on screen.
+     */
+    public static int modeForScript(boolean chooser, int drawnMode) {
+        if (!chooser || host == null) {
+            return drawnMode;
+        }
+        int wanted = wantedMode();
+        return wanted == -1 ? drawnMode : wanted;
+    }
+
+    /** A script that chooses a window mode: it holds CS2 SETWINDOWMODE 5307, FULLSCREEN_ENTER 5300 or FULLSCREEN_EXIT 5301. */
+    public static boolean choosesWindowMode(int[] opcodes) {
+        if (opcodes == null) {
+            return false;
+        }
+        for (int op : opcodes) {
+            if (op == ClientScriptOpCode.SETWINDOWMODE || op == ClientScriptOpCode.FULLSCREEN_ENTER || op == ClientScriptOpCode.FULLSCREEN_EXIT) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** The mode the player chose last: queued, else awaited, else the drawn one. */
     public static int wantedMode() {
         if (queuedMode != -1) {
@@ -127,7 +156,9 @@ public final class GameframeSwitch {
         long waited = host.now() - awaitedSince;
         awaitedMode = -1;
         landedThisCycle = true;
-        host.apply(mode, awaitedWidth, awaitedHeight, false);
+        // The WINDOW_STATUS of the choice carried the OLD canvas size: changeWindowMode reports the new mode's canvas now (same mode
+        // as the server has, so the server opens nothing; it re-arms the HUD/summoning panes like after a window resize).
+        host.apply(mode, awaitedWidth, awaitedHeight, true);
         host.log("[78] window mode " + mode + " drawn together with its gameframe " + id + " (" + waited + " ms after the choice)");
     }
 
@@ -157,7 +188,7 @@ public final class GameframeSwitch {
                 int mode = awaitedMode;
                 awaitedMode = -1;
                 host.log("[78] PROBLEM window mode " + mode + ": gameframe " + gameframeFor(mode) + " did not arrive in " + TIMEOUT_MS + " ms - switched without it");
-                host.apply(mode, awaitedWidth, awaitedHeight, false);
+                host.apply(mode, awaitedWidth, awaitedHeight, true);
             }
         }
         if (awaitedMode == -1 && queuedMode != -1) {
