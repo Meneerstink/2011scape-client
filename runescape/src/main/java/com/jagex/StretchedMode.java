@@ -139,6 +139,7 @@ public final class StretchedMode {
      * replaces them by RuneLite's real size and works out the stretched size the canvas is drawn at.
      */
     public static void layout(boolean fixed) {
+        trackScalingWindow(fixed);
         layoutSizes(fixed);
         // One line per change, for every renderer (glPresent only logs OpenGL): the owner's log shows why it does not stretch.
         String state = "stretch layout " + (fixed ? "fixed" : "resizable") + " enabled=" + enabled + " toolkitCanStretch=" + toolkitCanStretch
@@ -172,21 +173,9 @@ public final class StretchedMode {
             realWidth = FIXED_WIDTH;
             realHeight = FIXED_HEIGHT;
         } else {
-            int newWidth = (int) (parentWidth / scalingFactor);
-            int newHeight = (int) (parentHeight / scalingFactor);
-            // The floor never exceeds the window: RuneLite stretches, it never shrinks the game into a smaller window (night run
-            // 2026-10-12: a 765x503 window drew the 791x520 game shrunk, and with Increased performance letters fell out of the
-            // chat text). A window lower than 520 px shows the game 1:1, exactly as without the plugin.
-            int minWidth = Math.min(FIXED_WIDTH, parentWidth);
-            int minHeight = Math.min(RESIZABLE_MIN_HEIGHT, parentHeight);
-            if (newWidth < minWidth || newHeight < minHeight) {
-                double factor = Math.min((double) parentWidth / minWidth, (double) parentHeight / minHeight);
-                // Rounded up: a truncated 502 px left the game a pixel under its minimum.
-                newWidth = Math.max(minWidth, (int) Math.ceil(parentWidth / factor));
-                newHeight = Math.max(minHeight, (int) Math.ceil(parentHeight / factor));
-            }
-            realWidth = newWidth;
-            realHeight = newHeight;
+            long size = resizableSize(parentWidth, parentHeight, scalingFactor);
+            realWidth = (int) (size >>> 32);
+            realHeight = (int) size;
         }
         // getStretchedDimensions (RuneLite, exactly): the whole parent, then Keep aspect ratio, then Integer scaling per side.
         if (keepAspectRatio) {
@@ -213,6 +202,88 @@ public final class StretchedMode {
         // The stretched canvas is centred in the window (RuneLite: the canvas fills its parent; centred when the aspect is kept).
         GameShell.leftMargin = Math.max(0, (GameShell.frameWid - stretchedWidth) / 2);
         GameShell.topMargin = Math.max(0, (GameShell.frameHei - stretchedHeight) / 2);
+    }
+
+    /**
+     * RuneLite getRealDimensions in resizable mode for a parent of [parentWidth] x [parentHeight]: the parent divided by the
+     * scaling factor, never below the minimum game size (width in the high 32 bits, height in the low).
+     */
+    static long resizableSize(int parentWidth, int parentHeight, double factor) {
+        int newWidth = (int) (parentWidth / factor);
+        int newHeight = (int) (parentHeight / factor);
+        // The floor never exceeds the window: RuneLite stretches, it never shrinks the game into a smaller window (night run
+        // 2026-10-12: a 765x503 window drew the 791x520 game shrunk, and with Increased performance letters fell out of the
+        // chat text). A window lower than 520 px shows the game 1:1, exactly as without the plugin.
+        int minWidth = Math.min(FIXED_WIDTH, parentWidth);
+        int minHeight = Math.min(RESIZABLE_MIN_HEIGHT, parentHeight);
+        if (newWidth < minWidth || newHeight < minHeight) {
+            double clamp = Math.min((double) parentWidth / minWidth, (double) parentHeight / minHeight);
+            // Truncated like RuneLite ((int) (parent / factor)), then held on the floor (a truncated 502 px left the game a
+            // pixel under its minimum). The 10-12 Math.ceil made the clamped size one pixel LARGER than the last step before it
+            // (788x537: 3 % = 765x521, 4 % = 766x522 - the UI shrank again one step past the maximum; A2 round 2).
+            newWidth = Math.max(minWidth, (int) (parentWidth / clamp));
+            newHeight = Math.max(minHeight, (int) (parentHeight / clamp));
+        }
+        return ((long) newWidth << 32) | (newHeight & 0xFFFFFFFFL);
+    }
+
+    // ---- Resizable scaling maximum (owner 2026-10-17, VRAGEN 23 = "RuneLite + max") ------------------------------------
+    //
+    // RuneLite's spinner has no maximum: above the step where the game reaches its minimum size every value draws the same
+    // picture (on the owner's 944x581 window everything from 12 % up, 150 % included). The owner chose RuneLite with a
+    // maximum: the spinner stops at the last step that still changes the game for the current window, and follows the window
+    // at once. The stored value is never rewritten by a window change (a smaller window shows the step in effect; the
+    // player's own value comes back on a bigger window, like RuneLite keeps its config).
+
+    /** The player's own window the resizable game is laid out in (not a fixed window the client fitted to 765x503). */
+    private static int scalingWidth;
+    private static int scalingHeight;
+    private static volatile int scalingMax = Integer.MAX_VALUE;
+    private static volatile Runnable scalingRangeListener;
+
+    /** The 78 Plugins sidebar: told when the maximum changed (any thread; it refreshes on the event thread). */
+    public static void onScalingRange(Runnable listener) {
+        scalingRangeListener = listener;
+    }
+
+    /** The highest Resizable scaling percentage that still changes the game for the current window (no window yet: none). */
+    public static int maxScalingPercent() {
+        return scalingMax;
+    }
+
+    /** The first percentage whose resizable game size equals that of every larger percentage, for a parent of w x h. */
+    public static int maxScalingPercent(int parentWidth, int parentHeight) {
+        if (parentWidth <= 0 || parentHeight <= 0) {
+            return Integer.MAX_VALUE;
+        }
+        long floor = resizableSize(parentWidth, parentHeight, Double.MAX_VALUE);
+        // Above parent / minimum the game is always on its floor; 1000 % covers every window up to 7650x5200.
+        for (int percent = 0; percent < 1000; percent++) {
+            if (resizableSize(parentWidth, parentHeight, 1 + percent / 100D) == floor) {
+                return percent;
+            }
+        }
+        return 1000;
+    }
+
+    /** A layout for a window of frameWid x frameHei: the maximum follows the player's window. */
+    private static void trackScalingWindow(boolean fixed) {
+        int width = GameShell.frameWid;
+        int height = GameShell.frameHei;
+        // A fixed window without stretching is the client's own 765x503 fit, not the player's window: the last maximum stays.
+        if (width <= 0 || height <= 0 || (fixed && !fillsWindow()) || (width == scalingWidth && height == scalingHeight)) {
+            return;
+        }
+        scalingWidth = width;
+        scalingHeight = height;
+        int max = maxScalingPercent(width, height);
+        if (max != scalingMax) {
+            scalingMax = max;
+            Runnable listener = scalingRangeListener;
+            if (listener != null) {
+                listener.run();
+            }
+        }
     }
 
     /**

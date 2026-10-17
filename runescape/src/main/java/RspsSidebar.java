@@ -932,23 +932,28 @@ final class RspsSidebar extends JPanel {
                 break;
             }
             case RspsHudConfig.INT: {
-                final JSpinner spinner = new JSpinner(new SpinnerNumberModel(Math.max(setting.min, Math.min(setting.max, RspsHudConfig.integer(key))), setting.min, setting.max, 1));
+                final boolean scaling = key.equals(SCALING_KEY);
+                final int max = scaling ? scalingMax(setting) : setting.max;
+                final JSpinner spinner = new JSpinner(new SpinnerNumberModel(Math.max(setting.min, Math.min(max, RspsHudConfig.integer(key))), setting.min, max, 1));
                 spinner.setName(key);
                 Component editor = spinner.getEditor();
                 if (editor instanceof JSpinner.DefaultEditor) {
                     ((JSpinner.DefaultEditor) editor).getTextField().setColumns(SPINNER_FIELD_WIDTH);
                 }
                 steadyArrows(spinner);
-                if (key.equals("stretchedmode.scalingFactor")) {
+                if (scaling) {
                     percentUnits(spinner);
                 }
                 spinner.addChangeListener(e -> {
+                    if (fittingSpinner) {
+                        return;
+                    }
                     String value = spinner.getValue().toString();
                     if (!value.equals(RspsHudConfig.get(key))) {
                         set(key, value);
                     }
                 });
-                refreshers.put(key, () -> {
+                refreshers.put(key, scaling ? () -> fitScalingSpinner(spinner, setting) : () -> {
                     int value = RspsHudConfig.integer(key);
                     if (!Integer.valueOf(value).equals(spinner.getValue())) {
                         spinner.setValue(value);
@@ -1323,6 +1328,45 @@ final class RspsSidebar extends JPanel {
                     repeat.stop();
                 }
             });
+        }
+    }
+
+    // ---- Resizable scaling maximum (owner 2026-10-17, VRAGEN 23 = "RuneLite + max") ------------------------------------
+
+    static final String SCALING_KEY = "stretchedmode.scalingFactor";
+
+    /** True while the sidebar itself moves a spinner (a new maximum): that is not the player's choice and is not saved. */
+    private static boolean fittingSpinner;
+
+    static {
+        // The maximum follows the window at once (resize, maximise, fullscreen, sidebar open/closed): StretchedMode tells us.
+        com.jagex.StretchedMode.onScalingRange(RspsSidebar::refreshLater);
+    }
+
+    /** RuneLite's spinner, but stopped at the last step that still changes the game for the current window. */
+    private static int scalingMax(RspsHudConfig.Setting setting) {
+        return Math.max(setting.min, Math.min(setting.max, com.jagex.StretchedMode.maxScalingPercent()));
+    }
+
+    /**
+     * The window changed (or a push came): the spinner gets the window's maximum and shows the step in effect - the stored
+     * value, or the maximum when the stored value is above it (those draw the same picture). The stored value is left alone,
+     * so the player's 50 % is back as soon as the window is big enough again.
+     */
+    static void fitScalingSpinner(JSpinner spinner, RspsHudConfig.Setting setting) {
+        int max = scalingMax(setting);
+        int shown = Math.max(setting.min, Math.min(max, RspsHudConfig.integer(setting.key)));
+        SpinnerNumberModel model = (SpinnerNumberModel) spinner.getModel();
+        fittingSpinner = true;
+        try {
+            if (((Number) model.getMaximum()).intValue() != max) {
+                model.setMaximum(max);
+            }
+            if (!Integer.valueOf(shown).equals(spinner.getValue())) {
+                spinner.setValue(shown);
+            }
+        } finally {
+            fittingSpinner = false;
         }
     }
 

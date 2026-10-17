@@ -1,0 +1,260 @@
+import com.jagex.StretchedMode;
+import com.jagex.game.runetek6.client.GameShell;
+
+import javax.swing.JSpinner;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
+import java.awt.Canvas;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * A2 round 2 (owner 2026-10-17, VRAGEN 23 = "RuneLite + max"): Resizable scaling is RuneLite's StretchedModeMixin, but the
+ * sidebar spinner stops at the percentage above which nothing changes for the current window - every step up to that maximum
+ * makes the game visibly smaller (so the UI bigger), there is no 150 % that does nothing, and the maximum follows the window
+ * at once (resize, maximise, fullscreen). In fixed mode the setting does nothing (RuneLite "In resizable mode, ...") but the
+ * spinner stays there and keeps the maximum of the player's window. A window change never rewrites the player's stored value.
+ *
+ * The oracle is the layout itself: for every window the test walks p = 0..400 through StretchedMode.layout and takes the first
+ * p whose game size equals the size of every larger p. It then checks the real 78 Plugins sidebar (headless Swing) against it.
+ * Every failure is collected, so a red run lists the whole class, not only the first window.
+ */
+public final class StretchedScalingRegressionTest {
+    private static int assertions;
+    private static final List<String> failures = new ArrayList<String>();
+    private static final String KEY = "stretchedmode.scalingFactor";
+
+    /** The real stdout: the client's layout log line per change is silenced while the sweep runs (thousands of layouts). */
+    private static final java.io.PrintStream OUT = System.out;
+    private static final java.util.Map<String, Integer> MAX = new java.util.HashMap<String, Integer>();
+
+    public static void main(String[] args) throws Exception {
+        System.setOut(new java.io.PrintStream(new java.io.OutputStream() {
+            @Override
+            public void write(int b) {
+            }
+        }));
+        GameShell.canvas = new Canvas();
+        StretchedMode.toolkitChanged(true);
+
+        // 1. The formula (RuneLite getRealDimensions + the owner's 520 floor) over every window from the smallest frame to the
+        //    laptop screen: below the maximum every step changes the game, above it nothing does.
+        List<int[]> windows = new ArrayList<int[]>();
+        for (int w = 765; w <= 1920; w += 23) {
+            for (int h = 503; h <= 1080; h += 17) {
+                windows.add(new int[] {w, h});
+            }
+        }
+        int[][] named = {{944, 581}, {1007, 581}, {854, 581}, {948, 709}, {1648, 989}, {1890, 989}, {1690, 1080}, {1920, 1080}, {1428, 900}, {765, 503}, {765, 520}, {900, 510}};
+        for (int[] w : named) {
+            windows.add(w);
+        }
+        int checkedWindows = 0;
+        for (int[] w : windows) {
+            int max = oracleMax(w[0], w[1]);
+            int[] previous = real(w[0], w[1], 0);
+            for (int p = 1; p <= max; p++) {
+                int[] now = real(w[0], w[1], p);
+                check(now[0] < previous[0] || now[1] < previous[1], w, "step " + p + "% makes the game smaller (UI bigger): " + size(previous) + " -> " + size(now));
+                previous = now;
+            }
+            int[] atMax = real(w[0], w[1], max);
+            for (int p = max + 1; p <= 400; p += 7) {
+                check(java.util.Arrays.equals(real(w[0], w[1], p), atMax), w, p + "% above the maximum " + max + "% changes nothing");
+            }
+            checkedWindows++;
+        }
+
+        // 2. The sidebar spinner (the control the player uses).
+        RspsHudConfig.resetToDefaults();
+        RspsHud.reset();
+        RspsSidebar sidebar = new RspsSidebar(null);
+        RspsSidebar.instance = sidebar;
+        RspsHudConfig.handle("cfg", "stretchedmode.enabled=true;" + KEY + "=50");
+        window(944, 581, false);
+        ((javax.swing.JButton) sidebar.find("config.stretchedmode")).doClick();
+        JSpinner spinner = (JSpinner) sidebar.find(KEY);
+        if (spinner == null) {
+            failures.add("the Resizable scaling spinner is not on the Stretched Mode page");
+            report(checkedWindows);
+            return;
+        }
+        RspsHud.drainForTest();
+
+        // 2a. Every window (resizable): maximum = the oracle, shown value = what is in effect, nothing sent to the server.
+        int[] stored = {0, 5, 10, 11, 12, 50, 90, 150};
+        for (int[] w : windows) {
+            int max = oracleMax(w[0], w[1]);
+            for (int s : stored) {
+                RspsHudConfig.put(KEY, Integer.toString(s));
+                window(w[0], w[1], false);
+                edt(sidebar::refresh);
+                SpinnerNumberModel model = (SpinnerNumberModel) spinner.getModel();
+                check(((Number) model.getMaximum()).intValue() == max, w, "stored " + s + "%: spinner maximum " + model.getMaximum() + " = the last changing step " + max + "%");
+                check(((Number) spinner.getValue()).intValue() == Math.min(s, max), w, "stored " + s + "%: spinner shows " + spinner.getValue() + " = the step in effect " + Math.min(s, max) + "%");
+                check(RspsHudConfig.integer(KEY) == s, w, "stored " + s + "%: a window change keeps the player's value (now " + RspsHudConfig.integer(KEY) + ")");
+                String sent = RspsHud.drainForTest();
+                check(sent == null || sent.isEmpty(), w, "stored " + s + "%: fitting the spinner sends nothing to the server (sent '" + sent + "')");
+            }
+        }
+
+        // 2b. The owner's window 944x581: holding the up arrow stops at the maximum, the next arrow step does nothing, a typed
+        //     150 becomes the maximum, and every arrow step is saved (hud set).
+        int ownerMax = oracleMax(944, 581);
+        RspsHudConfig.put(KEY, "0");
+        window(944, 581, false);
+        edt(sidebar::refresh);
+        RspsHud.drainForTest();
+        for (int p = 1; p <= ownerMax + 5; p++) {
+            Object next = spinner.getNextValue();
+            if (p <= ownerMax) {
+                check(next != null && ((Number) next).intValue() == p, new int[] {944, 581}, "up arrow step " + p + " gives " + next);
+                if (next != null) {
+                    edt(() -> spinner.setValue(next));
+                    check(("hud set " + KEY + " " + p).equals(RspsHud.drainForTest()), new int[] {944, 581}, "up arrow step " + p + " is saved");
+                }
+            } else {
+                check(next == null, new int[] {944, 581}, "up arrow above the maximum " + ownerMax + "% does nothing (gives " + next + ")");
+            }
+        }
+        javax.swing.JFormattedTextField field = ((JSpinner.DefaultEditor) spinner.getEditor()).getTextField();
+        edt(() -> {
+            field.setText("150%");
+            try {
+                field.commitEdit();
+            } catch (java.text.ParseException e) {
+                throw new AssertionError(e);
+            }
+        });
+        check(((Number) spinner.getValue()).intValue() == ownerMax, new int[] {944, 581}, "typed 150% becomes the maximum " + ownerMax + "% (shows " + spinner.getValue() + ")");
+        RspsHud.drainForTest();
+
+        // 2c. The window grows and shrinks: the maximum and the shown value follow at once, without a sidebar rebuild, through
+        //     the layout itself (the client's resize path), and the stored 50 % comes back on the big window.
+        RspsHudConfig.put(KEY, "50");
+        int[][] path = {{944, 581}, {1648, 989}, {944, 581}, {1890, 989}, {1690, 1080}, {765, 503}, {944, 581}};
+        for (int[] w : path) {
+            window(w[0], w[1], false);
+            SwingUtilities.invokeAndWait(() -> { });
+            SwingUtilities.invokeAndWait(() -> { });
+            int max = oracleMax(w[0], w[1]);
+            SpinnerNumberModel model = (SpinnerNumberModel) spinner.getModel();
+            check(((Number) model.getMaximum()).intValue() == max, w, "resize: the spinner maximum follows the window at once (" + model.getMaximum() + ", expected " + max + ")");
+            check(((Number) spinner.getValue()).intValue() == Math.min(50, max), w, "resize: the spinner shows " + spinner.getValue() + ", expected " + Math.min(50, max));
+            check(RspsHudConfig.integer(KEY) == 50, w, "resize: the stored 50% is kept");
+        }
+
+        // 2d. Fixed mode, Stretched on: the setting does nothing to the picture (RuneLite), the spinner stays usable with the
+        //     maximum of the player's window; fixed without stretching (window fitted to 765x503 by the client) keeps it too.
+        for (int[] w : new int[][] {{944, 581}, {1648, 989}, {1920, 1080}}) {
+            int max = oracleMax(w[0], w[1]);
+            for (int s : new int[] {0, max / 2, max}) {
+                RspsHudConfig.put(KEY, Integer.toString(s));
+                window(w[0], w[1], true);
+                check(GameShell.canvasWid == 765 && GameShell.canvasHei == 503 && StretchedMode.canvasWidth() == w[0] && StretchedMode.canvasHeight() == w[1],
+                    w, "fixed " + s + "%: 765x503 drawn over the whole window (" + GameShell.canvasWid + "x" + GameShell.canvasHei + " -> " + StretchedMode.canvasWidth() + "x" + StretchedMode.canvasHeight() + ")");
+                edt(sidebar::refresh);
+                check(spinner.isShowing() || spinner.isVisible(), w, "fixed: the spinner is still there");
+                check(((Number) ((SpinnerNumberModel) spinner.getModel()).getMaximum()).intValue() == max, w, "fixed " + s + "%: maximum of the player's window " + max + "% (" + ((SpinnerNumberModel) spinner.getModel()).getMaximum() + ")");
+            }
+        }
+        int maxBig = oracleMax(1648, 989);
+        RspsHudConfig.put(KEY, "50");
+        window(1648, 989, false);
+        RspsHudConfig.handle("cfg", "stretchedmode.enabled=false");
+        window(765, 503, true);
+        edt(sidebar::refresh);
+        check(((Number) ((SpinnerNumberModel) spinner.getModel()).getMaximum()).intValue() == maxBig, new int[] {765, 503},
+            "fixed without stretching (client-fitted 765x503): keeps the player's window maximum " + maxBig + "% (" + ((SpinnerNumberModel) spinner.getModel()).getMaximum() + ")");
+        check(((Number) spinner.getValue()).intValue() == 50, new int[] {765, 503}, "fixed without stretching: shows the stored 50% (" + spinner.getValue() + ")");
+
+        report(checkedWindows);
+    }
+
+    /** The resizable game size for a window at [percent], through the client's own layout. */
+    private static int[] real(int width, int height, int percent) {
+        StretchedMode.configure(true, false, false, false, percent);
+        GameShell.frameWid = width;
+        GameShell.frameHei = height;
+        GameShell.canvasWid = width;
+        GameShell.canvasHei = height;
+        StretchedMode.layout(false);
+        return new int[] {GameShell.canvasWid, GameShell.canvasHei};
+    }
+
+    /** The first percentage whose game size equals that of every larger percentage (the spinner's maximum). */
+    private static int oracleMax(int width, int height) {
+        Integer known = MAX.get(width + "x" + height);
+        if (known != null) {
+            return known;
+        }
+        int max = sweepMax(width, height);
+        MAX.put(width + "x" + height, max);
+        return max;
+    }
+
+    private static int sweepMax(int width, int height) {
+        int[] floor = real(width, height, 100000);
+        for (int p = 0; p <= 100000; p++) {
+            if (java.util.Arrays.equals(real(width, height, p), floor)) {
+                return p;
+            }
+        }
+        return 100000;
+    }
+
+    /** Lays the client out for a window with the sidebar's current settings (as the resize path does). */
+    private static void window(int width, int height, boolean fixed) {
+        RspsHudConfig.applyStretchedMode();
+        GameShell.frameWid = width;
+        GameShell.frameHei = height;
+        GameShell.canvasWid = fixed ? 765 : width;
+        GameShell.canvasHei = fixed ? 503 : height;
+        GameShell.leftMargin = 0;
+        GameShell.topMargin = 0;
+        StretchedMode.layout(fixed);
+    }
+
+    /** Swing work runs on the event thread, as in the client (the layout's own refresh is queued there too). */
+    private static void edt(Runnable work) {
+        try {
+            SwingUtilities.invokeAndWait(work);
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    private static String size(int[] s) {
+        return s[0] + "x" + s[1];
+    }
+
+    private static void check(boolean condition, int[] window, String message) {
+        assertions++;
+        if (!condition) {
+            failures.add(window[0] + "x" + window[1] + ": " + message);
+        }
+    }
+
+    private static void report(int windows) {
+        // Grouped by kind (numbers taken out), three examples each, so a red run shows every kind of failure in the class.
+        java.util.Map<String, List<String>> kinds = new java.util.LinkedHashMap<String, List<String>>();
+        for (String failure : failures) {
+            String kind = failure.substring(failure.indexOf(": ") + 2).replaceAll("[0-9]+", "N");
+            List<String> list = kinds.get(kind);
+            if (list == null) {
+                kinds.put(kind, list = new ArrayList<String>());
+            }
+            list.add(failure);
+        }
+        for (java.util.Map.Entry<String, List<String>> kind : kinds.entrySet()) {
+            OUT.println("FAIL x" + kind.getValue().size() + "  " + kind.getKey());
+            for (int i = 0; i < Math.min(3, kind.getValue().size()); i++) {
+                OUT.println("     e.g. " + kind.getValue().get(i));
+            }
+        }
+        OUT.println("StretchedScalingRegressionTest: " + windows + " windows, " + assertions + " checks, " + failures.size() + " failed");
+        if (!failures.isEmpty()) {
+            throw new AssertionError(failures.size() + " Resizable scaling checks failed (first: " + failures.get(0) + ")");
+        }
+    }
+}

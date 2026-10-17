@@ -62,6 +62,16 @@ val stretchedModeRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
+val stretchedScalingRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "A2: Resizable scaling stops at the last step that changes the game for the window (every window x every step, the real sidebar spinner)."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("StretchedScalingRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
 val rspsCameraRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks the RuneLite Camera plugin (mouse remapping, speed, pitch limit, shake) and OSRS's mouse camera and zoom without a display."
