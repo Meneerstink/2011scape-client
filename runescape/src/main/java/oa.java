@@ -690,6 +690,10 @@ public final class oa extends Toolkit implements SoftwareObject {
         if (this.aP1 == null) {
             throw new IllegalStateException("off");
         }
+        if (com.jagex.StretchedMode.swPlaced(this.aP1.aCanvas9)) {
+            this.flip(x, y); // A2 round 9 review: the whole frame at its drawn rectangle
+            return;
+        }
         this.aP1.method6441(rectangles, count, x, y);
     }
 
@@ -779,6 +783,15 @@ public final class oa extends Toolkit implements SoftwareObject {
     public void flip(@OriginalArg(0) int x, @OriginalArg(1) int y) throws FlipException {
         if (this.aP1 == null) {
             throw new IllegalStateException("off");
+        }
+        // A2 round 9 review: in a window-size canvas the real-size frame goes to its drawn rectangle (667 OrthoMode flip offset).
+        // The SSE present p.H(x, y, canvasWidth, canvasHeight) reads the surface FROM x, y (a source offset, like JavaDefaultSurface.clip:
+        // seen in game, +89 shifted the fixed game 89 px to the left), so the drawn place is passed negated; it fills the whole canvas,
+        // so the margins are made black after it.
+        if (com.jagex.StretchedMode.swPlaced(this.aP1.aCanvas9)) {
+            this.aP1.method6438(x - com.jagex.StretchedMode.drawX(), y - com.jagex.StretchedMode.drawY());
+            com.jagex.StretchedMode.swClearMargins(this.aP1.aCanvas9, this.aP1.aCanvas9.getGraphics());
+            return;
         }
         this.aP1.method6438(x, y);
     }

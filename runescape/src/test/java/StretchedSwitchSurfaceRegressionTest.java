@@ -334,6 +334,45 @@ public final class StretchedSwitchSurfaceRegressionTest {
             }
         }
 
+        // 3b. A2 round 9 review (nakijker FOUT 2): the software renderers (SSE / Java), Stretched OFF: the canvas fills the window in
+        //    fixed and resizable (no window fit, no canvas resize at a switch), the real-size surface is flipped at the drawn rectangle
+        //    (667 OrthoMode: resizeCanvas smaller + flip at an offset) with black margins - checked through the real Java present
+        //    (JavaDefaultSurface.clip into a window-size image, as JavaToolkit.flip does); Stretched ON keeps the Java stand-in's path.
+        swToolkit(true);
+        for (int[] w : windows) {
+            cases++;
+            String name = "Software Stretched OFF window " + w[0] + "x" + w[1];
+            Layout fixed = layout(w, true, false, false, false, 0);
+            boolean placedFixed = swPlaced();
+            clicks(name + " fixed", fixed);
+            boolean isNamed = false;
+            for (int[] n : named) {
+                isNamed |= n[0] == w[0] && n[1] == w[1];
+            }
+            if (isNamed) {
+                swPicture(name + " fixed", fixed, placedFixed);
+            }
+            Layout resizable = layout(w, false, false, false, false, 0);
+            clicks(name + " resizable", resizable);
+            check(fixed.canvasW == resizable.canvasW && fixed.canvasH == resizable.canvasH,
+                "Software: canvas changes size at a fixed <-> resizable switch (the window is fitted: a black PrintWindow frame)",
+                name + ": fixed canvas " + fixed.canvasW + "x" + fixed.canvasH + " vs resizable " + resizable.canvasW + "x" + resizable.canvasH);
+            check(fixed.canvasW == w[0] && fixed.canvasH == w[1] && fixed.canvasX == 0 && fixed.canvasY == 0,
+                "Software: the canvas does not fill the window's game area", name + ": fixed canvas " + fixed.canvasW + "x" + fixed.canvasH + " at " + fixed.canvasX + "," + fixed.canvasY);
+            check(fixed.fills && resizable.fills, "Software: the client fits / restores the WINDOW at a switch", name + ": fillsWindow fixed=" + fixed.fills + " resizable=" + resizable.fills);
+            check(placedFixed && fixed.drawX == (w[0] - 765) / 2 && fixed.drawY == 0,
+                "Software: the fixed frame is not flipped at its drawn rectangle", name + ": placed=" + placedFixed + " at " + fixed.drawX + "," + fixed.drawY);
+            java.awt.Dimension render = StretchedMode.renderSize(GameShell.canvas);
+            check(render.width == resizable.realW && render.height == resizable.realH, "Software: the surface is not the real game size", name);
+        }
+        for (int[] w : new int[][] {{944, 581}, {1648, 989}}) {
+            cases++;
+            Layout on = layout(w, true, true, false, false, 0);
+            check(on.canvasW == w[0] && on.canvasH == w[1] && !swPlaced(), "Software Stretched ON: the Java stand-in's stretched path changed",
+                "window " + w[0] + "x" + w[1] + ": canvas " + on.canvasW + "x" + on.canvasH + " placed=" + swPlaced());
+        }
+        swToolkit(false);
+
         // 2b (end): D3DToolkit releases its render target before Reset / at stop, and a failing StretchRect falls back (last:
         // d3dFailed holds for the rest of the run).
         d3dResetReleases();
@@ -905,5 +944,69 @@ public final class StretchedSwitchSurfaceRegressionTest {
         Layout after = layout(new int[] {944, 581}, true, false, false, false, 0);
         check(after.canvasW == 765 && after.canvasH == 503, "DirectX: after a failing StretchRect the canvas is not sized to the game again",
             "canvas " + after.canvasW + "x" + after.canvasH);
+    }
+
+    // ---- 3b helpers (software renderers) ----
+
+    private static void swToolkit(boolean on) {
+        try {
+            StretchedMode.class.getMethod("swToolkit", boolean.class).invoke(null, on);
+        } catch (NoSuchMethodException absent) {
+            // old code: software kept the window fit
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static boolean swPlaced() {
+        try {
+            return (Boolean) StretchedMode.class.getMethod("swPlaced", java.awt.Canvas.class).invoke(null, GameShell.canvas);
+        } catch (NoSuchMethodException absent) {
+            return false;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** JavaToolkit.flip on a window-size image: margins (StretchedMode.swClearMargins) + JavaDefaultSurface.clip at the place. */
+    private static void swPicture(String name, Layout l, boolean placed) {
+        JavaDefaultSurface surface = new JavaDefaultSurface();
+        surface.initialize(GameShell.canvas, l.realW, l.realH);
+        for (int i = 0; i < surface.raster.length; i++) {
+            surface.raster[i] = 0x100000 | i % 0xFFFFF; // never black: game pixel i
+        }
+        java.awt.image.BufferedImage window = new java.awt.image.BufferedImage(l.canvasW, l.canvasH, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D g = window.createGraphics();
+        g.setColor(new java.awt.Color(0x7F007F)); // the previous frame (resizable) still in the canvas
+        g.fillRect(0, 0, l.canvasW, l.canvasH);
+        int cx = 0, cy = 0;
+        if (placed) {
+            try {
+                StretchedMode.class.getMethod("swClearMargins", java.awt.Canvas.class, java.awt.Graphics.class).invoke(null, GameShell.canvas, g);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            cx = l.drawX;
+            cy = l.drawY;
+        }
+        surface.clip(cx, cy, 0, 0, l.realW, l.realH, g); // JavaToolkit.flip(0, 0) with canvasWidth/Height = the render size
+        g.dispose();
+        int wrong = 0;
+        String first = null;
+        for (int py : samplePoints(l.drawY, l.realH, l.canvasH)) {
+            for (int px : samplePoints(l.drawX, l.realW, l.canvasW)) {
+                int got = window.getRGB(px, py) & 0xFFFFFF;
+                boolean inside = px >= l.drawX && py >= l.drawY && px < l.drawX + l.realW && py < l.drawY + l.realH;
+                int want = inside ? 0x100000 | ((py - l.drawY) * l.realW + (px - l.drawX)) % 0xFFFFF : 0;
+                if (got != want) {
+                    wrong++;
+                    if (first == null) {
+                        first = px + "," + py + " is " + Integer.toHexString(got) + ", want " + Integer.toHexString(want);
+                    }
+                }
+            }
+        }
+        check(wrong == 0, "Software present: wrong picture (the frame is not at its drawn rectangle / the margins are not black)",
+            name + ": " + wrong + " sample points wrong, e.g. " + first + "; drawn " + l.realW + "x" + l.realH + " at " + l.drawX + "," + l.drawY + " canvas " + l.canvasW + "x" + l.canvasH);
     }
 }

@@ -58,6 +58,8 @@ public final class Static595 {
         com.jagex.StretchedMode.glToolkit(gl, plain, plain ? ((GlToolkit) Toolkit.active).rspsOffscreenSamples() : 0);
         // A2 round 9: DirectX too - the canvas fills the window and flip places the frame (D3DToolkit.rspsPlaceFrame).
         com.jagex.StretchedMode.d3dToolkit(Toolkit.active instanceof D3DToolkit && !ClientOptions.instance.orthographic.isToolkitCompatible());
+        // A2 round 9 review: the software renderers too (SSE / Java): the canvas fills the window, flip draws the game at its place.
+        com.jagex.StretchedMode.swToolkit((Toolkit.active instanceof oa || Toolkit.active instanceof JavaToolkit) && !ClientOptions.instance.orthographic.isToolkitCompatible());
         if (toolkit != requested && requested == ToolkitType.SSE) {
             Static171.graphicsError = true;
         }

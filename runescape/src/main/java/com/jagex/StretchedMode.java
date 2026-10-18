@@ -188,6 +188,10 @@ public final class StretchedMode {
      * blit) or DirectX (A2 round 9: StretchRect inside the window-size back buffer, {@link #d3dPresentPlan}).
      */
     public static boolean windowCanvas() {
+        if (swToolkit) {
+            // A2 round 9 review (nakijker FOUT 2): the software renderers (SSE, Java) with Stretched OFF - see swPlaced.
+            return !enabled && d3dFits;
+        }
         if (!toolkitCanStretch) {
             return false;
         }
@@ -208,6 +212,54 @@ public final class StretchedMode {
     // resolve of a multisampled back buffer), Clear the back buffer black (the margins), StretchRect the copy onto the drawn
     // rectangle (1:1 = no filter; stretched = linear, Increased performance = point, as RuneLite's GPU blit). The window and the
     // canvas never change size at a switch, exactly as with OpenGL (RuneLite ClientUI never sizes the frame on a mode change).
+
+    // ---- A2 round 9 review (nakijker FOUT 2): the software renderers get the same rule ---------------------------------------
+    //
+    // SSE (oa) and the Java renderer kept the 78 window fit (944x581 <-> 795x503) at a Stretched OFF switch (one 0.96 black
+    // PrintWindow frame). Donor = the 667 client's own OrthoMode: it keeps the canvas, sizes the toolkit surface smaller
+    // (toolkit.resizeCanvas(canvas, orthoWidth, orthoHeight)) and flips it at an offset (toolkit.flip(anInt45, anInt5001)). Here the
+    // canvas fills the window, the surface stays the real game size (InterfaceManager / Static712 resizeCanvas(canvasWid, canvasHei)),
+    // and the software flip draws it at drawX / drawY with black margins. Stretched ON keeps the Java stand-in's own stretched path.
+
+    private static boolean swToolkit;
+
+    /** The active main toolkit is a software renderer (Static595.setToolkit: SSE or Java, not orthographic). */
+    public static void swToolkit(boolean on) {
+        if (swToolkit != on) {
+            swToolkit = on;
+            Client.changingWindowMode = true;
+        }
+    }
+
+    /** The software flip of [canvas] draws the real-size surface at drawX / drawY inside a window-size canvas. */
+    public static boolean swPlaced(java.awt.Canvas canvas) {
+        return swToolkit && canvas != null && canvas == GameShell.canvas && windowCanvas();
+    }
+
+    /** The margins around the drawn game, {x, y, width, height} each (only non-empty strips), inside a [width] x [height] canvas. */
+    public static int[][] swMargins(int width, int height) {
+        java.util.List<int[]> strips = new java.util.ArrayList<int[]>();
+        int x = drawX, y = drawY, w = realWidth, h = realHeight;
+        int[][] all = {{0, 0, width, y}, {0, y + h, width, height - y - h}, {0, y, x, h}, {x + w, y, width - x - w, h}};
+        for (int[] s : all) {
+            if (s[2] > 0 && s[3] > 0) {
+                strips.add(s);
+            }
+        }
+        return strips.toArray(new int[0][]);
+    }
+
+    /** Black margins before a software flip (the SSE / Java present only draws its own surface rectangle). */
+    public static void swClearMargins(java.awt.Canvas canvas, java.awt.Graphics graphics) {
+        if (graphics == null) {
+            return;
+        }
+        java.awt.Dimension size = canvas.getSize();
+        graphics.setColor(java.awt.Color.BLACK);
+        for (int[] s : swMargins(size.width, size.height)) {
+            graphics.fillRect(s[0], s[1], s[2], s[3]);
+        }
+    }
 
     private static boolean d3dToolkit;
     private static boolean d3dFailed;

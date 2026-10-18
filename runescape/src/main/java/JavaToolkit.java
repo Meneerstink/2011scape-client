@@ -1555,6 +1555,10 @@ public final class JavaToolkit extends Toolkit {
         if (this.canvas == null || this.surface == null) {
             throw new IllegalStateException("off");
         }
+        if (com.jagex.StretchedMode.swPlaced(this.canvas)) {
+            this.flip(x, y); // A2 round 9 review: the whole frame at its drawn rectangle
+            return;
+        }
 
         try {
             @Pc(19) Graphics local19 = this.canvas.getGraphics();
@@ -2459,6 +2463,12 @@ public final class JavaToolkit extends Toolkit {
 
         try {
             @Pc(19) Graphics graphics = this.canvas.getGraphics();
+            // A2 round 9 review: in a window-size canvas the real-size frame goes to its drawn rectangle (667 OrthoMode flip offset).
+            if (com.jagex.StretchedMode.swPlaced(this.canvas)) {
+                com.jagex.StretchedMode.swClearMargins(this.canvas, graphics);
+                this.surface.clip(com.jagex.StretchedMode.drawX(), com.jagex.StretchedMode.drawY(), x, y, this.canvasWidth, this.canvasHeight, graphics);
+                return;
+            }
             this.surface.clip(0, 0, x, y, this.canvasWidth, this.canvasHeight, graphics);
         } catch (@Pc(34) Exception local34) {
             this.canvas.repaint();
