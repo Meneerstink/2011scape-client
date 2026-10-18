@@ -165,7 +165,8 @@ public final class D3DToolkit extends NativeToolkit {
                 throw new RuntimeException("");
             } else {
                 @Pc(186) D3DPRESENT_PARAMETERS local186 = new D3DPRESENT_PARAMETERS(arg0);
-                if (!Static325.method4859(local186, local3, local13, local5, arg3)) {
+                // A2 round 9 review: no samples while Stretched Mode scales the frame (D3DPresent: no StretchRect into a multisampled surface).
+                if (!Static325.method4859(local186, local3, local13, local5, com.jagex.StretchedMode.d3dWindowSamples(arg3))) {
                     throw new RuntimeException("");
                 }
                 local186.EnableAutoDepthStencil = true;
@@ -424,10 +425,12 @@ public final class D3DToolkit extends NativeToolkit {
             // (rspsPlaceFrame); the real-size back buffer is only the old path (a window smaller than the game).
             boolean stretched = com.jagex.StretchedMode.active() && !com.jagex.StretchedMode.windowCanvas()
                 && this.aCanvas13 == com.jagex.game.runetek6.client.GameShell.canvas;
-            this.rspsReleaseCopy(); // a D3DPOOL_DEFAULT render target must be released before Reset
+            this.rspsPresent.release(this.rspsDevice); // a D3DPOOL_DEFAULT render target must be released before Reset
             this.aD3DPRESENT_PARAMETERS1.BackBufferWidth = stretched ? com.jagex.StretchedMode.realWidth() : 0;
             this.aD3DPRESENT_PARAMETERS1.BackBufferHeight = stretched ? com.jagex.StretchedMode.realHeight() : 0;
-            if (Static325.method4859(this.aD3DPRESENT_PARAMETERS1, this.anInt5369, this.anIDirect3D1, this.anInt5368, this.anInt9158)) {
+            // A2 round 9 review: the player's anti-aliasing, but no samples while Stretched Mode scales the frame (D3DPresent).
+            this.rspsRequestedSamples = com.jagex.StretchedMode.d3dWindowSamples(this.anInt9158);
+            if (Static325.method4859(this.aD3DPRESENT_PARAMETERS1, this.anInt5369, this.anIDirect3D1, this.anInt5368, this.rspsRequestedSamples)) {
                 @Pc(59) int local59 = this.anIDirect3DDevice1.Reset(this.aD3DPRESENT_PARAMETERS1);
                 if (lh.a((byte) 95, local59)) {
                     local26.method8180(this.anIDirect3DDevice1.c(), this.anIDirect3DDevice1.b(0));
@@ -443,7 +446,9 @@ public final class D3DToolkit extends NativeToolkit {
     @OriginalMember(owner = "client!kea", name = "N", descriptor = "(I)V")
     @Override
     protected void method8076() {
-        this.anIDirect3DDevice1.SetScissorRect(this.anInt9147 + this.anInt9154, this.anInt9161 + this.anInt9155, this.anInt9153, this.anInt9165);
+        // A2 round 9 review: a 1:1 frame is drawn in place - the scissor rectangle (left, top, right, bottom) moves with the viewport.
+        this.anIDirect3DDevice1.SetScissorRect(this.rspsOriginX + this.anInt9147 + this.anInt9154, this.rspsOriginY + this.anInt9161 + this.anInt9155,
+            this.rspsOriginX + this.anInt9153, this.rspsOriginY + this.anInt9165);
     }
 
     @OriginalMember(owner = "client!kea", name = "Z", descriptor = "(I)V")
@@ -477,7 +482,7 @@ public final class D3DToolkit extends NativeToolkit {
     @OriginalMember(owner = "client!kea", name = "u", descriptor = "()V")
     @Override
     protected void stop() {
-        this.rspsReleaseCopy();
+        this.rspsPresent.release(this.rspsDevice);
         this.aTi1.b(-23417);
         super.stop();
     }
@@ -497,7 +502,12 @@ public final class D3DToolkit extends NativeToolkit {
     @OriginalMember(owner = "client!kea", name = "o", descriptor = "(B)V")
     @Override
     protected void method8037() {
-        this.anIDirect3DDevice1.SetViewport(this.anInt9147, this.anInt9155, this.anInt9122, this.anInt9013, 0.0F, 1.0F);
+        // A2 round 9 review: a 1:1 frame (Stretched OFF, the fixed game in a bigger window) is drawn in place through the viewport
+        // origin (dxVertexLayout has no pre-transformed vertices, so every vertex goes through the viewport); D3DPresent.origin.
+        int[] origin = com.jagex.D3DPresent.origin(this.aCanvas12 == com.jagex.game.runetek6.client.GameShell.canvas ? com.jagex.StretchedMode.d3dPresentPlan() : null);
+        this.rspsOriginX = origin[0];
+        this.rspsOriginY = origin[1];
+        this.anIDirect3DDevice1.SetViewport(this.rspsOriginX + this.anInt9147, this.rspsOriginY + this.anInt9155, this.anInt9122, this.anInt9013, 0.0F, 1.0F);
     }
 
     @OriginalMember(owner = "client!kea", name = "d", descriptor = "(II)Lclient!wja;")
@@ -512,7 +522,7 @@ public final class D3DToolkit extends NativeToolkit {
         @Pc(1) int[] local1 = null;
         @Pc(6) IDirect3DSurface local6 = this.anIDirect3DDevice1.c(0);
         @Pc(16) IDirect3DSurface local16 = this.anIDirect3DDevice1.a(width, height, 21, 0, 0, true);
-        if (lh.a((byte) 78, this.anIDirect3DDevice1.StretchRect(local6, x, y, width, height, local16, 0, 0, width, height, 0)) && lh.a((byte) 65, local16.LockRect(0, 0, width, height, 16, this.aPixelBuffer1))) {
+        if (lh.a((byte) 78, this.anIDirect3DDevice1.StretchRect(local6, this.rspsOriginX + x, this.rspsOriginY + y, width, height, local16, 0, 0, width, height, 0)) && lh.a((byte) 65, local16.LockRect(0, 0, width, height, 16, this.aPixelBuffer1))) {
             local1 = new int[width * height];
             @Pc(56) int local56 = this.aPixelBuffer1.getRowPitch();
             if (local56 == width * 4) {
@@ -716,10 +726,15 @@ public final class D3DToolkit extends NativeToolkit {
         this.anIDirect3DDevice1.EndScene();
         if (this.aClass349_1.method8181()) {
             this.anInt5370 = 0;
+            // A2 round 9 review: reset the device when Stretched Mode changed whether the back buffer may have samples.
+            boolean reset = com.jagex.StretchedMode.d3dWindowSamples(this.anInt9158) != this.rspsRequestedSamples;
             if (this.aCanvas12 == com.jagex.game.runetek6.client.GameShell.canvas) {
-                this.rspsPlaceFrame();
+                Dimension canvas = this.aCanvas12.getSize();
+                if (this.rspsPresent.place(com.jagex.StretchedMode.d3dPresentPlan(), canvas.width, canvas.height, this.rspsDevice) == com.jagex.D3DPresent.RESET) {
+                    reset = true;
+                }
             }
-            if (lh.a(this.aClass349_1.method8179(), true)) {
+            if (lh.a(this.aClass349_1.method8179(), true) || reset) {
                 this.method4861();
             }
         } else if (++this.anInt5370 <= 50) {
@@ -728,62 +743,70 @@ public final class D3DToolkit extends NativeToolkit {
             throw new FlipException();
         }
         this.anIDirect3DDevice1.BeginScene();
-    }
-
-    /** A2 round 9: the real-size copy of the frame (D3DPOOL_DEFAULT render target, released before every Reset). */
-    private IDirect3DSurface rspsCopy;
-    private int rspsCopyWidth;
-    private int rspsCopyHeight;
-
-    private void rspsReleaseCopy() {
-        if (this.rspsCopy != null) {
-            this.rspsCopy.a(-90);
-            this.rspsCopy = null;
-        }
-    }
-
-    /**
-     * A2 round 9 (Keurmeester A2 round 8 FAIL: DirectX switches were black): the canvas fills the window, the toolkit drew the
-     * real-size frame in the top left corner of the window-size back buffer; move it onto its drawn rectangle with black margins
-     * (StretchedMode.d3dPresentPlan) - the window and the canvas never change size at a fixed <-> resizable switch.
-     */
-    private void rspsPlaceFrame() {
-        int[] plan = com.jagex.StretchedMode.d3dPresentPlan();
-        IDirect3DSurface back = this.aClass349_1.anIDirect3DSurface2;
-        if (plan == null || back == null) {
-            return;
-        }
-        int width = plan[0];
-        int height = plan[1];
-        try {
-            if (this.rspsCopy == null || this.rspsCopyWidth != width || this.rspsCopyHeight != height) {
-                this.rspsReleaseCopy();
-                this.rspsCopy = this.anIDirect3DDevice1.a(width, height, this.aD3DPRESENT_PARAMETERS1.BackBufferFormat, 0, 0, false);
-                this.rspsCopyWidth = width;
-                this.rspsCopyHeight = height;
+        if (this.aCanvas12 == com.jagex.game.runetek6.client.GameShell.canvas) {
+            int[] origin = com.jagex.D3DPresent.origin(com.jagex.StretchedMode.d3dPresentPlan());
+            if (origin[0] != this.rspsOriginX || origin[1] != this.rspsOriginY) {
+                this.method8037(); // the drawn rectangle moved (window resized): the next frame is drawn at the new place
+                this.method8076();
             }
-        } catch (RuntimeException e) {
-            this.rspsCopy = null;
-            com.jagex.StretchedMode.d3dFailed("CreateRenderTarget " + width + "x" + height + ": " + e.getMessage());
-            return;
-        }
-        int copied = this.anIDirect3DDevice1.StretchRect(back, 0, 0, width, height, this.rspsCopy, 0, 0, width, height, 0);
-        if (!lh.a((byte) 78, copied)) {
-            com.jagex.StretchedMode.d3dFailed("StretchRect copy " + copied);
-            return;
-        }
-        Dimension canvas = this.aCanvas12.getSize();
-        // The margins: the whole back buffer black (Clear covers the viewport and honours the scissor rectangle).
-        this.anIDirect3DDevice1.SetViewport(0, 0, canvas.width, canvas.height, 0.0F, 1.0F);
-        this.anIDirect3DDevice1.a(174, false);
-        this.anIDirect3DDevice1.Clear(1, 0xFF000000, 1.0F, 0);
-        int placed = this.anIDirect3DDevice1.StretchRect(this.rspsCopy, 0, 0, width, height, back, plan[2], plan[3], plan[4], plan[5], plan[6]);
-        this.anIDirect3DDevice1.a(174, this.aBoolean697);
-        this.method8037();
-        if (!lh.a((byte) 78, placed)) {
-            com.jagex.StretchedMode.d3dFailed("StretchRect place " + placed);
         }
     }
+
+    /** A2 round 9 review: how flip shows the frame (D3DPresent) and where the toolkit draws a 1:1 frame (viewport origin). */
+    private final com.jagex.D3DPresent rspsPresent = new com.jagex.D3DPresent();
+    private int rspsOriginX;
+    private int rspsOriginY;
+    /** The samples the back buffer was last created / reset with (StretchedMode.d3dWindowSamples of the player's AA). */
+    private int rspsRequestedSamples = com.jagex.StretchedMode.d3dWindowSamples(this.anInt9158);
+
+    /** The jagdx calls of D3DPresent on this device. */
+    private final com.jagex.D3DPresent.Device rspsDevice = new com.jagex.D3DPresent.Device() {
+        @Override
+        public Object backBuffer() {
+            return D3DToolkit.this.aClass349_1.anIDirect3DSurface2;
+        }
+
+        @Override
+        public boolean multisampled() {
+            return D3DToolkit.this.aD3DPRESENT_PARAMETERS1.MultiSampleType != 0;
+        }
+
+        @Override
+        public Object createRenderTarget(int width, int height) {
+            return D3DToolkit.this.anIDirect3DDevice1.a(width, height, D3DToolkit.this.aD3DPRESENT_PARAMETERS1.BackBufferFormat, 0, 0, false);
+        }
+
+        @Override
+        public void release(Object surface) {
+            ((IDirect3DSurface) surface).a(-90);
+        }
+
+        @Override
+        public int stretchRect(Object source, int x, int y, int width, int height, Object destination, int dx, int dy, int dwidth, int dheight, int filter) {
+            return D3DToolkit.this.anIDirect3DDevice1.StretchRect((IDirect3DSurface) source, x, y, width, height, (IDirect3DSurface) destination, dx, dy, dwidth, dheight, filter);
+        }
+
+        @Override
+        public void setViewport(int x, int y, int width, int height) {
+            D3DToolkit.this.anIDirect3DDevice1.SetViewport(x, y, width, height, 0.0F, 1.0F);
+        }
+
+        @Override
+        public void scissorTest(boolean on) {
+            D3DToolkit.this.anIDirect3DDevice1.a(174, on);
+        }
+
+        @Override
+        public int clearBlack() {
+            return D3DToolkit.this.anIDirect3DDevice1.Clear(1, 0xFF000000, 1.0F, 0);
+        }
+
+        @Override
+        public void restoreState() {
+            D3DToolkit.this.anIDirect3DDevice1.a(174, D3DToolkit.this.aBoolean697);
+            D3DToolkit.this.method8037();
+        }
+    };
 
     @OriginalMember(owner = "client!kea", name = "a", descriptor = "(ILclient!waa;)V")
     public void method4864(@OriginalArg(1) Class61_Sub3 arg0) {

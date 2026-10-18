@@ -1,3 +1,4 @@
+import com.jagex.D3DPresent;
 import com.jagex.StretchedMode;
 import com.jagex.game.runetek6.client.GameShell;
 
@@ -244,7 +245,8 @@ public final class StretchedSwitchSurfaceRegressionTest {
         //    class: every window x Stretched OFF / ON x Keep aspect / Integer x scaling x Increased performance - the canvas has the
         //    same size and place in fixed and resizable and fills the window, the client never fits the window, clicks land on the
         //    drawn pixel; the toolkit renders a frame that is not 1:1 at its real size and flip moves exactly that real-size corner
-        //    of the back buffer onto the drawn rectangle (left/top/right/bottom), 1:1 without a filter, stretched linear / point.
+        //    of the back buffer onto the drawn rectangle (jagdx StretchRect: x, y, width, height), 1:1 without a filter, stretched linear / point;
+        //    2b (round 9 review): every frame also through D3DToolkit's present (D3DPresent) on a fake jagdx device, with and without AA.
         glToolkit(false);
         d3dToolkit(true);
         for (int[] w : windows) {
@@ -271,6 +273,9 @@ public final class StretchedSwitchSurfaceRegressionTest {
                                 java.awt.Dimension render = StretchedMode.renderSize(GameShell.canvas);
                                 int[] plan = d3dPlan();
                                 boolean oneToOne = l.drawX == 0 && l.drawY == 0 && l.realW == l.canvasW && l.realH == l.canvasH && l.drawnW == l.canvasW && l.drawnH == l.canvasH;
+                                // 2b: the frame through D3DToolkit's present (fake jagdx device), without and with anti-aliasing.
+                                d3dFrame(mode, l, plan, false);
+                                d3dFrame(mode, l, plan, true);
                                 if (oneToOne) {
                                     check(plan == null, "DirectX moves a frame that is already 1:1 over the whole canvas", mode);
                                     continue;
@@ -278,7 +283,7 @@ public final class StretchedSwitchSurfaceRegressionTest {
                                 check(render.width == l.realW && render.height == l.realH, "DirectX does not render the placed frame at its real size",
                                     mode + ": renders " + render.width + "x" + render.height + ", real " + l.realW + "x" + l.realH);
                                 int filter = l.drawnW == l.realW && l.drawnH == l.realH ? 0 : fast ? 1 : 2;
-                                int[] want = {l.realW, l.realH, l.drawX, l.drawY, l.drawX + l.drawnW, l.drawY + l.drawnH, filter};
+                                int[] want = {l.realW, l.realH, l.drawX, l.drawY, l.drawnW, l.drawnH, filter}; // jagdx StretchRect: x, y, width, height
                                 check(plan != null && java.util.Arrays.equals(plan, want), "DirectX flip does not place the frame on its drawn rectangle",
                                     mode + ": plan " + (plan == null ? "none (the canvas is resized instead)" : java.util.Arrays.toString(plan)) + ", want " + java.util.Arrays.toString(want));
                             }
@@ -328,6 +333,11 @@ public final class StretchedSwitchSurfaceRegressionTest {
                 clicks(name + " fixed", fixed);
             }
         }
+
+        // 2b (end): D3DToolkit releases its render target before Reset / at stop, and a failing StretchRect falls back (last:
+        // d3dFailed holds for the rest of the run).
+        d3dResetReleases();
+        d3dFallback();
 
         System.setOut(OUT);
         int failed = 0;
@@ -620,5 +630,280 @@ public final class StretchedSwitchSurfaceRegressionTest {
         if (n == null || examples.size() < 14) {
             examples.add(detail);
         }
+    }
+
+    // ---- 2b. A2 round 9 review (nakijker FOUTEN 1 + 3): D3DToolkit's present through the jagdx seam (com.jagex.D3DPresent) ----
+    //
+    // A fake jagdx device that keeps every operation on the window-size back buffer and the real-size copy, and refuses what
+    // Direct3D 9 refuses (StretchRect INTO a multisampled surface, a rectangle outside its surface, source = destination). The
+    // toolkit draws the real-size frame at D3DPresent.origin (viewport + scissor offset), then flip runs D3DPresent.place; the
+    // picture is then read back at sample points: inside the drawn rectangle the right game pixel, outside it black.
+
+    static final int D3DERR_INVALIDCALL = -2005530516;
+
+    static final class FakeD3D implements D3DPresent.Device {
+        final int width, height;
+        final boolean multisampled;
+        final String back = "back";
+        Object copy;
+        int copyW, copyH;
+        final List<int[]> backOps = new ArrayList<int[]>();
+        final List<int[]> copyOps = new ArrayList<int[]>();
+        final List<String> calls = new ArrayList<String>();
+        final List<String> invalid = new ArrayList<String>();
+        final List<Object> released = new ArrayList<Object>();
+        int[] viewport;
+        boolean scissor = true;
+        boolean stateDirty;
+        boolean failStretch;
+
+        FakeD3D(int width, int height, boolean multisampled) {
+            this.width = width;
+            this.height = height;
+            this.multisampled = multisampled;
+            this.viewport = new int[] {0, 0, width, height};
+        }
+
+        /** The toolkit draws the real-size game with its viewport at x, y. Op kinds: 0 draw, 1 clear, 2 stretch from copy, 3 stretch from back. */
+        void drawGame(int x, int y, int w, int h) {
+            backOps.add(new int[] {0, x, y, w, h});
+        }
+
+        @Override
+        public Object backBuffer() {
+            return back;
+        }
+
+        @Override
+        public boolean multisampled() {
+            return multisampled;
+        }
+
+        @Override
+        public Object createRenderTarget(int w, int h) {
+            calls.add("create " + w + "x" + h);
+            copy = new Object();
+            copyW = w;
+            copyH = h;
+            copyOps.clear();
+            return copy;
+        }
+
+        @Override
+        public void release(Object surface) {
+            calls.add("release");
+            released.add(surface);
+        }
+
+        @Override
+        public int stretchRect(Object source, int x, int y, int w, int h, Object destination, int dx, int dy, int dw, int dh, int filter) {
+            calls.add("stretch " + (source == back ? "back" : "copy") + " " + x + "," + y + " " + w + "x" + h + " -> " + (destination == back ? "back" : "copy") + " " + dx + "," + dy + " " + dw + "x" + dh + " f" + filter);
+            if (failStretch) {
+                return D3DERR_INVALIDCALL;
+            }
+            if (source == destination) {
+                invalid.add("StretchRect source = destination");
+                return D3DERR_INVALIDCALL;
+            }
+            if (destination == back && multisampled) {
+                invalid.add("StretchRect INTO the multisampled back buffer (Direct3D 9 refuses it)");
+                return D3DERR_INVALIDCALL;
+            }
+            int sw = source == back ? width : copyW, sh = source == back ? height : copyH;
+            int tw = destination == back ? width : copyW, th = destination == back ? height : copyH;
+            if (x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > sw || y + h > sh || dx < 0 || dy < 0 || dw <= 0 || dh <= 0 || dx + dw > tw || dy + dh > th) {
+                invalid.add("StretchRect rectangle outside its surface: " + calls.get(calls.size() - 1) + " (source " + sw + "x" + sh + ", destination " + tw + "x" + th + ")");
+                return D3DERR_INVALIDCALL;
+            }
+            boolean fromCopy = source != back;
+            int sourceOps = fromCopy ? copyOps.size() : backOps.size();
+            int[] op = {fromCopy ? 2 : 3, dx, dy, dw, dh, x, y, w, h, sourceOps};
+            (destination == back ? backOps : copyOps).add(op);
+            return 0;
+        }
+
+        @Override
+        public void setViewport(int x, int y, int w, int h) {
+            if (x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > width || y + h > height) {
+                invalid.add("viewport outside the back buffer: " + x + "," + y + " " + w + "x" + h + " in " + width + "x" + height);
+            }
+            viewport = new int[] {x, y, w, h};
+            stateDirty = true;
+        }
+
+        @Override
+        public void scissorTest(boolean on) {
+            scissor = on;
+            stateDirty = true;
+        }
+
+        @Override
+        public int clearBlack() {
+            if (scissor) {
+                invalid.add("Clear with the toolkit's scissor test on (clears only the game's clip rectangle)");
+            }
+            backOps.add(new int[] {1, viewport[0], viewport[1], viewport[2], viewport[3]});
+            return 0;
+        }
+
+        @Override
+        public void restoreState() {
+            stateDirty = false;
+            scissor = true;
+        }
+
+        /** {kind, gx, gy}: kind 0 = game pixel gx, gy; 1 = black; 2 = undefined (DISCARD back buffer, never written). */
+        int[] at(boolean onBack, int px, int py, int upTo) {
+            List<int[]> ops = onBack ? backOps : copyOps;
+            for (int i = upTo - 1; i >= 0; i--) {
+                int[] op = ops.get(i);
+                if (px < op[1] || py < op[2] || px >= op[1] + op[3] || py >= op[2] + op[4]) {
+                    continue;
+                }
+                if (op[0] == 0) {
+                    return new int[] {0, px - op[1], py - op[2]};
+                }
+                if (op[0] == 1) {
+                    return new int[] {1, 0, 0};
+                }
+                int sx = op[5] + (int) ((long) (px - op[1]) * op[7] / op[3]);
+                int sy = op[6] + (int) ((long) (py - op[2]) * op[8] / op[4]);
+                return at(op[0] == 3, sx, sy, op[9]);
+            }
+            return new int[] {2, 0, 0};
+        }
+    }
+
+    /** One DirectX frame of layout [l] through D3DPresent with the player's anti-aliasing [aa], checked at sample points. */
+    private static void d3dFrame(String mode, Layout l, int[] plan, boolean aa) {
+        int playerSamples = aa ? 4 : 0;
+        int samples = d3dWindowSamples(playerSamples);
+        String name = mode + (aa ? " AA4" : "") + " (back buffer samples " + samples + ")";
+        if (aa && !StretchedMode.enabled()) {
+            check(samples == playerSamples, "DirectX drops the player's anti-aliasing with Stretched Mode off", name);
+        }
+        FakeD3D dev = new FakeD3D(l.canvasW, l.canvasH, samples > 0);
+        int[] origin = D3DPresent.origin(plan);
+        dev.drawGame(origin[0], origin[1], l.realW, l.realH);
+        D3DPresent present = new D3DPresent();
+        int result = present.place(plan, l.canvasW, l.canvasH, dev);
+        for (String bad : dev.invalid) {
+            check(false, "DirectX present makes a call Direct3D 9 refuses (the frame is not placed / the run falls back to the black canvas path)", name + ": " + bad + " calls=" + dev.calls);
+        }
+        check(result != D3DPresent.RESET, "DirectX keeps a multisampled back buffer while the frame must be scaled (device reset at every frame)", name + " calls=" + dev.calls);
+        check(!dev.stateDirty, "DirectX present leaves its own viewport / scissor test behind (the next frame draws in the wrong place)", name + " calls=" + dev.calls);
+        int wrong = 0;
+        String first = null;
+        int[] xs = samplePoints(l.drawX, l.drawnW, l.canvasW);
+        int[] ys = samplePoints(l.drawY, l.drawnH, l.canvasH);
+        for (int px : xs) {
+            for (int py : ys) {
+                int[] got = dev.at(true, px, py, dev.backOps.size());
+                boolean inside = px >= l.drawX && py >= l.drawY && px < l.drawX + l.drawnW && py < l.drawY + l.drawnH;
+                boolean ok;
+                String want;
+                if (inside) {
+                    int gx = (int) ((long) (px - l.drawX) * l.realW / l.drawnW);
+                    int gy = (int) ((long) (py - l.drawY) * l.realH / l.drawnH);
+                    ok = got[0] == 0 && Math.abs(got[1] - gx) <= 1 && Math.abs(got[2] - gy) <= 1;
+                    want = "game " + gx + "," + gy;
+                } else {
+                    ok = got[0] == 1;
+                    want = "black";
+                }
+                if (!ok) {
+                    wrong++;
+                    if (first == null) {
+                        first = px + "," + py + " is " + (got[0] == 0 ? "game " + got[1] + "," + got[2] : got[0] == 1 ? "black" : "undefined") + ", want " + want;
+                    }
+                }
+            }
+        }
+        check(wrong == 0, "DirectX present: wrong picture (the frame is not exactly on its drawn rectangle / the margins are not black)",
+            name + ": " + wrong + " sample points wrong, e.g. " + first + "; drawn " + l.drawnW + "x" + l.drawnH + " at " + l.drawX + "," + l.drawY + " plan=" + java.util.Arrays.toString(plan) + " calls=" + dev.calls);
+        if (plan != null && plan[6] != 0 && samples == 0) {
+            // The real-size copy is kept between frames and released before every device Reset (D3DPOOL_DEFAULT).
+            check(present.holdsCopy(), "DirectX does not keep its real-size copy between frames", name);
+            Object copy = dev.copy;
+            present.release(dev);
+            check(!present.holdsCopy() && dev.released.size() == 1 && dev.released.get(0) == copy,
+                "DirectX does not release its render target (a Reset with a D3DPOOL_DEFAULT surface alive fails: device lost)", name + " released=" + dev.released.size());
+        }
+    }
+
+    /** Edges of the drawn rectangle (each side and its neighbour pixel) plus an even spread over the canvas. */
+    private static int[] samplePoints(int start, int size, int canvas) {
+        java.util.TreeSet<Integer> points = new java.util.TreeSet<Integer>();
+        for (int p : new int[] {0, start - 1, start, start + 1, start + size / 2, start + size - 2, start + size - 1, start + size, canvas - 1}) {
+            if (p >= 0 && p < canvas) {
+                points.add(p);
+            }
+        }
+        for (int i = 0; i < 24; i++) {
+            points.add((int) ((long) canvas * i / 24));
+        }
+        int[] out = new int[points.size()];
+        int i = 0;
+        for (int p : points) {
+            out[i++] = p;
+        }
+        return out;
+    }
+
+    /** StretchedMode.d3dWindowSamples (absent on the old code: the back buffer always had the player's samples). */
+    private static int d3dWindowSamples(int playerSamples) {
+        try {
+            return (Integer) StretchedMode.class.getMethod("d3dWindowSamples", int.class).invoke(null, playerSamples);
+        } catch (NoSuchMethodException absent) {
+            return playerSamples;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** D3DToolkit.method4861 releases the copy before it calls Reset (source guard: the native device cannot run here). */
+    private static void d3dResetReleases() {
+        java.io.File source = null;
+        for (String p : new String[] {"runescape/src/main/java/D3DToolkit.java", "src/main/java/D3DToolkit.java", "../runescape/src/main/java/D3DToolkit.java"}) {
+            java.io.File f = new java.io.File(p);
+            if (f.isFile()) {
+                source = f;
+                break;
+            }
+        }
+        if (source == null) {
+            check(false, "D3DToolkit source not found for the Reset-release guard", new java.io.File(".").getAbsolutePath());
+            return;
+        }
+        try {
+            String text = new String(java.nio.file.Files.readAllBytes(source.toPath()), "UTF-8");
+            int method = text.indexOf("public boolean method4861()");
+            int reset = text.indexOf(".Reset(", method);
+            int release = text.toLowerCase().indexOf("release", method);
+            check(method >= 0 && release > method && release < reset,
+                "D3DToolkit.method4861 calls Reset before it released the real-size render target", "method4861 at " + method + ", release at " + release + ", Reset at " + reset);
+            int stop = text.indexOf("protected void stop()");
+            int stopRelease = text.toLowerCase().indexOf("release", stop);
+            check(stop >= 0 && stopRelease > stop && stopRelease < text.indexOf("super.stop()", stop),
+                "D3DToolkit.stop does not release the real-size render target", "stop at " + stop);
+        } catch (java.io.IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** A StretchRect that fails sends this run back to the old canvas sizes (one PROBLEM line), never a frame left unplaced. */
+    private static void d3dFallback() throws Exception {
+        d3dToolkit(true);
+        Layout l = layoutFast(new int[] {944, 581}, true, true, false, false, 0, false);
+        int[] plan = d3dPlan();
+        check(plan != null && plan[6] != 0, "DirectX fallback case: Stretched ON fixed 944x581 is not a scaled plan", java.util.Arrays.toString(plan));
+        FakeD3D dev = new FakeD3D(l.canvasW, l.canvasH, false);
+        dev.failStretch = true;
+        int result = new D3DPresent().place(plan, l.canvasW, l.canvasH, dev);
+        check(result == D3DPresent.FAILED, "DirectX present does not report a failing StretchRect", "result " + result + " calls=" + dev.calls);
+        check(!StretchedMode.windowCanvas(), "DirectX: after a failing StretchRect the run keeps the window canvas (the frame stays unplaced)", "windowCanvas still on");
+        Layout after = layout(new int[] {944, 581}, true, false, false, false, 0);
+        check(after.canvasW == 765 && after.canvasH == 503, "DirectX: after a failing StretchRect the canvas is not sized to the game again",
+            "canvas " + after.canvasW + "x" + after.canvasH);
     }
 }

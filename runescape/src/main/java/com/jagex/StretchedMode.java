@@ -231,12 +231,24 @@ public final class StretchedMode {
         }
     }
 
+    /**
+     * A2 round 9 review (nakijker FOUTEN 1): the samples of the DirectX back buffer for the player's anti-aliasing. Direct3D 9
+     * cannot StretchRect into a multisampled surface, so while Stretched Mode is on (a scaled frame is moved by StretchRect) the
+     * back buffer has none; with Stretched Mode off every frame is 1:1 and drawn in place (D3DPresent.origin), so the player's
+     * anti-aliasing stays - in fixed and resizable alike, so a fixed <-> resizable switch never needs a device reset.
+     */
+    public static int d3dWindowSamples(int playerSamples) {
+        return enabled ? 0 : playerSamples;
+    }
+
     private static String lastD3dPlan = "";
 
     /**
-     * DirectX flip: how to move the frame the toolkit drew at the top left of the window-size back buffer, or null when it is
-     * already 1:1 over the whole canvas. {realWidth, realHeight, left, top, right, bottom, filter} - jagdx rectangles are
-     * left/top/right/bottom (as SetScissorRect: NativeToolkit.KA keeps x2/y2); filter 0 = none (1:1), 1 = point, 2 = linear.
+     * DirectX flip (D3DPresent): where the frame goes in the window-size back buffer, or null when it is already 1:1 over the
+     * whole canvas. {realWidth, realHeight, x, y, width, height, filter} - the jagdx StretchRect takes x, y, width, height (the
+     * 667 D3DToolkit.na reads StretchRect(back, x, y, width, height, copy, 0, 0, width, height); round 9 passed right / bottom
+     * there and drew the fixed game 854 px wide at x 89 in a 944x581 window: r10 before-10-rect.txt); filter 0 = none (a 1:1
+     * frame, drawn in place through the viewport origin), 1 = point, 2 = linear.
      */
     public static int[] d3dPresentPlan() {
         if (!d3dToolkit || !windowCanvas() || !drawsOffscreen()) {
@@ -245,7 +257,7 @@ public final class StretchedMode {
         int width = stretchedWidth > 0 ? stretchedWidth : realWidth;
         int height = stretchedHeight > 0 ? stretchedHeight : realHeight;
         int filter = width == realWidth && height == realHeight ? 0 : fast ? 1 : 2;
-        int[] plan = {realWidth, realHeight, drawX, drawY, drawX + width, drawY + height, filter};
+        int[] plan = {realWidth, realHeight, drawX, drawY, width, height, filter};
         String state = "stretch d3d present real=" + realWidth + "x" + realHeight + " drawn=" + width + "x" + height + " at " + drawX + "," + drawY + " filter=" + filter;
         if (!state.equals(lastD3dPlan)) {
             lastD3dPlan = state;
