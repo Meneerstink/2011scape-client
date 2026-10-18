@@ -48,6 +48,11 @@ public final class Static595 {
         com.jagex.StretchedMode.toolkitChanged(!ClientOptions.instance.orthographic.isToolkitCompatible()
             && (Toolkit.active instanceof JavaToolkit || Toolkit.active instanceof D3DToolkit
                 || Toolkit.active instanceof GlToolkit && ((GlToolkit) Toolkit.active).rspsStretchSupported()));
+        // A2 round 8: with OpenGL (framebuffer objects, a plain window) the canvas fills the window in every mode and the game is
+        // blitted into it, so a fixed <-> resizable switch never resizes the window or the canvas (RuneLite ClientUI).
+        boolean gl = Toolkit.active instanceof GlToolkit && !ClientOptions.instance.orthographic.isToolkitCompatible()
+            && ((GlToolkit) Toolkit.active).rspsStretchSupported();
+        com.jagex.StretchedMode.glToolkit(gl, gl && ((GlToolkit) Toolkit.active).rspsPlainWindow());
         if (toolkit != requested && requested == ToolkitType.SSE) {
             Static171.graphicsError = true;
         }

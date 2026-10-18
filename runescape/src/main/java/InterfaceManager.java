@@ -2832,6 +2832,7 @@ public final class InterfaceManager {
     static boolean prepareOffscreenCanvas() {
         if ((!pendingCanvas && pendingFitMode == -1) || !(Toolkit.active instanceof GlToolkit) || OrthoMode.toolkitActive
             || GameShell.fsframe != null || GameShell.canvas == null || com.jagex.StretchedMode.active()
+            || com.jagex.StretchedMode.windowCanvas() // A2 round 8: the canvas fills the window - nothing changes size
             || !((GlToolkit) Toolkit.active).rspsStretchSupported()) {
             return false;
         }

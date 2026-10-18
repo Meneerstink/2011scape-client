@@ -72,6 +72,16 @@ val stretchedScalingRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
+val stretchedSwitchSurfaceRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "A2 round 8: with OpenGL a fixed <-> resizable switch never changes the canvas or the window size (every window x Stretched OFF/ON x Keep aspect / Integer x scaling), clicks land on the drawn pixel; other toolkits unchanged."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("StretchedSwitchSurfaceRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
 val stretchedSidebarRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "A2 round 3: opening/closing the 78 Plugins sidebar keeps the game area (RuneLite KEEP_GAME_SIZE) and the window minimum = game 765 + sidebar (needs a desktop; the frame is never shown)."

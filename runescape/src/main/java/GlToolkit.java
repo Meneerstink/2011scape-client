@@ -3328,6 +3328,11 @@ public final class GlToolkit extends Toolkit {
         return this.anInt7986 != wanted;
     }
 
+    /** A2 round 8: this window is not multisampled (a framebuffer blit can write it). */
+    public boolean rspsPlainWindow() {
+        return this.anInt7986 <= 1;
+    }
+
     /** Binds / resizes / drops the stretch framebuffer for the window surface; a new one means every interface is drawn again. */
     private void rspsStretchSync() {
         // Only the game canvas is stretched; any other canvas this toolkit draws on gets the window itself.

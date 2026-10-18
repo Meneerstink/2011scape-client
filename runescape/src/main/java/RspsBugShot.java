@@ -425,10 +425,14 @@ public final class RspsBugShot {
                 }
                 final Point c = canvas.getLocationOnScreen();
                 final Point ws = window.getLocationOnScreen();
-                at = new Rectangle(c.x - ws.x - in.left, c.y - ws.y - in.top, canvas.getWidth(), canvas.getHeight());
+                at = new Rectangle(c.x - ws.x - in.left + StretchedMode.drawX(), c.y - ws.y - in.top + StretchedMode.drawY(),
+                    StretchedMode.windowCanvas() ? StretchedMode.stretchedWidth() : canvas.getWidth(),
+                    StretchedMode.windowCanvas() ? StretchedMode.stretchedHeight() : canvas.getHeight());
             } else {
                 area = new BufferedImage(Math.max(1, canvas.getWidth()), Math.max(1, canvas.getHeight()), BufferedImage.TYPE_INT_RGB);
-                at = new Rectangle(0, 0, area.getWidth(), area.getHeight());
+                at = StretchedMode.windowCanvas()
+                    ? new Rectangle(StretchedMode.drawX(), StretchedMode.drawY(), StretchedMode.stretchedWidth(), StretchedMode.stretchedHeight())
+                    : new Rectangle(0, 0, area.getWidth(), area.getHeight());
             }
             final byte[] png = encode(compose(pixels, w, h, area, at));
             final File home = new File(System.getProperty("user.home"));

@@ -121,6 +121,61 @@ public final class StretchedMode {
         glNoFramebuffers = true;
     }
 
+    // ---- A2 round 8 (Keurmeester A2 round 7 FAIL): with OpenGL the canvas always fills the window ----------------------------
+    //
+    // Every frame in which the window or the AWT canvas changed size was BLACK on the real screen (Windows shows a resized OpenGL
+    // surface black until the next SwapBuffers): Stretched OFF fixed <-> resizable fitted the window (944x581 <-> 765x503) and
+    // resized the canvas (maximised: 765x503 at 441,0 <-> 1648x989); Keep aspect / Integer scaling resized the canvas to the drawn
+    // size. RuneLite never sizes the frame on a mode change (ClientUI.applyGameSize only from its own config) and its canvas fills
+    // the parent; the fixed game is drawn inside it. So with OpenGL (framebuffer objects, a plain window) the canvas is ALWAYS the
+    // window's game area: a frame that is not 1:1 over the whole canvas (fixed 765x503 in a bigger window, stretched, kept aspect,
+    // integer scaled) is drawn offscreen at its real size and blitted into its rectangle (drawX, drawY, drawn size; the rest is
+    // black). A mode switch then changes only what the blit draws - never the window, never the canvas.
+
+    private static boolean glToolkit;
+    private static boolean glPlainSurface;
+    private static int drawX;
+    private static int drawY;
+
+    /** The active toolkit is OpenGL ([on]) and its window is not multisampled ([plain]: a blit cannot write a multisampled window). */
+    public static void glToolkit(boolean on, boolean plain) {
+        if (glToolkit != on || glPlainSurface != plain) {
+            glToolkit = on;
+            glPlainSurface = plain;
+            Client.changingWindowMode = true;
+        }
+    }
+
+    /** Tests: the OpenGL toolkit with a plain window ([on]) or another toolkit. */
+    public static void glToolkit(boolean on) {
+        glToolkit(on, true);
+    }
+
+    /** The canvas fills the window's game area and the blit places the game in it (OpenGL, framebuffer objects, plain window). */
+    public static boolean windowCanvas() {
+        return glToolkit && glPlainSurface && toolkitCanStretch && !glFailed && !glNoFramebuffers;
+    }
+
+    /** Left / top of the drawn game inside the canvas (0 when the canvas is the drawn size). */
+    public static int drawX() {
+        return windowCanvas() ? drawX : 0;
+    }
+
+    public static int drawY() {
+        return windowCanvas() ? drawY : 0;
+    }
+
+    /** The game frame is drawn offscreen and blitted: stretched, or not 1:1 over the whole window canvas. */
+    static boolean drawsOffscreen() {
+        if (active()) {
+            return true;
+        }
+        if (!windowCanvas() || realWidth <= 0 || realHeight <= 0) {
+            return false;
+        }
+        return drawX != 0 || drawY != 0 || realWidth != canvasWidth() || realHeight != canvasHeight();
+    }
+
     /** Stretching is on and the window is laid out stretched. */
     public static boolean active() {
         return enabled && toolkitCanStretch && !glFailed && stretchedWidth > 0 && (stretchedWidth != realWidth || stretchedHeight != realHeight);
@@ -131,7 +186,7 @@ public final class StretchedMode {
      * so the client must not size the window to the game (InterfaceManager.changeWindowMode).
      */
     public static boolean fillsWindow() {
-        return enabled && toolkitCanStretch && !glFailed;
+        return enabled && toolkitCanStretch && !glFailed || windowCanvas();
     }
 
     /**
@@ -154,6 +209,20 @@ public final class StretchedMode {
     private static String lastLayout = "";
 
     private static void layoutSizes(boolean fixed) {
+        layoutGameSizes(fixed);
+        // A2 round 8: the drawn game's place = the margins the game (fixed: centred at the top) or the stretch (centred) picked;
+        // with OpenGL the canvas itself then fills the window from its origin.
+        drawX = GameShell.leftMargin;
+        drawY = GameShell.topMargin;
+        if (windowCanvas() && GameShell.frameWid > 0 && GameShell.frameHei > 0) {
+            GameShell.leftMargin = 0;
+            GameShell.topMargin = 0;
+        } else {
+            drawX = drawY = 0;
+        }
+    }
+
+    private static void layoutGameSizes(boolean fixed) {
         if (!enabled || !toolkitCanStretch || glFailed) {
             realWidth = stretchedWidth = GameShell.canvasWid;
             realHeight = stretchedHeight = GameShell.canvasHei;
@@ -294,7 +363,7 @@ public final class StretchedMode {
         if (prerenderWidth > 0 && canvas == GameShell.canvas) {
             return new java.awt.Dimension(prerenderWidth, prerenderHeight);
         }
-        if (active() && canvas == GameShell.canvas) {
+        if (drawsOffscreen() && canvas == GameShell.canvas) {
             return new java.awt.Dimension(realWidth, realHeight);
         }
         return canvas.getSize();
@@ -337,10 +406,16 @@ public final class StretchedMode {
 
     /** Width the AWT canvas gets: the stretched width while stretching, else the game's own canvas width. */
     public static int canvasWidth() {
+        if (windowCanvas() && GameShell.frameWid > 0 && GameShell.frameHei > 0) {
+            return GameShell.frameWid;
+        }
         return active() ? stretchedWidth : GameShell.canvasWid;
     }
 
     public static int canvasHeight() {
+        if (windowCanvas() && GameShell.frameWid > 0 && GameShell.frameHei > 0) {
+            return GameShell.frameHei;
+        }
         return active() ? stretchedHeight : GameShell.canvasHei;
     }
 
@@ -371,10 +446,17 @@ public final class StretchedMode {
      * between a window resize and the next layout.
      */
     public static int mouseX(int x) {
+        if (windowCanvas() && stretchedWidth > 0 && realWidth > 0) {
+            // A2 round 8: the game sits at drawX in the window canvas, drawn stretchedWidth wide (the blit's rectangle).
+            return (int) Math.floor((x - drawX) * (double) realWidth / stretchedWidth);
+        }
         return active() ? (int) (x / ((double) drawnWidth() / realWidth)) : x;
     }
 
     public static int mouseY(int y) {
+        if (windowCanvas() && stretchedHeight > 0 && realHeight > 0) {
+            return (int) Math.floor((y - drawY) * (double) realHeight / stretchedHeight);
+        }
         return active() ? (int) (y / ((double) drawnHeight() / realHeight)) : y;
     }
 
@@ -538,7 +620,7 @@ public final class StretchedMode {
     static final int CLEAR_FLIPS = 3;
     private static int clearFlips;
     private static boolean glSyncBuffer(boolean supported, int width, int height) {
-        boolean want = supported && !glFailed && (active() || prerenderWidth > 0) && width > 0 && height > 0;
+        boolean want = supported && !glFailed && (drawsOffscreen() || prerenderWidth > 0) && width > 0 && height > 0;
         if (!want) {
             if (!bound) {
                 return false;
@@ -582,7 +664,22 @@ public final class StretchedMode {
         }
         gl.glBindFramebufferEXT(GL_READ_FRAMEBUFFER, framebuffer);
         gl.glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, 0);
-        gl.glBlitFramebufferEXT(0, 0, bufferWidth, bufferHeight, 0, 0, canvasWidth, canvasHeight, GL_COLOR_BUFFER_BIT, fast ? GL_NEAREST : GL_LINEAR);
+        int x0 = 0;
+        int y0 = 0;
+        int x1 = canvasWidth;
+        int y1 = canvasHeight;
+        if (windowCanvas() && prerenderWidth <= 0 && stretchedWidth > 0 && stretchedHeight > 0) {
+            // A2 round 8: the game's rectangle inside the window canvas (GL rows count from the bottom); the margins are black.
+            x0 = drawX;
+            x1 = drawX + stretchedWidth;
+            y1 = canvasHeight - drawY;
+            y0 = y1 - stretchedHeight;
+            if (x0 > 0 || y0 > 0 || x1 < canvasWidth || y1 < canvasHeight) {
+                gl.glClearColor(0F, 0F, 0F, 1F);
+                gl.glClear(GL_COLOR_BUFFER_BIT);
+            }
+        }
+        gl.glBlitFramebufferEXT(0, 0, bufferWidth, bufferHeight, x0, y0, x1, y1, GL_COLOR_BUFFER_BIT, fast ? GL_NEAREST : GL_LINEAR);
         gl.glBindFramebufferEXT(GL_FRAMEBUFFER, framebuffer);
         if (scissor) {
             gl.glEnable(GL_SCISSOR_TEST);

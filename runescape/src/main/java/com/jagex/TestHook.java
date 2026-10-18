@@ -437,7 +437,14 @@ public final class TestHook {
         });
         final Point o = canvasOffset(canvas);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g.drawImage(frame, o.x, o.y, canvas.getWidth(), canvas.getHeight(), null);
+        if (StretchedMode.windowCanvas()) {
+            // A2 round 8: the canvas fills the window; the game frame sits in its drawn rectangle, the rest is black.
+            g.setColor(java.awt.Color.BLACK);
+            g.fillRect(o.x, o.y, canvas.getWidth(), canvas.getHeight());
+            g.drawImage(frame, o.x + StretchedMode.drawX(), o.y + StretchedMode.drawY(), StretchedMode.stretchedWidth(), StretchedMode.stretchedHeight(), null);
+        } else {
+            g.drawImage(frame, o.x, o.y, canvas.getWidth(), canvas.getHeight(), null);
+        }
         g.dispose();
 
         final File out = new File(path);
