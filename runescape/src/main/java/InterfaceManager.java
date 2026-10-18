@@ -2681,6 +2681,11 @@ public final class InterfaceManager {
         }
 
         @Override
+        public void presentCanvas() {
+            applyPendingCanvas();
+        }
+
+        @Override
         public long now() {
             return com.jagex.core.util.SystemTimer.safetime();
         }
@@ -2716,7 +2721,11 @@ public final class InterfaceManager {
         // Not while RuneLite Stretched Mode fills the window (owner 2026-10-11 A2 "fixed mode does not stretch at all"): every
         // resize ends here 500 ms later (client.java nextWindowModeChange), so the fit pulled a stretched fixed window back to
         // 765 x 503 at once. RuneLite (ClientUI) never sizes the frame on a mode change; a maximised window is left alone too.
-        if (GameShell.fsframe == null && ClientOptions.instance != null && !com.jagex.StretchedMode.fillsWindow()
+        if (GameframeSwitch.deferringCanvas()) {
+            // A2 round 7: a landed switch - the fit waits for the new mode's first frame (applyPendingCanvas), like the canvas.
+            pendingFitMode = mode;
+            pendingFitFrom = current;
+        } else if (GameShell.fsframe == null && ClientOptions.instance != null && !com.jagex.StretchedMode.fillsWindow()
             && !com.jagex.graphics.awt.DesktopDisplay.maximised()) {
             if (mode == WindowMode.FIXED) {
                 com.jagex.graphics.awt.DesktopDisplay.restoreWindowSize(Client.loadingScreenWidth, Client.loadingScreenHeight);
@@ -2724,6 +2733,47 @@ public final class InterfaceManager {
                 restoreRememberedWindow();
             }
         }
+    }
+
+    /** A2 round 7: the window part of a landed switch, waiting for the first frame of the new mode (GameframeSwitch.mayPresent). */
+    private static boolean pendingCanvas;
+    private static int pendingFitMode = -1;
+    private static int pendingFitFrom = -1;
+
+    /**
+     * A2 round 7 (Keurmeester A2 round 6 FAIL: Stretched Mode OFF, resizable -> fixed showed a BLACK window for 0.25 s maximised and
+     * ~1 s in the 944x581 window). A landed window-mode switch laid the game out at once AND resized the AWT canvas at once; a
+     * resized OpenGL window is wiped, and the first frame of the new mode came only after the rest of the packet batch, the new
+     * gameframe's scripts and any client freeze. With Stretched Mode on the canvas keeps the window's size, which is why that path
+     * never went black. Now the canvas size / place, the toolkit surface and the client's own fixed-window fit are applied here,
+     * right before the new mode's first frame is drawn (client.mainredraw -> GameframeSwitch.mayPresent), so the window shows the
+     * old mode's last picture until the new picture replaces it - the OSRS / RuneLite client never resizes its canvas on a mode
+     * switch either (fixed is drawn inside the same canvas).
+     */
+    static void applyPendingCanvas() {
+        int fitMode = pendingFitMode;
+        int fitFrom = pendingFitFrom;
+        pendingFitMode = -1;
+        pendingFitFrom = -1;
+        if (fitMode != -1 && GameShell.fsframe == null && ClientOptions.instance != null && !com.jagex.StretchedMode.fillsWindow()
+            && !com.jagex.graphics.awt.DesktopDisplay.maximised()) {
+            if (fitMode == WindowMode.FIXED) {
+                com.jagex.graphics.awt.DesktopDisplay.restoreWindowSize(Client.loadingScreenWidth, Client.loadingScreenHeight);
+            } else if (fitMode == WindowMode.RESIZABLE && fitFrom == WindowMode.FIXED) {
+                restoreRememberedWindow();
+            }
+        }
+        if (!pendingCanvas) {
+            return;
+        }
+        pendingCanvas = false;
+        if (GameShell.canvas == null || Toolkit.active == null) {
+            return;
+        }
+        // The frame may have changed size just now (the fit): the resize loop lays the current mode out in it, sizes and places the
+        // canvas and resizes the toolkit surface (Static712 = what every window resize runs).
+        Static712.method9329((byte) 11);
+        GameShell.fullredraw = true;
     }
 
     /**
@@ -2867,6 +2917,9 @@ public final class InterfaceManager {
 
         if (different) {
             Static574.method7572();
+        } else if (GameframeSwitch.deferringCanvas()) {
+            // A2 round 7: a landed switch - the canvas keeps the old picture until the new mode's first frame (applyPendingCanvas).
+            pendingCanvas = true;
         } else {
             GameShell.canvas.setSize(com.jagex.StretchedMode.canvasWidth(), com.jagex.StretchedMode.canvasHeight());
 

@@ -176,6 +176,10 @@ public final class MainLogicManager {
             }
         }
         GameframeSwitch.endPacketCycle();
+        // A2 round 7: presses taken this cycle before the landing were made on the old mode's picture - not on the new layout.
+        if (!GameframeSwitch.keepTakenPresses()) {
+            Static226.mouseLogs.clear();
+        }
 
         if (step != MainLogicStep.STEP_GAME_SCREEN) {
             return;

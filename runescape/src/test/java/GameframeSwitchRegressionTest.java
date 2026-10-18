@@ -21,6 +21,7 @@ public final class GameframeSwitchRegressionTest {
     private static final int SERVER_TICK_FRAMES = 30; // 600 ms
     private static final int[] LATENCIES = {0, 1, 5, 25, 60, 120, 175};
     private static final int FIXED = 1, RESIZABLE = 2, FULLSCREEN = 3;
+    private static final int PANES = 14; // IF_OPENSUBs of a gameframe (chatbox, tabs, orbs, minimap ...)
 
     private static int checks;
     private static final List<String> failures = new ArrayList<>();
@@ -44,6 +45,26 @@ public final class GameframeSwitchRegressionTest {
         String firstMismatch;
         int gameframesSent; // IF_OPENTOP of a gameframe the server sent
         int serverMode = -1, serverWidth = -1, serverHeight = -1; // the last WINDOW_STATUS the server got (mode + canvas size)
+        // A2 round 7: the window itself. canvasMode = the mode whose canvas size the AWT canvas has; with Stretched Mode OFF a resize
+        // of that canvas WIPES the OpenGL window (black) until the next drawn frame; with Stretched ON the canvas is the window in
+        // both modes. The screen = the last drawn frame (what PrintWindow / the player sees). Panels = the IF_OPENSUBs the server
+        // sends behind a gameframe in the same tick, followed by that tick's PLAYER_INFO.
+        boolean stretched;
+        int canvasMode;
+        boolean wiped;
+        int panesOpen = PANES;
+        int wipedFrames, bareFrames, wrongCanvasFrames;
+        String firstWiped, firstBare, firstWrongCanvas;
+        int screenMode; // the mode of the picture on screen
+        int splitFrames; // the panels + PLAYER_INFO of a landing tick arrive this many frames after its IF_OPENTOP (split reads)
+        int fillers; // other packets of the same tick in front of the gameframe (the client decodes 100 a cycle)
+        int freezeFrames; // the client logic freezes this long in the cycle the gameframe lands (its scripts; Keurmeester 474-998 ms)
+        int frozenUntil;
+        long seq;
+        final List<long[]> inbound = new ArrayList<>(); // {deliverFrame, seq, kind, id}: kind 0 IF_OPENTOP, 1 PLAYER_INFO, 2 IF_OPENSUB, 3 other
+        final List<long[]> presses = new ArrayList<>(); // {madeAtMs, processFrame, screenModeWhenMade}
+        int wrongLayoutClicks, droppedClicks, clicksActed;
+        String firstWrongClick;
 
         Sim(String name, int start, int phase, int latency) {
             this.name = name;
@@ -52,6 +73,12 @@ public final class GameframeSwitchRegressionTest {
             this.serverClassTop = top;
             this.phase = phase;
             this.latency = latency;
+            this.canvasMode = start;
+            this.screenMode = start;
+        }
+
+        boolean canvasDiffers(int a, int b) {
+            return !stretched && (canvasWidth(a) != canvasWidth(b) || canvasHeight(a) != canvasHeight(b));
         }
 
         // --- GameframeSwitch.Host ---
@@ -62,6 +89,14 @@ public final class GameframeSwitchRegressionTest {
                 modeChanges++;
             }
             applied = mode;
+            // InterfaceManager.windowModeChanged: the AWT canvas takes the new size now - unless a landed switch defers it to the
+            // first frame of the new mode (GameframeSwitch.deferringCanvas -> applyPendingCanvas from mayPresent).
+            if (!GameframeSwitch.deferringCanvas()) {
+                if (canvasDiffers(canvasMode, mode)) {
+                    wiped = true;
+                }
+                canvasMode = mode;
+            }
             // The real InterfaceManager.getWindowMode() (ScriptRunner GETWINDOWMODE) follows the drawn mode (no fullscreen frame here).
             InterfaceManager.resizableScreen = mode >= RESIZABLE;
             // InterfaceManager.windowModeChanged ends with sendWindowStatus() at the game screen (unless already sent).
@@ -70,6 +105,12 @@ public final class GameframeSwitchRegressionTest {
             }
         }
         @Override public void sendWindowStatus(int mode) { server(mode); }
+        @Override public void presentCanvas() {
+            if (canvasDiffers(canvasMode, applied)) {
+                wiped = true; // wiped and drawn in the same frame (mayPresent runs right before the frame is drawn)
+            }
+            canvasMode = applied;
+        }
         @Override public long now() { return (long) frame * FRAME_MS; }
         @Override public void log(String line) { log.add(frame + ": " + line); }
 
@@ -101,49 +142,169 @@ public final class GameframeSwitchRegressionTest {
             pending.add(new int[] {frame + delayFrames, id, 0});
         }
 
-        /** One client cycle. */
+        void deliver(long frameAt, int kind, int id) {
+            inbound.add(new long[] {frameAt, seq++, kind, id});
+        }
+
+        /** One client cycle: tick, the server's ticks due, presses, the packet loop (100 a cycle like MainLogicManager), the frame. */
         void step() {
             frame++;
             GameframeSwitch.tick();
-            // Server ticks due: process statuses (server side), then deliver packets due (client side) - in order.
+            // Server ticks due: process statuses (server side) - a new gameframe goes out with its panels, and every server tick
+            // ends with PLAYER_INFO (rsmod: MessageHandlerTask -> ... -> SequentialSynchronizationTask, one flush).
+            boolean landingTick = false;
             for (int[] p : new ArrayList<>(pending)) {
                 if (p[2] == -1 && p[0] <= frame) {
                     pending.remove(p);
                     if (p[1] != serverClassTop) {
                         serverClassTop = p[1];
                         gameframesSent++;
-                        pending.add(new int[] {p[0] + latency, p[1], 0});
+                        landingTick = true;
+                        int at = p[0] + latency;
+                        for (int i = 0; i < fillers; i++) {
+                            deliver(at, 3, 0);
+                        }
+                        deliver(at, 0, p[1]);
+                        for (int i = 0; i < PANES; i++) {
+                            deliver(at + splitFrames, 2, p[1]);
+                        }
+                        deliver(at + splitFrames, 1, 0);
                     }
                 }
+            }
+            if ((frame - phase) % SERVER_TICK_FRAMES == 0 && inGame && !landingTick) {
+                deliver(frame + latency, 1, 0);
             }
             for (int[] p : new ArrayList<>(pending)) {
                 if (p[2] == 0 && p[0] <= frame) {
                     pending.remove(p);
-                    // ServerConnectionReader IF_OPENTOP
+                    deliver(p[0], 0, p[1]);
+                    for (int i = 0; i < PANES; i++) {
+                        deliver(p[0], 2, p[1]);
+                    }
+                }
+            }
+            if (frame < frozenUntil) {
+                capture();
+                return; // the client is stuck in the landing cycle's scripts: nothing read, nothing drawn
+            }
+            // Presses the logic takes this cycle (client.mainloop mouse loop: GameframeSwitch.dropPress), before the packets.
+            List<long[]> taken = new ArrayList<>();
+            for (long[] pr : new ArrayList<>(presses)) {
+                if (pr[1] <= frame) {
+                    presses.remove(pr);
+                    if (GameframeSwitch.dropPress(pr[0])) {
+                        droppedClicks++;
+                    } else {
+                        taken.add(pr);
+                    }
+                }
+            }
+            // MainLogicManager packet loop: 100 packets a cycle, more in the cycle an awaited gameframe lands.
+            inbound.sort((a, b) -> a[0] != b[0] ? Long.compare(a[0], b[0]) : Long.compare(a[1], b[1]));
+            boolean landed = false;
+            for (int i = 0; i < 100 || GameframeSwitch.landedThisCycle(); i++) {
+                if (inbound.isEmpty() || inbound.get(0)[0] > frame) {
+                    break;
+                }
+                long[] q = inbound.remove(0);
+                if (q[2] == 0) {
+                    int id = (int) q[3];
                     int before = applied;
-                    boolean awaited = GameframeSwitch.awaitedMode() != -1 && GameframeSwitch.gameframeFor(GameframeSwitch.awaitedMode()) == p[1];
-                    GameframeSwitch.gameframeOpened(p[1]);
-                    top = p[1];
+                    boolean awaited = GameframeSwitch.awaitedMode() != -1 && GameframeSwitch.gameframeFor(GameframeSwitch.awaitedMode()) == id;
+                    // ServerConnectionReader IF_OPENTOP
+                    GameframeSwitch.gameframeOpened(id);
+                    top = id;
+                    panesOpen = (id == GameframeSwitch.FIXED_GAMEFRAME || id == GameframeSwitch.RESIZABLE_GAMEFRAME) ? 0 : PANES;
                     if (awaited) {
-                        // MainLogicManager keeps decoding this batch (the new gameframe's panels) in the same cycle.
+                        landed = true;
                         checks++;
-                        if (!GameframeSwitch.landedThisCycle() || applied == before && GameframeSwitch.gameframeFor(before) != p[1]) {
-                            failures.add(name + ": frame " + frame + " the awaited gameframe " + p[1] + " landed without the same-cycle batch flag");
+                        if (!GameframeSwitch.landedThisCycle() || applied == before && GameframeSwitch.gameframeFor(before) != id) {
+                            failures.add(name + ": frame " + frame + " the awaited gameframe " + id + " landed without the same-cycle batch flag");
                         }
                     }
+                } else if (q[2] == 2) {
+                    if (top == q[3]) {
+                        panesOpen++;
+                    }
+                } else if (q[2] == 1) {
+                    // ServerConnectionReader PLAYER_INFO
+                    GameframeSwitch.serverTickEnded();
                 }
             }
             GameframeSwitch.endPacketCycle();
-            // The drawn frame.
-            if (inGame && (top == GameframeSwitch.FIXED_GAMEFRAME || top == GameframeSwitch.RESIZABLE_GAMEFRAME)) {
+            // MainLogicManager after the packet loop: presses taken before a landing were made on the old picture.
+            if (!GameframeSwitch.keepTakenPresses()) {
+                droppedClicks += taken.size();
+                taken.clear();
+            }
+            // The presses act on the layout the logic has now; the player made them on the picture that was on screen.
+            for (long[] pr : taken) {
                 checks++;
-                if (GameframeSwitch.gameframeFor(applied) != top) {
-                    mismatchedFrames++;
-                    if (firstMismatch == null) {
-                        firstMismatch = "frame " + frame + " (" + (frame * FRAME_MS) + " ms): mode=" + applied + " drawn with top=" + top;
+                clicksActed++;
+                if (pr[2] != applied) {
+                    wrongLayoutClicks++;
+                    if (firstWrongClick == null) {
+                        firstWrongClick = "a press made at " + pr[0] + " ms on the mode-" + pr[2] + " picture acted on the mode-" + applied + " layout at frame " + frame;
                     }
                 }
             }
+            if (landed && freezeFrames > 0) {
+                frozenUntil = frame + freezeFrames;
+                capture();
+                return;
+            }
+            // The frame (client.mainredraw): only when GameframeSwitch lets it.
+            if (GameframeSwitch.mayPresent()) {
+                draw();
+            }
+            capture();
+        }
+
+        void draw() {
+            wiped = false;
+            screenMode = applied;
+            if (!inGame || !(top == GameframeSwitch.FIXED_GAMEFRAME || top == GameframeSwitch.RESIZABLE_GAMEFRAME)) {
+                return;
+            }
+            checks += 3;
+            if (GameframeSwitch.gameframeFor(applied) != top) {
+                mismatchedFrames++;
+                if (firstMismatch == null) {
+                    firstMismatch = "frame " + frame + " (" + (frame * FRAME_MS) + " ms): mode=" + applied + " drawn with top=" + top;
+                }
+            }
+            if (canvasDiffers(canvasMode, applied)) {
+                wrongCanvasFrames++;
+                if (firstWrongCanvas == null) {
+                    firstWrongCanvas = "frame " + frame + ": mode " + applied + " drawn in the mode-" + canvasMode + " canvas";
+                }
+            }
+            if (panesOpen < PANES) {
+                bareFrames++;
+                if (firstBare == null) {
+                    firstBare = "frame " + frame + " (" + (frame * FRAME_MS) + " ms): gameframe " + top + " drawn with " + panesOpen + " of " + PANES + " panels";
+                }
+            }
+        }
+
+        /** What a screenshot of the window shows at the end of this frame (the Keurmeester's PrintWindow loop). */
+        void capture() {
+            if (!inGame) {
+                return;
+            }
+            checks++;
+            if (wiped) {
+                wipedFrames++;
+                if (firstWiped == null) {
+                    firstWiped = "frame " + frame + " (" + (frame * FRAME_MS) + " ms): the window is black (canvas resized to mode " + canvasMode + ", nothing drawn in it yet)";
+                }
+            }
+        }
+
+        /** The player presses the mouse now (on the picture on screen); the logic takes the press [afterFrames] frames later. */
+        void press(int afterFrames) {
+            presses.add(new long[] {now(), frame + afterFrames, screenMode});
         }
 
         void run(int frames) {
@@ -172,6 +333,12 @@ public final class GameframeSwitchRegressionTest {
     }
 
     private static void expectClean(Sim sim, int finalMode) {
+        expect(sim.wipedFrames == 0, sim.name + ": " + sim.wipedFrames + " screenshots show a BLACK window, first at " + sim.firstWiped);
+        expect(sim.bareFrames == 0, sim.name + ": " + sim.bareFrames + " frames draw the gameframe without its panels, first at " + sim.firstBare);
+        expect(sim.wrongCanvasFrames == 0, sim.name + ": " + sim.wrongCanvasFrames + " frames draw a mode in the other mode's canvas, first at " + sim.firstWrongCanvas);
+        expect(sim.wrongLayoutClicks == 0, sim.name + ": " + sim.wrongLayoutClicks + " presses acted on another layout than the picture they were made on - " + sim.firstWrongClick);
+        expect(!GameframeSwitch.held(), sim.name + ": the switch is still held (never shown)");
+        expect(sim.screenMode == finalMode, sim.name + ": the screen ends showing mode " + sim.screenMode + ", the player chose " + finalMode);
         expect(sim.mismatchedFrames == 0, sim.name + ": " + sim.mismatchedFrames + " frames draw a mode with the other mode's gameframe, first at " + sim.firstMismatch);
         expect(sim.applied == finalMode, sim.name + ": ends in mode " + sim.applied + ", the player chose " + finalMode);
         expect(sim.top == GameframeSwitch.gameframeFor(finalMode), sim.name + ": ends with gameframe " + sim.top + " for mode " + finalMode);
@@ -441,6 +608,83 @@ public final class GameframeSwitchRegressionTest {
                         cases++;
                     }
                 }
+            }
+        }
+
+        // 10. A2 round 7 (Keurmeester A2 round 6 FAIL + nakijker FOUTEN 1-2 + verdict OPEN 2): the WINDOW, not only mode == top.
+        //     Stretched Mode OFF (the fixed canvas is 765x503, resizable 944x581, fullscreen 1920x1080: a canvas resize wipes the GL
+        //     window) and ON (canvas = window), every direction between the two gameframes, the gameframe's panels split over later
+        //     reads (0-10 frames), 150 other packets of the same tick in front of it (the 100-packet cycle cap), a client freeze of
+        //     0-1 s in the landing cycle (the new gameframe's scripts; Keurmeester 474-998 ms), 3 latencies x 2 tick phases; the
+        //     player clicks every other frame during the switch, the logic taking each press 0-25 frames later. Every screenshot must
+        //     show a picture (never the black wiped window), every frame its mode in its own canvas with the complete gameframe,
+        //     every press must act on the layout of the picture it was made on (or be dropped).
+        int[][] pairs = {{RESIZABLE, FIXED}, {FIXED, RESIZABLE}, {FULLSCREEN, FIXED}, {FIXED, FULLSCREEN}};
+        int[] delays = {0, 1, 3, 25};
+        for (boolean stretchedOn : new boolean[] {false, true}) {
+            for (int[] pair : pairs) {
+                for (int split : new int[] {0, 1, 3, 10}) {
+                    for (int freeze : new int[] {0, 12, 25, 50}) {
+                        for (int fill : new int[] {0, 150}) {
+                            for (int latency : new int[] {0, 5, 25}) {
+                                for (int phase : new int[] {0, 13}) {
+                                    Sim sim = start("Stretched " + (stretchedOn ? "ON" : "OFF") + " " + mode(pair[0]) + " -> " + mode(pair[1]) + " panels +" + split
+                                        + " frames, freeze " + (freeze * FRAME_MS) + " ms, " + fill + " packets in front, phase " + phase + " latency " + (latency * FRAME_MS) + " ms", pair[0], phase, latency);
+                                    sim.stretched = stretchedOn;
+                                    sim.splitFrames = split;
+                                    sim.freezeFrames = freeze;
+                                    sim.fillers = fill;
+                                    sim.run(3);
+                                    GameframeSwitch.request(pair[1], fsWidth(pair[1]), fsWidth(pair[1]));
+                                    for (int f = 0; f < 80; f++) {
+                                        if (f % 2 == 0) {
+                                            sim.press(delays[(f / 2) % delays.length]);
+                                        }
+                                        sim.step();
+                                    }
+                                    sim.settle();
+                                    expectClean(sim, pair[1]);
+                                    expect(sim.modeChanges == 1, sim.name + ": the drawn mode changed " + sim.modeChanges + " times");
+                                    expect(sim.clicksActed > 0, sim.name + ": every press was dropped (" + sim.droppedClicks + ")");
+                                    cases++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // 10b. No switch: a press is never dropped (the new rule only touches presses made on a picture that is gone).
+        for (int mode : modes) {
+            for (int delay : delays) {
+                Sim sim = start("no switch, " + mode(mode) + ", press taken " + delay + " frames later", mode, 4, 5);
+                sim.run(40);
+                sim.press(delay);
+                sim.run(3);
+                sim.press(delay);
+                sim.settle();
+                expect(sim.droppedClicks == 0 && sim.clicksActed == 2, sim.name + ": " + sim.droppedClicks + " presses dropped, " + sim.clicksActed + " acted (expected 0 / 2)");
+                expect(sim.wipedFrames == 0 && sim.wrongLayoutClicks == 0 && sim.screenMode == mode && !GameframeSwitch.held(), sim.name + ": not a quiet steady state");
+                cases++;
+            }
+        }
+        // 10c. After a switch is on screen, presses on the new picture act (none dropped once it is shown).
+        for (boolean stretchedOn : new boolean[] {false, true}) {
+            for (int[] pair : pairs) {
+                Sim sim = start("Stretched " + (stretchedOn ? "ON" : "OFF") + " " + mode(pair[0]) + " -> " + mode(pair[1]) + ", presses after it is shown", pair[0], 7, 5);
+                sim.stretched = stretchedOn;
+                sim.freezeFrames = 25;
+                GameframeSwitch.request(pair[1], fsWidth(pair[1]), fsWidth(pair[1]));
+                sim.settle();
+                int before = sim.droppedClicks;
+                for (int delay : delays) {
+                    sim.press(delay);
+                    sim.run(2);
+                }
+                sim.settle();
+                expect(sim.droppedClicks == before, sim.name + ": " + (sim.droppedClicks - before) + " presses on the shown new picture were dropped");
+                expectClean(sim, pair[1]);
+                cases++;
             }
         }
 

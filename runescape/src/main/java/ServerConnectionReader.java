@@ -1734,6 +1734,8 @@ public final class ServerConnectionReader {
             return true;
         } else if (context.currentProt == ServerProt.PLAYER_INFO) {
             PlayerList.iteratePlayers(bitPacket, context.currentPacketSize);
+            // A2 round 7: the server writes PLAYER_INFO after the tick's interface packets - a landed gameframe's panels are in.
+            GameframeSwitch.serverTickEnded();
             context.currentProt = null;
             return true;
         } else if (ServerProt.CHAT_FILTER_SETTINGS == context.currentProt) {

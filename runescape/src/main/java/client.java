@@ -721,6 +721,13 @@ public final class client extends GameShell {
         // A2 round 6: a window-mode switch waiting for its gameframe - left the game / timed out, then the next queued choice.
         GameframeSwitch.tick();
 
+        // A2 round 7: a landed window-mode switch shows its first frame only when the new gameframe's panels are in; until then
+        // nothing is drawn and the window keeps the old mode's last picture (the canvas resize waits too - it wipes a GL window).
+        if (!GameframeSwitch.mayPresent()) {
+            TimeUtils.sleep(5L);
+            return;
+        }
+
         if (MainLogicStep.method6445(MainLogicManager.step)) {
             // RuneLite Stretched Mode switched on or off with Anti-aliasing on: OpenGL needs a window with other multisampling.
             if (Toolkit.active instanceof GlToolkit && ((GlToolkit) Toolkit.active).rspsWindowNeedsRebuild()) {
@@ -1038,6 +1045,10 @@ public final class client extends GameShell {
             } else if (type == MouseLog.TYPE_SCROLL) {
                 Static611.mouseWheelRotation += log.getExtra();
             } else if (MouseLog.isPress(type)) {
+                // A2 round 7 (Keurmeester round 6 OPEN 2): a press made on the old mode's picture never acts on the new layout.
+                if (GameframeSwitch.dropPress(log.getTime())) {
+                    continue;
+                }
                 // RSPS overlays (RspsOverlayLayout): Alt + drag / Alt + right-click on a panel and clicks on the 78 Plugins
                 // panel are taken here, so they never reach the game (no walking or interacting through a panel).
                 if (MainLogicStep.isAtGameScreen(MainLogicManager.step) && RspsOverlayLayout.mousePress(log)) {

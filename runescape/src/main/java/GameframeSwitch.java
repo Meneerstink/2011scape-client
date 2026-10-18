@@ -40,6 +40,13 @@ public final class GameframeSwitch {
         /** WINDOW_STATUS with [mode] (ServerConnectionReader.sendWindowStatus). */
         void sendWindowStatus(int mode);
 
+        /**
+         * A2 round 7: the window part of a landed switch that waited for the first frame of the new mode - the AWT canvas size /
+         * place, the toolkit surface and the client's own fixed-window fit (InterfaceManager.applyPendingCanvas). Runs right
+         * before that frame is drawn.
+         */
+        void presentCanvas();
+
         long now();
 
         void log(String line);
@@ -117,6 +124,13 @@ public final class GameframeSwitch {
 
     /** The player's choice (CS2 SETWINDOWMODE / FULLSCREEN_ENTER / FULLSCREEN_EXIT, dev console "wm"). */
     public static void request(int mode, int width, int height) {
+        if (held && awaitedMode == -1) {
+            // A2 round 7: the landed switch is not on screen yet - this choice runs right after its first frame.
+            queuedMode = mode;
+            queuedWidth = width;
+            queuedHeight = height;
+            return;
+        }
         if (awaitedMode != -1) {
             if (mode == awaitedMode) {
                 // Chosen again (or back after another choice): the switch in flight already goes there.
@@ -156,10 +170,89 @@ public final class GameframeSwitch {
         long waited = host.now() - awaitedSince;
         awaitedMode = -1;
         landedThisCycle = true;
-        // The WINDOW_STATUS of the choice carried the OLD canvas size: changeWindowMode reports the new mode's canvas now (same mode
-        // as the server has, so the server opens nothing; it re-arms the HUD/summoning panes like after a window resize).
-        host.apply(mode, awaitedWidth, awaitedHeight, true);
-        host.log("[78] window mode " + mode + " drawn together with its gameframe " + id + " (" + waited + " ms after the choice)");
+        // A2 round 7 (Keurmeester round 6: Stretched OFF resizable -> fixed went BLACK 0.25-1 s; nakijker: the new gameframe was
+        // drawn before its panels): the client's layout switches now, but the window keeps the last picture of the old mode until
+        // the first complete frame of the new one is drawn - the canvas resize (which wipes a GL window) waits for that frame,
+        // and that frame waits until this server tick's packets are in (PLAYER_INFO comes after the gameframe's IF_OPENSUBs).
+        held = true;
+        heldSince = host.now();
+        tickEnded = false;
+        deferringCanvas = true;
+        try {
+            // The WINDOW_STATUS of the choice carried the OLD canvas size: changeWindowMode reports the new mode's canvas now (same
+            // mode as the server has, so the server opens nothing; it re-arms the HUD/summoning panes like after a window resize).
+            host.apply(mode, awaitedWidth, awaitedHeight, true);
+        } finally {
+            deferringCanvas = false;
+        }
+        host.log("[78] window mode " + mode + " switched with its gameframe " + id + " (" + waited + " ms after the choice) - shown when its panels are in");
+    }
+
+    /** At most this long after the landing the old picture is kept for the new gameframe's panels (a server tick + a slow read). */
+    public static final long HOLD_MAX_MS = 1200L;
+
+    private static boolean held;
+    private static long heldSince;
+    private static boolean tickEnded;
+    private static boolean deferringCanvas;
+    private static long presentedAt = Long.MIN_VALUE;
+
+    /** True while a landed switch applies its layout: the window part (canvas size, frame fit) waits for the first new frame. */
+    public static boolean deferringCanvas() {
+        return deferringCanvas;
+    }
+
+    /** True from the landing until the first frame of the new mode is drawn (the window still shows the old mode's picture). */
+    public static boolean held() {
+        return held;
+    }
+
+    /** PLAYER_INFO: the end of a server tick's packets - the gameframe and every IF_OPENSUB the server sent with it are in. */
+    public static void serverTickEnded() {
+        if (held) {
+            tickEnded = true;
+        }
+    }
+
+    /**
+     * Client loop, before a frame is drawn: false = draw nothing, the window keeps the last picture (the old mode, complete).
+     * The first frame of a landed switch is drawn once its panels are in (PLAYER_INFO after the landing), after HOLD_MAX_MS
+     * at the latest, or at once when the game was left; right before it the canvas takes the new size, so no frame shows a
+     * wiped (black) window or the bare gameframe.
+     */
+    public static boolean mayPresent() {
+        if (!held || host == null) {
+            return true;
+        }
+        long now = host.now();
+        boolean timedOut = now - heldSince > HOLD_MAX_MS;
+        if (!tickEnded && !timedOut && host.inGame()) {
+            return false;
+        }
+        held = false;
+        presentedAt = now;
+        host.presentCanvas();
+        if (timedOut && !tickEnded) {
+            host.log("[78] PROBLEM window mode " + host.appliedMode() + ": no end of the server tick in " + HOLD_MAX_MS + " ms after its gameframe - shown anyway");
+        } else {
+            host.log("[78] window mode " + host.appliedMode() + " shown with its panels (" + (now - heldSince) + " ms after its gameframe)");
+        }
+        return true;
+    }
+
+    /**
+     * A mouse press taken by the game logic: true = drop it. It was made on the OLD mode's picture (before the new mode was on
+     * screen) but the logic now has the new layout, so it would hit whatever the new layout has there (Keurmeester round 6
+     * OPEN 2: a tab click made 60 ms after FIXED opened Adventurers Log Settings in the fixed frame). Clicks before the landing
+     * still reach the old layout (it is the one drawn); clicks after the new picture is shown reach the new one.
+     */
+    public static boolean dropPress(long pressTime) {
+        return held || pressTime < presentedAt;
+    }
+
+    /** MainLogicManager after the packet loop: false = drop the presses taken this cycle (a switch landed and is not shown yet). */
+    public static boolean keepTakenPresses() {
+        return !held;
     }
 
     private static boolean landedThisCycle;
@@ -191,7 +284,7 @@ public final class GameframeSwitch {
                 host.apply(mode, awaitedWidth, awaitedHeight, true);
             }
         }
-        if (awaitedMode == -1 && queuedMode != -1) {
+        if (awaitedMode == -1 && !held && queuedMode != -1) {
             int mode = queuedMode;
             queuedMode = -1;
             request(mode, queuedWidth, queuedHeight);
@@ -203,5 +296,10 @@ public final class GameframeSwitch {
         host = newHost;
         awaitedMode = -1;
         queuedMode = -1;
+        held = false;
+        tickEnded = false;
+        deferringCanvas = false;
+        presentedAt = Long.MIN_VALUE;
+        landedThisCycle = false;
     }
 }
