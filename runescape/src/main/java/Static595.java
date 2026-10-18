@@ -56,6 +56,8 @@ public final class Static595 {
         // drawn into a multisampled offscreen framebuffer and resolved (GlToolkit.rspsOffscreenSamples).
         boolean plain = gl && ((GlToolkit) Toolkit.active).rspsPlainWindow();
         com.jagex.StretchedMode.glToolkit(gl, plain, plain ? ((GlToolkit) Toolkit.active).rspsOffscreenSamples() : 0);
+        // A2 round 9: DirectX too - the canvas fills the window and flip places the frame (D3DToolkit.rspsPlaceFrame).
+        com.jagex.StretchedMode.d3dToolkit(Toolkit.active instanceof D3DToolkit && !ClientOptions.instance.orthographic.isToolkitCompatible());
         if (toolkit != requested && requested == ToolkitType.SSE) {
             Static171.graphicsError = true;
         }

@@ -74,7 +74,7 @@ val stretchedScalingRegression by tasks.registering(JavaExec::class) {
 
 val stretchedSwitchSurfaceRegression by tasks.registering(JavaExec::class) {
     group = "verification"
-    description = "A2 round 8: with OpenGL a fixed <-> resizable switch never changes the canvas or the window size (every window x Stretched OFF/ON x Keep aspect / Integer x scaling), clicks land on the drawn pixel; other toolkits unchanged."
+    description = "A2 rounds 8-9: with OpenGL and DirectX a fixed <-> resizable switch never changes the canvas or the window size (every window x Stretched OFF/ON x Keep aspect / Integer x scaling), clicks land on the drawn pixel, the frame is placed on its drawn rectangle; software / Java unchanged."
     dependsOn(tasks.testClasses)
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass.set("StretchedSwitchSurfaceRegressionTest")

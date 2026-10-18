@@ -240,7 +240,80 @@ public final class StretchedSwitchSurfaceRegressionTest {
         glToolkitAa(true, 0);
         StretchedMode.useGlForTest(new RecordingGl());
 
-        // 2. Other toolkits (DirectX / software / Java): unchanged - the canvas is the drawn size, placed by the game's margins.
+        // 2. A2 round 9 (Keurmeester A2 round 8 FAIL: DirectX switches fully black, 5 of 5 runs): DirectX gets the OpenGL rule. Whole
+        //    class: every window x Stretched OFF / ON x Keep aspect / Integer x scaling x Increased performance - the canvas has the
+        //    same size and place in fixed and resizable and fills the window, the client never fits the window, clicks land on the
+        //    drawn pixel; the toolkit renders a frame that is not 1:1 at its real size and flip moves exactly that real-size corner
+        //    of the back buffer onto the drawn rectangle (left/top/right/bottom), 1:1 without a filter, stretched linear / point.
+        glToolkit(false);
+        d3dToolkit(true);
+        for (int[] w : windows) {
+            for (boolean on : new boolean[] {false, true}) {
+                for (boolean[] o : options) {
+                    if (!on && (o[0] || o[1])) {
+                        continue;
+                    }
+                    for (int s : scalings) {
+                        for (boolean fast : new boolean[] {false, true}) {
+                            if (!on && (s != 0 || fast)) {
+                                continue;
+                            }
+                            cases++;
+                            String name = "DirectX " + (on ? "Stretched ON" : "Stretched OFF") + (o[0] ? " +KeepAspect" : "") + (o[1] ? " +Integer" : "")
+                                + (fast ? " +IncreasedPerformance" : "") + (on ? " " + s + "%" : "") + " window " + w[0] + "x" + w[1];
+                            Layout[] both = new Layout[2];
+                            for (int m = 0; m < 2; m++) {
+                                boolean fixedMode = m == 0;
+                                Layout l = layoutFast(w, fixedMode, on, o[0], o[1], s, fast);
+                                both[m] = l;
+                                String mode = name + (fixedMode ? " fixed" : " resizable");
+                                clicks(mode, l);
+                                java.awt.Dimension render = StretchedMode.renderSize(GameShell.canvas);
+                                int[] plan = d3dPlan();
+                                boolean oneToOne = l.drawX == 0 && l.drawY == 0 && l.realW == l.canvasW && l.realH == l.canvasH && l.drawnW == l.canvasW && l.drawnH == l.canvasH;
+                                if (oneToOne) {
+                                    check(plan == null, "DirectX moves a frame that is already 1:1 over the whole canvas", mode);
+                                    continue;
+                                }
+                                check(render.width == l.realW && render.height == l.realH, "DirectX does not render the placed frame at its real size",
+                                    mode + ": renders " + render.width + "x" + render.height + ", real " + l.realW + "x" + l.realH);
+                                int filter = l.drawnW == l.realW && l.drawnH == l.realH ? 0 : fast ? 1 : 2;
+                                int[] want = {l.realW, l.realH, l.drawX, l.drawY, l.drawX + l.drawnW, l.drawY + l.drawnH, filter};
+                                check(plan != null && java.util.Arrays.equals(plan, want), "DirectX flip does not place the frame on its drawn rectangle",
+                                    mode + ": plan " + (plan == null ? "none (the canvas is resized instead)" : java.util.Arrays.toString(plan)) + ", want " + java.util.Arrays.toString(want));
+                            }
+                            Layout fixed = both[0];
+                            Layout resizable = both[1];
+                            check(fixed.canvasW == resizable.canvasW && fixed.canvasH == resizable.canvasH,
+                                "DirectX: canvas changes size at a fixed <-> resizable switch (black on the real screen until the first Present)",
+                                name + ": fixed canvas " + fixed.canvasW + "x" + fixed.canvasH + " vs resizable " + resizable.canvasW + "x" + resizable.canvasH);
+                            check(fixed.canvasX == resizable.canvasX && fixed.canvasY == resizable.canvasY,
+                                "DirectX: canvas moves at a fixed <-> resizable switch",
+                                name + ": fixed canvas at " + fixed.canvasX + "," + fixed.canvasY + " vs resizable " + resizable.canvasX + "," + resizable.canvasY);
+                            check(fixed.canvasW == w[0] && fixed.canvasH == w[1] && fixed.canvasX == 0 && fixed.canvasY == 0,
+                                "DirectX: the canvas does not fill the window's game area",
+                                name + ": fixed canvas " + fixed.canvasW + "x" + fixed.canvasH + " at " + fixed.canvasX + "," + fixed.canvasY);
+                            check(fixed.fills && resizable.fills,
+                                "DirectX: the client fits / restores the WINDOW at a switch",
+                                name + ": fillsWindow fixed=" + fixed.fills + " resizable=" + resizable.fills);
+                        }
+                    }
+                }
+            }
+        }
+        // A window smaller than the 765x503 fixed game cannot hold the real-size frame in its back buffer: the old path (the
+        // client fits the window to the game), never a cut-off frame.
+        for (int[] w : new int[][] {{700, 480}, {764, 503}, {765, 502}}) {
+            cases++;
+            Layout l = layout(w, true, false, false, false, 0);
+            int[] plan = d3dPlan();
+            check(plan == null && l.canvasW == 765 && l.canvasH == 503 && !l.fills,
+                "DirectX: a window smaller than the fixed game cuts the frame off instead of fitting the window",
+                "window " + w[0] + "x" + w[1] + ": canvas " + l.canvasW + "x" + l.canvasH + " fills=" + l.fills + " plan=" + java.util.Arrays.toString(plan));
+        }
+        d3dToolkit(false);
+
+        // 3. Other toolkits (software / Java): unchanged - the canvas is the drawn size, placed by the game's margins.
         glToolkit(false);
         for (int[] w : new int[][] {{944, 581}, {1648, 989}, {765, 503}}) {
             for (boolean on : new boolean[] {false, true}) {
@@ -281,7 +354,11 @@ public final class StretchedSwitchSurfaceRegressionTest {
     }
 
     private static Layout layout(int[] w, boolean fixed, boolean on, boolean keepAspect, boolean integer, int scaling) throws Exception {
-        StretchedMode.configure(on, keepAspect, false, integer, scaling);
+        return layout(w, fixed, on, keepAspect, integer, scaling, false);
+    }
+
+    private static Layout layout(int[] w, boolean fixed, boolean on, boolean keepAspect, boolean integer, int scaling, boolean fast) throws Exception {
+        StretchedMode.configure(on, keepAspect, fast, integer, scaling);
         GameShell.frameWid = w[0];
         GameShell.frameHei = w[1];
         // The game's own layout for the mode (Static712.method9329): fixed = 765x503 centred at the top, resizable = the window.
@@ -438,6 +515,33 @@ public final class StretchedSwitchSurfaceRegressionTest {
 
         public void glClear(int mask) {
             events.add("clear" + drawFb);
+        }
+    }
+
+    /** Layout with Increased performance (the point filter of a stretched DirectX frame). */
+    private static Layout layoutFast(int[] w, boolean fixed, boolean on, boolean keepAspect, boolean integer, int scaling, boolean fast) throws Exception {
+        return layout(w, fixed, on, keepAspect, integer, scaling, fast);
+    }
+
+    /** Static595's report of the DirectX toolkit (absent on the old code: DirectX = "not OpenGL", the old canvas sizes). */
+    private static void d3dToolkit(boolean on) {
+        try {
+            StretchedMode.class.getMethod("d3dToolkit", boolean.class).invoke(null, on);
+        } catch (NoSuchMethodException absent) {
+            // old code
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** StretchedMode.d3dPresentPlan (null when absent: the old code never moved a DirectX frame). */
+    private static int[] d3dPlan() {
+        try {
+            return (int[]) StretchedMode.class.getMethod("d3dPresentPlan").invoke(null);
+        } catch (NoSuchMethodException absent) {
+            return null;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

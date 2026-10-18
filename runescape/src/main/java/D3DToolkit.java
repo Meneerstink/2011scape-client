@@ -420,7 +420,11 @@ public final class D3DToolkit extends NativeToolkit {
             local26.method8178();
             // RuneLite Stretched Mode: a back buffer at the game's real size, which Present scales over the whole stretched
             // canvas (D3D9 windowed Present with no rectangles fills the window's client area); 0 = the window's own size.
-            boolean stretched = com.jagex.StretchedMode.active() && this.aCanvas13 == com.jagex.game.runetek6.client.GameShell.canvas;
+            // A2 round 9: while the canvas fills the window the back buffer stays the window's size and flip places the frame
+            // (rspsPlaceFrame); the real-size back buffer is only the old path (a window smaller than the game).
+            boolean stretched = com.jagex.StretchedMode.active() && !com.jagex.StretchedMode.windowCanvas()
+                && this.aCanvas13 == com.jagex.game.runetek6.client.GameShell.canvas;
+            this.rspsReleaseCopy(); // a D3DPOOL_DEFAULT render target must be released before Reset
             this.aD3DPRESENT_PARAMETERS1.BackBufferWidth = stretched ? com.jagex.StretchedMode.realWidth() : 0;
             this.aD3DPRESENT_PARAMETERS1.BackBufferHeight = stretched ? com.jagex.StretchedMode.realHeight() : 0;
             if (Static325.method4859(this.aD3DPRESENT_PARAMETERS1, this.anInt5369, this.anIDirect3D1, this.anInt5368, this.anInt9158)) {
@@ -473,6 +477,7 @@ public final class D3DToolkit extends NativeToolkit {
     @OriginalMember(owner = "client!kea", name = "u", descriptor = "()V")
     @Override
     protected void stop() {
+        this.rspsReleaseCopy();
         this.aTi1.b(-23417);
         super.stop();
     }
@@ -711,6 +716,9 @@ public final class D3DToolkit extends NativeToolkit {
         this.anIDirect3DDevice1.EndScene();
         if (this.aClass349_1.method8181()) {
             this.anInt5370 = 0;
+            if (this.aCanvas12 == com.jagex.game.runetek6.client.GameShell.canvas) {
+                this.rspsPlaceFrame();
+            }
             if (lh.a(this.aClass349_1.method8179(), true)) {
                 this.method4861();
             }
@@ -720,6 +728,61 @@ public final class D3DToolkit extends NativeToolkit {
             throw new FlipException();
         }
         this.anIDirect3DDevice1.BeginScene();
+    }
+
+    /** A2 round 9: the real-size copy of the frame (D3DPOOL_DEFAULT render target, released before every Reset). */
+    private IDirect3DSurface rspsCopy;
+    private int rspsCopyWidth;
+    private int rspsCopyHeight;
+
+    private void rspsReleaseCopy() {
+        if (this.rspsCopy != null) {
+            this.rspsCopy.a(-90);
+            this.rspsCopy = null;
+        }
+    }
+
+    /**
+     * A2 round 9 (Keurmeester A2 round 8 FAIL: DirectX switches were black): the canvas fills the window, the toolkit drew the
+     * real-size frame in the top left corner of the window-size back buffer; move it onto its drawn rectangle with black margins
+     * (StretchedMode.d3dPresentPlan) - the window and the canvas never change size at a fixed <-> resizable switch.
+     */
+    private void rspsPlaceFrame() {
+        int[] plan = com.jagex.StretchedMode.d3dPresentPlan();
+        IDirect3DSurface back = this.aClass349_1.anIDirect3DSurface2;
+        if (plan == null || back == null) {
+            return;
+        }
+        int width = plan[0];
+        int height = plan[1];
+        try {
+            if (this.rspsCopy == null || this.rspsCopyWidth != width || this.rspsCopyHeight != height) {
+                this.rspsReleaseCopy();
+                this.rspsCopy = this.anIDirect3DDevice1.a(width, height, this.aD3DPRESENT_PARAMETERS1.BackBufferFormat, 0, 0, false);
+                this.rspsCopyWidth = width;
+                this.rspsCopyHeight = height;
+            }
+        } catch (RuntimeException e) {
+            this.rspsCopy = null;
+            com.jagex.StretchedMode.d3dFailed("CreateRenderTarget " + width + "x" + height + ": " + e.getMessage());
+            return;
+        }
+        int copied = this.anIDirect3DDevice1.StretchRect(back, 0, 0, width, height, this.rspsCopy, 0, 0, width, height, 0);
+        if (!lh.a((byte) 78, copied)) {
+            com.jagex.StretchedMode.d3dFailed("StretchRect copy " + copied);
+            return;
+        }
+        Dimension canvas = this.aCanvas12.getSize();
+        // The margins: the whole back buffer black (Clear covers the viewport and honours the scissor rectangle).
+        this.anIDirect3DDevice1.SetViewport(0, 0, canvas.width, canvas.height, 0.0F, 1.0F);
+        this.anIDirect3DDevice1.a(174, false);
+        this.anIDirect3DDevice1.Clear(1, 0xFF000000, 1.0F, 0);
+        int placed = this.anIDirect3DDevice1.StretchRect(this.rspsCopy, 0, 0, width, height, back, plan[2], plan[3], plan[4], plan[5], plan[6]);
+        this.anIDirect3DDevice1.a(174, this.aBoolean697);
+        this.method8037();
+        if (!lh.a((byte) 78, placed)) {
+            com.jagex.StretchedMode.d3dFailed("StretchRect place " + placed);
+        }
     }
 
     @OriginalMember(owner = "client!kea", name = "a", descriptor = "(ILclient!waa;)V")

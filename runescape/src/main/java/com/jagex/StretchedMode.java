@@ -183,9 +183,75 @@ public final class StretchedMode {
         glToolkit(on, true, 0);
     }
 
-    /** The canvas fills the window's game area and the blit places the game in it (OpenGL, framebuffer objects, plain window). */
+    /**
+     * The canvas fills the window's game area and the present places the game in it: OpenGL (framebuffer objects, plain window:
+     * blit) or DirectX (A2 round 9: StretchRect inside the window-size back buffer, {@link #d3dPresentPlan}).
+     */
     public static boolean windowCanvas() {
-        return glToolkit && glPlainSurface && toolkitCanStretch && !glFailed && !glNoFramebuffers;
+        if (!toolkitCanStretch) {
+            return false;
+        }
+        if (glToolkit) {
+            return glPlainSurface && !glFailed && !glNoFramebuffers;
+        }
+        return d3dToolkit && !d3dFailed && d3dFits;
+    }
+
+    // ---- A2 round 9 (Keurmeester A2 round 8 FAIL): DirectX gets the same rule -------------------------------------------------
+    //
+    // Round 8 kept DirectX on the old path: the window was fitted (944x581 <-> 795x503) and the canvas resized (765x503 <-> the
+    // window) at every fixed <-> resizable switch, and Windows shows a resized Direct3D window black until the first Present (5 of
+    // 5 Keurmeester runs, both directions). The jagdx device has no SetRenderTarget, so DirectX cannot draw into an offscreen frame
+    // like OpenGL; instead the back buffer is always the window's size (D3DPRESENT_PARAMETERS BackBufferWidth/Height 0), the toolkit
+    // draws the real-size game into its top left corner (NativeToolkit sizes itself from renderSize = the real size), and flip moves
+    // that frame into its drawn rectangle before Present: StretchRect back buffer -> a real-size render target (1:1; also the
+    // resolve of a multisampled back buffer), Clear the back buffer black (the margins), StretchRect the copy onto the drawn
+    // rectangle (1:1 = no filter; stretched = linear, Increased performance = point, as RuneLite's GPU blit). The window and the
+    // canvas never change size at a switch, exactly as with OpenGL (RuneLite ClientUI never sizes the frame on a mode change).
+
+    private static boolean d3dToolkit;
+    private static boolean d3dFailed;
+    /** The real-size frame fits in the window-size back buffer (a window smaller than the 765x503 fixed game keeps the old path). */
+    private static boolean d3dFits = true;
+
+    /** The active toolkit is DirectX (Static595.setToolkit). */
+    public static void d3dToolkit(boolean on) {
+        if (d3dToolkit != on) {
+            d3dToolkit = on;
+            Client.changingWindowMode = true;
+        }
+    }
+
+    /** A StretchRect / Clear of the DirectX present failed: this run keeps the old canvas sizes (one PROBLEM line). */
+    public static void d3dFailed(String why) {
+        if (!d3dFailed) {
+            d3dFailed = true;
+            System.out.println("[78] PROBLEM stretch: DirectX cannot place the frame in the window (" + why + ") - the canvas is sized to the game again");
+            Client.changingWindowMode = true;
+        }
+    }
+
+    private static String lastD3dPlan = "";
+
+    /**
+     * DirectX flip: how to move the frame the toolkit drew at the top left of the window-size back buffer, or null when it is
+     * already 1:1 over the whole canvas. {realWidth, realHeight, left, top, right, bottom, filter} - jagdx rectangles are
+     * left/top/right/bottom (as SetScissorRect: NativeToolkit.KA keeps x2/y2); filter 0 = none (1:1), 1 = point, 2 = linear.
+     */
+    public static int[] d3dPresentPlan() {
+        if (!d3dToolkit || !windowCanvas() || !drawsOffscreen()) {
+            return null;
+        }
+        int width = stretchedWidth > 0 ? stretchedWidth : realWidth;
+        int height = stretchedHeight > 0 ? stretchedHeight : realHeight;
+        int filter = width == realWidth && height == realHeight ? 0 : fast ? 1 : 2;
+        int[] plan = {realWidth, realHeight, drawX, drawY, drawX + width, drawY + height, filter};
+        String state = "stretch d3d present real=" + realWidth + "x" + realHeight + " drawn=" + width + "x" + height + " at " + drawX + "," + drawY + " filter=" + filter;
+        if (!state.equals(lastD3dPlan)) {
+            lastD3dPlan = state;
+            System.out.println("[78] " + state);
+        }
+        return plan;
     }
 
     /** Left / top of the drawn game inside the canvas (0 when the canvas is the drawn size). */
@@ -245,6 +311,8 @@ public final class StretchedMode {
 
     private static void layoutSizes(boolean fixed) {
         layoutGameSizes(fixed);
+        // DirectX draws the real-size frame inside the window-size back buffer: it must fit there (A2 round 9).
+        d3dFits = GameShell.frameWid <= 0 || GameShell.frameHei <= 0 || realWidth <= GameShell.frameWid && realHeight <= GameShell.frameHei;
         // A2 round 8: the drawn game's place = the margins the game (fixed: centred at the top) or the stretch (centred) picked;
         // with OpenGL the canvas itself then fills the window from its origin.
         drawX = GameShell.leftMargin;
