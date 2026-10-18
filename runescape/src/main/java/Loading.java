@@ -622,6 +622,14 @@ public final class Loading {
             if (ClientOptions.instance.startupWindowMode() != WindowMode.FIXED || com.jagex.StretchedMode.fillsWindow()) {
                 InterfaceManager.restoreRememberedWindow(true);
             }
+            // A2 round 8: with OpenGL the client never fits the window at a mode switch (the canvas fills it). RuneLite still gives a
+            // FIRST start - no remembered bounds - its configured game size once (ClientUI.applyGameSize, default 765x503), so a fresh
+            // unstretched fixed start fits the window to the fixed game as before (not a remembered or maximised window).
+            if (ClientOptions.instance.startupWindowMode() == WindowMode.FIXED && com.jagex.StretchedMode.windowCanvas()
+                && !com.jagex.StretchedMode.enabled() && !ClientOptions.instance.windowMaximised
+                && (ClientOptions.instance.windowWidth < 765 || ClientOptions.instance.windowHeight < 503)) {
+                com.jagex.graphics.awt.DesktopDisplay.restoreWindowSize(Client.loadingScreenWidth, Client.loadingScreenHeight);
+            }
             InterfaceManager.changeWindowMode(ClientOptions.instance.startupWindowMode(), -1, -1, false);
             // The restore above runs on the AWT queue: remembering starts after it (same queue, so after the restore).
             java.awt.EventQueue.invokeLater(() -> java.awt.EventQueue.invokeLater(() -> InterfaceManager.windowRestored = true));
