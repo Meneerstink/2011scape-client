@@ -351,6 +351,51 @@ public final class StretchedFrameRegressionTest {
                 frames(c, INTRO_FIXED, 4);
                 checkScreen(c, changed, swap + " fixed " + win + ": new GL context while stretched");
                 cases++;
+
+                // 7. A2 round 7 part 2 (in game 04:08: one fully black maximised frame): a window-mode switch with Stretched OFF draws its
+                //    first frame offscreen at the new size (InterfaceManager.prepareOffscreenCanvas -> GlToolkit.method7013), then the
+                //    window and canvas take that size (Static712 -> resizeCanvas -> method7013 again) and the flip blits it. The frame
+                //    in the offscreen buffer must survive that second sync: the screen after the flip shows the whole new frame.
+                for (boolean toFixed : new boolean[] {false, true}) {
+                    c = start(exchange, !toFixed, w, h, false, 50);
+                    int tw = toFixed ? 765 : w;
+                    int th = toFixed ? 503 : h;
+                    StretchedMode.glPrerender(tw, th);
+                    c.surfaceW = tw;
+                    c.surfaceH = th;
+                    StretchedMode.glSync(true, tw, th); // prepare: method7013 binds the offscreen buffer at the new size
+                    c.frame++;
+                    Buffer offscreen = c.gl.target(c.gl.drawFbo);
+                    if (offscreen != null) {
+                        offscreen.fill(0, 0, 4000, 4000, c.frame); // the client draws the whole first frame of the new mode
+                    }
+                    int drawn = c.frame;
+                    GameShell.canvas.setSize(tw, th); // beforeFlip: the canvas takes the new size (Static712)
+                    c.gl.resizeWindow(tw, th);
+                    StretchedMode.glSync(true, StretchedMode.renderSize(GameShell.canvas).width, StretchedMode.renderSize(GameShell.canvas).height);
+                    StretchedMode.glPresent(false, GameShell.canvas.getWidth(), GameShell.canvas.getHeight()); // the flip
+                    c.gl.swap();
+                    StretchedMode.glSync(true, tw, th);
+                    int wrong = 0;
+                    for (int v : c.gl.front.px) {
+                        if (v != drawn) {
+                            wrong++;
+                        }
+                    }
+                    assertions++;
+                    if (offscreen == null || wrong > 0) {
+                        failures.add(swap + " " + win + ": Stretched OFF switch to " + (toFixed ? "fixed" : "resizable") + " - the screen after the flip of the offscreen first frame shows "
+                            + wrong + " of " + c.gl.front.px.length + " px that are not that frame (" + (offscreen == null ? "no offscreen buffer" : "cleared before its flip") + ")");
+                    }
+                    // presented(): back to the window - the next frames draw into it again (and must not show anything older).
+                    StretchedMode.glPrerenderEnd();
+                    changed = c.frame;
+                    c.layout(toFixed, w, h, false, 50);
+                    c.changed = true;
+                    frames(c, new int[] {0, 0, 4000, 4000}, 3);
+                    checkScreen(c, changed, swap + " " + win + ": back to the window after the offscreen first frame (" + (toFixed ? "fixed" : "resizable") + ")");
+                    cases++;
+                }
             }
         }
         StretchedMode.useGlForTest(null);

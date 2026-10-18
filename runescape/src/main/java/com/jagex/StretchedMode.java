@@ -291,10 +291,48 @@ public final class StretchedMode {
      * place that sized a toolkit surface from {@code canvas.getSize()} asks this instead.
      */
     public static java.awt.Dimension renderSize(java.awt.Canvas canvas) {
+        if (prerenderWidth > 0 && canvas == GameShell.canvas) {
+            return new java.awt.Dimension(prerenderWidth, prerenderHeight);
+        }
         if (active() && canvas == GameShell.canvas) {
             return new java.awt.Dimension(realWidth, realHeight);
         }
         return canvas.getSize();
+    }
+
+    // ---- A2 round 7 part 2: the first frame of a window-mode switch, drawn offscreen (nakijker A2 round 7 FOUTEN 1) ---------
+    //
+    // A landed fixed <-> resizable switch with Stretched Mode OFF changes the canvas size (and the client may fit / restore the
+    // window: back to a remembered maximised window). A resized OpenGL window is wiped, so resizing it before the first frame of
+    // the new mode was drawn showed a black window for that whole draw (1468 ms seen on a loaded PC, maximised). Instead that
+    // frame is drawn into the offscreen framebuffer at the canvas size the new mode will have (the RuneLite GPU plugin way, the
+    // same buffer Stretched Mode draws into), the window keeps the old picture meanwhile, and only then the window and canvas
+    // take the new size and the flip blits the finished frame (GameframeSwitch.beforeFlip). The next frame draws into the
+    // window again.
+
+    private static int prerenderWidth;
+    private static int prerenderHeight;
+
+    /** The game canvas renders at [width] x [height] offscreen until {@link #glPrerenderEnd}; false = not possible here. */
+    public static boolean glPrerender(int width, int height) {
+        if (glFailed || glNoFramebuffers || active() || width <= 0 || height <= 0) {
+            return false;
+        }
+        prerenderWidth = width;
+        prerenderHeight = height;
+        return true;
+    }
+
+    /** Back to drawing into the window; true when an offscreen first frame was in use (the caller lays the window out again). */
+    public static boolean glPrerenderEnd() {
+        boolean was = prerenderWidth > 0;
+        prerenderWidth = prerenderHeight = 0;
+        return was;
+    }
+
+    /** The first frame of a switch is drawn offscreen (glPrerender). */
+    public static boolean glPrerendering() {
+        return prerenderWidth > 0;
     }
 
     /** Width the AWT canvas gets: the stretched width while stretching, else the game's own canvas width. */
@@ -476,7 +514,11 @@ public final class StretchedMode {
     public static boolean glSync(boolean supported, int width, int height, boolean scissor) {
         boolean changed = glSyncBuffer(supported, width, height);
         if (changed) {
-            clearFlips = CLEAR_FLIPS;
+            // A2 round 7 part 2: the offscreen first frame of a window-mode switch is cleared once, when its buffer is made - the
+            // resize right before its flip syncs again and must not wipe the finished frame (in game: one fully black frame).
+            clearFlips = prerenderWidth > 0 && bound ? 1 : CLEAR_FLIPS;
+        } else if (prerenderWidth > 0) {
+            clearFlips = 0;
         }
         if (clearFlips > 0) {
             clearFlips--;
@@ -496,7 +538,7 @@ public final class StretchedMode {
     static final int CLEAR_FLIPS = 3;
     private static int clearFlips;
     private static boolean glSyncBuffer(boolean supported, int width, int height) {
-        boolean want = supported && !glFailed && active() && width > 0 && height > 0;
+        boolean want = supported && !glFailed && (active() || prerenderWidth > 0) && width > 0 && height > 0;
         if (!want) {
             if (!bound) {
                 return false;
@@ -597,5 +639,6 @@ public final class StretchedMode {
         framebuffer = colourBuffer = depthBuffer = 0;
         bufferWidth = bufferHeight = 0;
         bound = false;
+        prerenderWidth = prerenderHeight = 0;
     }
 }

@@ -119,6 +119,97 @@ public final class DesktopDisplay {
         });
     }
 
+    // ---- A2 round 7 part 2: the game area a window fit is about to give (nakijker A2 round 7 FOUTEN 1) -----------------------
+    //
+    // A window-mode switch draws the new mode's first frame offscreen at the size the window is about to have, before the window
+    // changes (InterfaceManager.prepareOffscreenCanvas). These say which size the fits below will give; the frame keeps its own
+    // borders and 78 strip around the game area, so the new game area = the new frame minus what the frame holds now. A wrong
+    // guess only scales that one offscreen frame to the real size; the next frame is laid out for the real window.
+
+    /** What the frame holds around the game area now (insets + the 78 Plugins strip / sidebar), or null without a window. */
+    private static Dimension around(Frame frame) {
+        Component game = GameShell.loaderApplet;
+        if (game != null && game.getWidth() > 0 && game.getHeight() > 0) {
+            return new Dimension(frame.getWidth() - game.getWidth(), frame.getHeight() - game.getHeight());
+        }
+        Insets insets = frame.getInsets();
+        return new Dimension(insets.left + insets.right, insets.top + insets.bottom);
+    }
+
+    /** The game area {@link #restoreWindowSize}([width], [height]) leaves (the current one when it does nothing). */
+    public static Dimension fittedGameArea(int width, int height) {
+        Frame frame = window();
+        Dimension game = gameArea();
+        if (frame == null || game == null || width <= 0 || height <= 0 || (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH) {
+            return game;
+        }
+        Rectangle bounds = bounds();
+        Dimension around = around(frame);
+        int w = Math.min(bounds.width, width + around.width);
+        int h = Math.min(bounds.height, height + around.height);
+        return new Dimension(w - around.width, h - around.height);
+    }
+
+    /** The game area {@link #restoreIfGameSized}(false, ...) leaves: the remembered window, maximised = the screen's work area. */
+    public static Dimension restoredGameArea(int gameWidth, int gameHeight, boolean maximised, int width, int height) {
+        Frame frame = window();
+        Dimension game = gameArea();
+        if (frame == null || game == null || GameShell.fsframe != null || (frame.getExtendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH
+            || game.width > gameWidth + 2 || game.height > gameHeight + 2) {
+            return game;
+        }
+        Dimension around = around(frame);
+        if (maximised) {
+            // Windows lays a maximised frame over the work area with its resize border (insets.left thick) outside the left, right,
+            // top and bottom edge; the caption stays on screen.
+            GraphicsConfiguration configuration = frame.getGraphicsConfiguration();
+            Rectangle work = configuration == null ? bounds() : configuration.getBounds();
+            if (configuration != null) {
+                Insets screen = java.awt.Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+                work = new Rectangle(work.x + screen.left, work.y + screen.top, work.width - screen.left - screen.right, work.height - screen.top - screen.bottom);
+            }
+            Insets insets = frame.getInsets();
+            int w = work.width + insets.left + insets.right;
+            int h = work.height + insets.left + insets.bottom;
+            return new Dimension(w - around.width, h - around.height);
+        }
+        boolean sized = width >= 765 && height >= 503 && (width != game.width || height != game.height);
+        if (!sized) {
+            return game;
+        }
+        Rectangle screen = bounds();
+        int w = Math.min(screen.width, frame.getWidth() + width - game.width);
+        int h = Math.min(screen.height, frame.getHeight() + height - game.height);
+        return new Dimension(w - around.width, h - around.height);
+    }
+
+    /**
+     * Waits (at most [maxMs]) until the window fits queued on the event thread have run and the game area has left [before]
+     * (a maximise reaches the frame a moment after setExtendedState). Never on the event thread itself.
+     */
+    public static void awaitWindow(Dimension before, Dimension expected, long maxMs) {
+        if (EventQueue.isDispatchThread()) return;
+        long end = System.currentTimeMillis() + maxMs;
+        java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        EventQueue.invokeLater(done::countDown);
+        try {
+            done.await(maxMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+            // The frame's layout (the game area) follows its resize on the event thread.
+            while (before != null && expected != null && !expected.equals(before) && System.currentTimeMillis() < end) {
+                Dimension now = gameArea();
+                if (now == null || !now.equals(before)) {
+                    java.util.concurrent.CountDownLatch laid = new java.util.concurrent.CountDownLatch(1);
+                    EventQueue.invokeLater(laid::countDown);
+                    laid.await(Math.max(1, end - System.currentTimeMillis()), java.util.concurrent.TimeUnit.MILLISECONDS);
+                    return;
+                }
+                Thread.sleep(2);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     public static void restoreWindowSize(int width, int height) {
         if (width <= 0 || height <= 0) return;
         EventQueue.invokeLater(() -> {

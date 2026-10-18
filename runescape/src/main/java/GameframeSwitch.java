@@ -47,6 +47,17 @@ public final class GameframeSwitch {
          */
         void presentCanvas();
 
+        /**
+         * A2 round 7 part 2 (nakijker A2 round 7 FOUTEN 1): the hold ends - lay the new mode out for the window it is about to have
+         * and, where the toolkit can (OpenGL with framebuffer objects, Stretched Mode off), draw its first frame OFFSCREEN while
+         * the window keeps the old picture. True = the window part ({@link #presentCanvas}) waits until that frame is drawn and
+         * runs right before its flip; false = nothing to draw offscreen (the window part runs before the frame, as in round 7).
+         */
+        boolean prepareCanvas();
+
+        /** The first frame of a landed switch is on screen (flipped): the offscreen frame is no longer needed. */
+        void presented();
+
         long now();
 
         void log(String line);
@@ -124,7 +135,7 @@ public final class GameframeSwitch {
 
     /** The player's choice (CS2 SETWINDOWMODE / FULLSCREEN_ENTER / FULLSCREEN_EXIT, dev console "wm"). */
     public static void request(int mode, int width, int height) {
-        if (held && awaitedMode == -1) {
+        if ((held || presenting) && awaitedMode == -1) {
             // A2 round 7: the landed switch is not on screen yet - this choice runs right after its first frame.
             queuedMode = mode;
             queuedWidth = width;
@@ -230,29 +241,82 @@ public final class GameframeSwitch {
             return false;
         }
         held = false;
-        presentedAt = now;
-        host.presentCanvas();
+        // A2 round 7 part 2 (nakijker A2 round 7 FOUTEN 1-2): the frame is drawn now, but it is on screen only after its flip - the
+        // window part (canvas size, frame fit; a resize wipes an OpenGL window) waits for a frame drawn offscreen at the new size
+        // (beforeFlip), and the press boundary is the flip itself (framePresented), not this moment.
+        presenting = true;
+        presentingSince = now;
+        offscreen = host.prepareCanvas();
+        if (!offscreen) {
+            host.presentCanvas();
+        }
         if (timedOut && !tickEnded) {
             host.log("[78] PROBLEM window mode " + host.appliedMode() + ": no end of the server tick in " + HOLD_MAX_MS + " ms after its gameframe - shown anyway");
         } else {
-            host.log("[78] window mode " + host.appliedMode() + " shown with its panels (" + (now - heldSince) + " ms after its gameframe)");
+            host.log("[78] window mode " + host.appliedMode() + " drawn with its panels (" + (now - heldSince) + " ms after its gameframe)"
+                + (offscreen ? " - offscreen, the window keeps the old picture until it is drawn" : ""));
         }
         return true;
+    }
+
+    /** From the end of the hold until the first frame of the new mode is flipped (it is being drawn). */
+    private static boolean presenting;
+    private static long presentingSince;
+    /** That frame is drawn offscreen: the window part waits for its flip. */
+    private static boolean offscreen;
+
+    /** True while the first frame of a landed switch is drawn and not yet flipped (the window still shows the old picture). */
+    public static boolean presenting() {
+        return presenting;
+    }
+
+    /**
+     * The first frame of a landed switch is drawn offscreen right now, laid out for the window it is about to have: the client's
+     * resize loop must not lay it out again for the current window (that would resize the canvas before the frame is drawn).
+     */
+    public static boolean drawingOffscreen() {
+        return presenting && offscreen;
+    }
+
+    /**
+     * client.mainredraw, after the frame is drawn and right before its flip: the window part of a landed switch whose first frame
+     * was drawn offscreen - the window and canvas take the new size only now, and the flip shows the finished frame at once
+     * (nakijker A2 round 7 FOUTEN 1: the resize ran before a 1468 ms first draw, a black maximised window for that long).
+     */
+    public static void beforeFlip() {
+        if (presenting && offscreen) {
+            offscreen = false;
+            host.presentCanvas();
+        }
+    }
+
+    /** client.mainredraw, after the flip: the new mode's picture is on screen - from now on presses are made on it. */
+    public static void framePresented() {
+        if (!presenting || host == null) {
+            return;
+        }
+        presenting = false;
+        offscreen = false;
+        presentedAt = host.now();
+        host.presented();
+        host.log("[78] window mode " + host.appliedMode() + " on screen (" + (presentedAt - presentingSince) + " ms of drawing)");
     }
 
     /**
      * A mouse press taken by the game logic: true = drop it. It was made on the OLD mode's picture (before the new mode was on
      * screen) but the logic now has the new layout, so it would hit whatever the new layout has there (Keurmeester round 6
      * OPEN 2: a tab click made 60 ms after FIXED opened Adventurers Log Settings in the fixed frame). Clicks before the landing
-     * still reach the old layout (it is the one drawn); clicks after the new picture is shown reach the new one.
+     * still reach the old layout (it is the one drawn); clicks after the new picture is shown reach the new one. "Shown" = its
+     * flip is done (framePresented): a press made while that frame was still being drawn was made on the old picture (nakijker
+     * A2 round 7 FOUTEN 2).
      */
     public static boolean dropPress(long pressTime) {
-        return held || pressTime < presentedAt;
+        return held || presenting || pressTime < presentedAt;
     }
 
     /** MainLogicManager after the packet loop: false = drop the presses taken this cycle (a switch landed and is not shown yet). */
     public static boolean keepTakenPresses() {
-        return !held;
+        return !held && !presenting;
     }
 
     private static boolean landedThisCycle;
@@ -284,7 +348,12 @@ public final class GameframeSwitch {
                 host.apply(mode, awaitedWidth, awaitedHeight, true);
             }
         }
-        if (awaitedMode == -1 && !held && queuedMode != -1) {
+        if (presenting && !host.inGame()) {
+            // Left the game between the end of the hold and the flip: nothing waits for that frame any more.
+            beforeFlip();
+            framePresented();
+        }
+        if (awaitedMode == -1 && !held && !presenting && queuedMode != -1) {
             int mode = queuedMode;
             queuedMode = -1;
             request(mode, queuedWidth, queuedHeight);
@@ -297,6 +366,8 @@ public final class GameframeSwitch {
         awaitedMode = -1;
         queuedMode = -1;
         held = false;
+        presenting = false;
+        offscreen = false;
         tickEnded = false;
         deferringCanvas = false;
         presentedAt = Long.MIN_VALUE;

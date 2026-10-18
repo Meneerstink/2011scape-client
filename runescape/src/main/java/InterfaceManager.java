@@ -2686,6 +2686,21 @@ public final class InterfaceManager {
         }
 
         @Override
+        public boolean prepareCanvas() {
+            return prepareOffscreenCanvas();
+        }
+
+        @Override
+        public void presented() {
+            // The offscreen first frame is on screen: from the next frame the game draws into the window again, laid out for the
+            // real window size (the resize loop: Static712 -> resizeCanvas drops the offscreen framebuffer).
+            if (com.jagex.StretchedMode.glPrerenderEnd()) {
+                Client.changingWindowMode = true;
+                GameShell.fullredraw = true;
+            }
+        }
+
+        @Override
         public long now() {
             return com.jagex.core.util.SystemTimer.safetime();
         }
@@ -2755,13 +2770,22 @@ public final class InterfaceManager {
         int fitFrom = pendingFitFrom;
         pendingFitMode = -1;
         pendingFitFrom = -1;
-        if (fitMode != -1 && GameShell.fsframe == null && ClientOptions.instance != null && !com.jagex.StretchedMode.fillsWindow()
-            && !com.jagex.graphics.awt.DesktopDisplay.maximised()) {
+        // A2 round 7 part 2: the first frame of the new mode is drawn offscreen already (prepareOffscreenCanvas) - the window and
+        // canvas take the new size now, and the flip right after this shows that finished frame.
+        boolean offscreen = com.jagex.StretchedMode.glPrerendering();
+        java.awt.Dimension before = offscreen ? com.jagex.graphics.awt.DesktopDisplay.gameArea() : null;
+        java.awt.Dimension expected = offscreen ? targetGameArea(fitMode, fitFrom) : null;
+        if (fitMode != -1 && fitsWindow()) {
             if (fitMode == WindowMode.FIXED) {
                 com.jagex.graphics.awt.DesktopDisplay.restoreWindowSize(Client.loadingScreenWidth, Client.loadingScreenHeight);
             } else if (fitMode == WindowMode.RESIZABLE && fitFrom == WindowMode.FIXED) {
                 restoreRememberedWindow();
             }
+        }
+        if (offscreen) {
+            // The fit runs on the event thread (and a maximise reaches the frame a moment later): the canvas follows the frame.
+            com.jagex.graphics.awt.DesktopDisplay.awaitWindow(before, expected, 400L);
+            pendingCanvas = true;
         }
         if (!pendingCanvas) {
             return;
@@ -2774,6 +2798,81 @@ public final class InterfaceManager {
         // canvas and resizes the toolkit surface (Static712 = what every window resize runs).
         Static712.method9329((byte) 11);
         GameShell.fullredraw = true;
+    }
+
+    /** The client's own fixed-window fit / remembered-window restore applies (not stretched, not maximised, not fullscreen). */
+    private static boolean fitsWindow() {
+        return GameShell.fsframe == null && ClientOptions.instance != null && !com.jagex.StretchedMode.fillsWindow()
+            && !com.jagex.graphics.awt.DesktopDisplay.maximised();
+    }
+
+    /** The game area the window will have once the pending fit of a landed switch ran (null without a window). */
+    private static java.awt.Dimension targetGameArea(int fitMode, int fitFrom) {
+        if (fitMode != -1 && fitsWindow()) {
+            if (fitMode == WindowMode.FIXED) {
+                return com.jagex.graphics.awt.DesktopDisplay.fittedGameArea(Client.loadingScreenWidth, Client.loadingScreenHeight);
+            }
+            if (fitMode == WindowMode.RESIZABLE && fitFrom == WindowMode.FIXED) {
+                ClientOptions options = ClientOptions.instance;
+                return com.jagex.graphics.awt.DesktopDisplay.restoredGameArea(Client.loadingScreenWidth, Client.loadingScreenHeight,
+                    options.windowMaximised, options.windowWidth, options.windowHeight);
+            }
+        }
+        return com.jagex.graphics.awt.DesktopDisplay.gameArea();
+    }
+
+    /**
+     * A2 round 7 part 2 (nakijker A2 round 7 FOUTEN 1: Stretched OFF, fixed -> the remembered MAXIMISED resizable window was black
+     * for the whole first draw, 1468 ms): the hold of a landed switch ends - with OpenGL (framebuffer objects) and Stretched Mode
+     * off the new mode is laid out for the window it is about to have and its first frame is drawn into the offscreen framebuffer,
+     * while the window and canvas keep the old picture; GameframeSwitch.beforeFlip then fits the window, resizes the canvas and the
+     * flip blits that finished frame (the RuneLite GPU plugin: frames are drawn offscreen and only finished ones are shown). True =
+     * drawn offscreen; false = nothing changes size, or the toolkit draws straight into the canvas (the round-7 order).
+     */
+    static boolean prepareOffscreenCanvas() {
+        if ((!pendingCanvas && pendingFitMode == -1) || !(Toolkit.active instanceof GlToolkit) || OrthoMode.toolkitActive
+            || GameShell.fsframe != null || GameShell.canvas == null || com.jagex.StretchedMode.active()
+            || !((GlToolkit) Toolkit.active).rspsStretchSupported()) {
+            return false;
+        }
+        java.awt.Dimension target = targetGameArea(pendingFitMode, pendingFitFrom);
+        if (target == null || target.width <= 0 || target.height <= 0) {
+            return false;
+        }
+        // The layout the resize loop (Static712) gives that window, without touching the frame or the AWT canvas yet.
+        GameShell.frameWid = target.width;
+        GameShell.frameHei = target.height;
+        if (getWindowMode() == WindowMode.FIXED) {
+            GameShell.topMargin = 0;
+            GameShell.leftMargin = Math.max(0, (GameShell.frameWid - Client.loadingScreenWidth) / 2);
+            GameShell.canvasHei = Client.loadingScreenHeight;
+            GameShell.canvasWid = Client.loadingScreenWidth;
+            com.jagex.StretchedMode.layout(true);
+        } else {
+            applyMaxScreenSize();
+            com.jagex.StretchedMode.layout(false);
+        }
+        if (!com.jagex.StretchedMode.glPrerender(GameShell.canvasWid, GameShell.canvasHei)) {
+            return false;
+        }
+        // The toolkit's surface takes that size; the stretch framebuffer is bound as its window (StretchedMode.glSync).
+        ((GlToolkit) Toolkit.active).method7013();
+        if (!com.jagex.StretchedMode.glOwnsFrame()) {
+            com.jagex.StretchedMode.glPrerenderEnd();
+            ((GlToolkit) Toolkit.active).method7013();
+            return false;
+        }
+        if (topLevelInterface != -1) {
+            refreshTopLevelInterface(true);
+        }
+        for (int i = 0; i < 100; i++) {
+            dirtyRectangles[i] = true;
+        }
+        redrawAll();
+        GameShell.fullredraw = true;
+        System.out.println("[78] window mode " + getWindowMode() + ": first frame drawn offscreen at " + GameShell.canvasWid + "x" + GameShell.canvasHei
+            + " for a " + target.width + "x" + target.height + " window (the window keeps the old picture until it is drawn)");
+        return true;
     }
 
     /**

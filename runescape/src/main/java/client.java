@@ -733,7 +733,9 @@ public final class client extends GameShell {
             if (Toolkit.active instanceof GlToolkit && ((GlToolkit) Toolkit.active).rspsWindowNeedsRebuild()) {
                 Static32.setToolkit(ClientOptions.instance.toolkit.getValue(), false);
             }
-            if (Client.nextWindowModeChange != 0L && SystemTimer.safetime() > Client.nextWindowModeChange) {
+            if (GameframeSwitch.drawingOffscreen()) {
+                // A2 round 7 part 2: the first frame of a landed switch is laid out for the window it is about to have - no relayout now.
+            } else if (Client.nextWindowModeChange != 0L && SystemTimer.safetime() > Client.nextWindowModeChange) {
                 InterfaceManager.changeWindowMode(InterfaceManager.getWindowMode(), Client.nextWindowModeWidth, Client.nextWindowModeHeight, false);
             } else if (!Toolkit.active.method8001() && GameShell.canvasReplaceRecommended) {
                 Static574.method7572();
@@ -758,7 +760,9 @@ public final class client extends GameShell {
                 width -= insets.right + insets.left;
             }
 
-            if (GameShell.frameWid != width || height != GameShell.frameHei || Client.changingWindowMode) {
+            // A2 round 7 part 2: not while the first frame of a landed switch is drawn offscreen for the window it is about to have
+            // (GameframeSwitch.beforeFlip sizes the window and canvas right before its flip; the next frame catches up here).
+            if ((GameShell.frameWid != width || height != GameShell.frameHei || Client.changingWindowMode) && !GameframeSwitch.drawingOffscreen()) {
                 if (Toolkit.active == null || Toolkit.active.method7983()) {
                     Static712.method9329((byte) 11);
                 } else {
@@ -857,6 +861,10 @@ public final class client extends GameShell {
         // Agent team test client (-Drsps.testHook): a waiting screenshot request takes this finished frame.
         RspsTestBridge.beforeFlip();
 
+        // A2 round 7 part 2: the first frame of a landed window-mode switch was drawn offscreen - the window and canvas take the new
+        // size only now, right before the flip shows that finished frame (a resize wipes an OpenGL window).
+        GameframeSwitch.beforeFlip();
+
         if (GameShell.signLink.microsoftjava && MainLogicStep.method6445(MainLogicManager.step) && InterfaceManager.rectDebug == 0 && InterfaceManager.getWindowMode() == 1 && !local209) {
             @Pc(110) int rectangle = 0;
 
@@ -892,6 +900,9 @@ public final class client extends GameShell {
                 Static32.setToolkit(ToolkitType.JAVA, false);
             }
         }
+
+        // A2 round 7 part 2: that frame is on screen now - presses made before this moment were made on the old picture.
+        GameframeSwitch.framePresented();
 
         VideoManager.unpause();
 

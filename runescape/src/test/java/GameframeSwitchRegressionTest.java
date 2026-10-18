@@ -62,9 +62,19 @@ public final class GameframeSwitchRegressionTest {
         int frozenUntil;
         long seq;
         final List<long[]> inbound = new ArrayList<>(); // {deliverFrame, seq, kind, id}: kind 0 IF_OPENTOP, 1 PLAYER_INFO, 2 IF_OPENSUB, 3 other
-        final List<long[]> presses = new ArrayList<>(); // {madeAtMs, processFrame, screenModeWhenMade}
+        final List<long[]> presses = new ArrayList<>(); // {madeAtMs, processFrame, screenModeWhenMade (0 = a black window)}
         int wrongLayoutClicks, droppedClicks, clicksActed;
         String firstWrongClick;
+        // A2 round 7 part 2 (nakijker A2 round 7 FOUTEN 1-2): the FIRST frame of a landed switch takes this many frames to draw (the
+        // maximised 1890x989 first frame took 1468 ms on a loaded PC); meanwhile the client thread draws (no logic, presses wait) and
+        // the window shows whatever it had - the old picture, or BLACK when the canvas was resized before that draw. The frame is on
+        // screen only at its flip. offscreenCapable = the toolkit can draw that frame offscreen first (OpenGL with framebuffer
+        // objects; GameframeSwitch.Host.prepareCanvas).
+        int slowDrawFrames;
+        int drawingUntil;
+        boolean firstFrameDue; // an awaited gameframe landed: the next frame drawn is the first frame of the new mode
+        boolean offscreenCapable = true;
+        int offscreenFrames;
 
         Sim(String name, int start, int phase, int latency) {
             this.name = name;
@@ -111,6 +121,15 @@ public final class GameframeSwitchRegressionTest {
             }
             canvasMode = applied;
         }
+        @Override public boolean prepareCanvas() {
+            // InterfaceManager.prepareOffscreenCanvas: only when the canvas changes size and the toolkit can draw offscreen.
+            if (!offscreenCapable || !canvasDiffers(canvasMode, applied)) {
+                return false;
+            }
+            offscreenFrames++;
+            return true;
+        }
+        @Override public void presented() { }
         @Override public long now() { return (long) frame * FRAME_MS; }
         @Override public void log(String line) { log.add(frame + ": " + line); }
 
@@ -188,6 +207,14 @@ public final class GameframeSwitchRegressionTest {
                 capture();
                 return; // the client is stuck in the landing cycle's scripts: nothing read, nothing drawn
             }
+            if (frame < drawingUntil) {
+                capture();
+                return; // the client thread draws the slow first frame of the new mode: nothing read, presses wait
+            }
+            if (drawingUntil != 0) {
+                drawingUntil = 0;
+                draw(); // that frame is finished: its flip (the logic of this cycle runs after it)
+            }
             // Presses the logic takes this cycle (client.mainloop mouse loop: GameframeSwitch.dropPress), before the packets.
             List<long[]> taken = new ArrayList<>();
             for (long[] pr : new ArrayList<>(presses)) {
@@ -218,6 +245,7 @@ public final class GameframeSwitchRegressionTest {
                     panesOpen = (id == GameframeSwitch.FIXED_GAMEFRAME || id == GameframeSwitch.RESIZABLE_GAMEFRAME) ? 0 : PANES;
                     if (awaited) {
                         landed = true;
+                        firstFrameDue = true;
                         checks++;
                         if (!GameframeSwitch.landedThisCycle() || applied == before && GameframeSwitch.gameframeFor(before) != id) {
                             failures.add(name + ": frame " + frame + " the awaited gameframe " + id + " landed without the same-cycle batch flag");
@@ -256,14 +284,24 @@ public final class GameframeSwitchRegressionTest {
             }
             // The frame (client.mainredraw): only when GameframeSwitch lets it.
             if (GameframeSwitch.mayPresent()) {
+                if (firstFrameDue && slowDrawFrames > 0) {
+                    firstFrameDue = false;
+                    drawingUntil = frame + slowDrawFrames; // the first frame of the new mode is drawn now; its flip comes later
+                    capture();
+                    return;
+                }
+                firstFrameDue = false;
                 draw();
             }
             capture();
         }
 
+        /** The end of a frame: client.mainredraw's flip (GameframeSwitch.beforeFlip right before it, framePresented right after). */
         void draw() {
+            GameframeSwitch.beforeFlip();
             wiped = false;
             screenMode = applied;
+            GameframeSwitch.framePresented();
             if (!inGame || !(top == GameframeSwitch.FIXED_GAMEFRAME || top == GameframeSwitch.RESIZABLE_GAMEFRAME)) {
                 return;
             }
@@ -304,7 +342,7 @@ public final class GameframeSwitchRegressionTest {
 
         /** The player presses the mouse now (on the picture on screen); the logic takes the press [afterFrames] frames later. */
         void press(int afterFrames) {
-            presses.add(new long[] {now(), frame + afterFrames, screenMode});
+            presses.add(new long[] {now(), frame + afterFrames, wiped ? 0 : screenMode});
         }
 
         void run(int frames) {
@@ -646,6 +684,46 @@ public final class GameframeSwitchRegressionTest {
                                     expectClean(sim, pair[1]);
                                     expect(sim.modeChanges == 1, sim.name + ": the drawn mode changed " + sim.modeChanges + " times");
                                     expect(sim.clicksActed > 0, sim.name + ": every press was dropped (" + sim.droppedClicks + ")");
+                                    cases++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // 10d. A2 round 7 part 2 (nakijker A2 round 7 FOUTEN 1-2): a SLOW first frame of the new mode - 20 ms / 0.5 s / 1.5 s of drawing
+        //     (the maximised fixed -> resizable draw took 1468 ms) - after a resize. Stretched OFF and ON, every direction between the
+        //     two gameframes, panels split 0/3 frames, a freeze 0/0.5 s in the landing cycle, 3 latencies x 2 tick phases; the player
+        //     clicks EVERY frame, the logic taking each press 0-25 frames later. While that frame is drawn the window must keep the old
+        //     picture (never black: the canvas/window resize waits until the frame is drawn offscreen), and a press made before its
+        //     flip - on the old picture - must never act on the new layout.
+        for (boolean stretchedOn : new boolean[] {false, true}) {
+            for (int[] pair : pairs) {
+                for (int slow : new int[] {1, 25, 74}) {
+                    for (int split : new int[] {0, 3}) {
+                        for (int freeze : new int[] {0, 25}) {
+                            for (int latency : new int[] {0, 5, 25}) {
+                                for (int phase : new int[] {0, 13}) {
+                                    Sim sim = start("Stretched " + (stretchedOn ? "ON" : "OFF") + " " + mode(pair[0]) + " -> " + mode(pair[1]) + " first frame drawn in " + (slow * FRAME_MS)
+                                        + " ms, panels +" + split + " frames, freeze " + (freeze * FRAME_MS) + " ms, phase " + phase + " latency " + (latency * FRAME_MS) + " ms", pair[0], phase, latency);
+                                    sim.stretched = stretchedOn;
+                                    sim.slowDrawFrames = slow;
+                                    sim.splitFrames = split;
+                                    sim.freezeFrames = freeze;
+                                    sim.run(3);
+                                    GameframeSwitch.request(pair[1], fsWidth(pair[1]), fsWidth(pair[1]));
+                                    for (int f = 0; f < 200; f++) {
+                                        sim.press(delays[f % delays.length]);
+                                        sim.step();
+                                    }
+                                    sim.slowDrawFrames = 0;
+                                    sim.settle();
+                                    expectClean(sim, pair[1]);
+                                    expect(sim.modeChanges == 1, sim.name + ": the drawn mode changed " + sim.modeChanges + " times");
+                                    expect(sim.clicksActed > 0, sim.name + ": every press was dropped (" + sim.droppedClicks + ")");
+                                    expect(!GameframeSwitch.presenting(), sim.name + ": the first frame of the new mode was never flipped");
+                                    expect(stretchedOn || sim.offscreenFrames == 1, sim.name + ": the first frame was drawn offscreen " + sim.offscreenFrames + " times (expected once)");
                                     cases++;
                                 }
                             }
