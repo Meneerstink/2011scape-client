@@ -128,6 +128,118 @@ public final class StretchedSwitchSurfaceRegressionTest {
         }
         StretchedMode.useGlForTest(new RecordingGl());
 
+        // 1c. A2 round 8 review (nakijker FOUTEN 1): OpenGL with the player's Anti-aliasing on (x2 / x4 in Graphics Options). The
+        //     window is made the way Static595.createWithHeap makes it (StretchedMode.glWindowSamples; the old code: plain only
+        //     while stretching) and the toolkit is reported the way Static595 reports it. Whole class again: every window x
+        //     Stretched OFF / ON x Keep aspect / Integer x scaling - the canvas never changes size or place at a switch and fills
+        //     the window, the client never fits the window, clicks land; switching Stretched Mode on/off never needs another
+        //     window (a toolkit rebuild = a new canvas); and the frame keeps the player's anti-aliasing: drawn into a multisampled
+        //     offscreen buffer, resolved 1:1 (a multisampled buffer cannot be blitted scaled / moved or read with glReadPixels),
+        //     then blitted onto its drawn rectangle.
+        for (int aa : new int[] {2, 4}) {
+            StretchedMode.configure(false, false, false, false, 0);
+            int samplesOff = windowSamples(aa);
+            StretchedMode.configure(true, false, false, false, 0);
+            int samplesOn = windowSamples(aa);
+            cases++;
+            check(samplesOff == samplesOn, "AA: switching Stretched Mode on/off needs another OpenGL window (toolkit rebuild = new canvas)",
+                "AA x" + aa + ": window samples Stretched OFF " + samplesOff + ", ON " + samplesOn);
+            for (int[] w : windows) {
+                for (boolean on : new boolean[] {false, true}) {
+                    for (boolean[] o : options) {
+                        if (!on && (o[0] || o[1])) {
+                            continue;
+                        }
+                        for (int s : scalings) {
+                            if (!on && s != 0) {
+                                continue;
+                            }
+                            cases++;
+                            String name = "AA x" + aa + " " + (on ? "Stretched ON" : "Stretched OFF") + (o[0] ? " +KeepAspect" : "") + (o[1] ? " +Integer" : "")
+                                + (on ? " " + s + "%" : "") + " window " + w[0] + "x" + w[1];
+                            StretchedMode.configure(on, o[0], false, o[1], s);
+                            int windowSamples = windowSamples(aa);
+                            glToolkitAa(windowSamples <= 1, windowSamples <= 1 ? aa : 0);
+                            Layout fixed = layout(w, true, on, o[0], o[1], s);
+                            clicks(name + " fixed", fixed);
+                            Layout resizable = layout(w, false, on, o[0], o[1], s);
+                            clicks(name + " resizable", resizable);
+                            check(fixed.canvasW == resizable.canvasW && fixed.canvasH == resizable.canvasH,
+                                "AA: canvas changes size at a fixed <-> resizable switch (black on the real screen until the next swap)",
+                                name + ": fixed canvas " + fixed.canvasW + "x" + fixed.canvasH + " vs resizable " + resizable.canvasW + "x" + resizable.canvasH);
+                            check(fixed.canvasX == resizable.canvasX && fixed.canvasY == resizable.canvasY,
+                                "AA: canvas moves at a fixed <-> resizable switch",
+                                name + ": fixed canvas at " + fixed.canvasX + "," + fixed.canvasY + " vs resizable " + resizable.canvasX + "," + resizable.canvasY);
+                            check(fixed.canvasW == w[0] && fixed.canvasH == w[1] && fixed.canvasX == 0 && fixed.canvasY == 0,
+                                "AA: the canvas does not fill the window's game area",
+                                name + ": fixed canvas " + fixed.canvasW + "x" + fixed.canvasH + " at " + fixed.canvasX + "," + fixed.canvasY);
+                            check(fixed.fills && resizable.fills, "AA: the client fits / restores the WINDOW at a switch",
+                                name + ": fillsWindow fixed=" + fixed.fills + " resizable=" + resizable.fills);
+                        }
+                    }
+                }
+            }
+            // The frame through the real glSync / glPresent / glReadBegin (GL seam that models multisampled renderbuffers).
+            for (int[] w : new int[][] {{944, 581}, {1648, 989}, {1890, 989}, {765, 503}, {1216, 581}}) {
+                for (boolean on : new boolean[] {false, true}) {
+                    for (boolean[] o : options) {
+                        if (!on && (o[0] || o[1])) {
+                            continue;
+                        }
+                        for (boolean fixedMode : new boolean[] {true, false}) {
+                            cases++;
+                            String name = "AA x" + aa + " frame " + (on ? "Stretched ON" : "Stretched OFF") + (o[0] ? " +KeepAspect" : "") + (o[1] ? " +Integer" : "")
+                                + (fixedMode ? " fixed" : " resizable") + " window " + w[0] + "x" + w[1];
+                            StretchedMode.configure(on, o[0], false, o[1], 16);
+                            int windowSamples = windowSamples(aa);
+                            RecordingGl gl = new RecordingGl();
+                            StretchedMode.useGlForTest(gl);
+                            glToolkitAa(windowSamples <= 1, windowSamples <= 1 ? aa : 0);
+                            Layout l = layout(w, fixedMode, on, o[0], o[1], 16);
+                            java.awt.Dimension render = StretchedMode.renderSize(GameShell.canvas);
+                            StretchedMode.glSync(true, render.width, render.height);
+                            int drawSamples = gl.samplesOf(gl.drawFb, windowSamples);
+                            check(drawSamples == aa, "AA: the frame is drawn without the player's anti-aliasing",
+                                name + ": the game draws into " + (gl.drawFb == 0 ? "the window" : "framebuffer " + gl.drawFb) + " with " + drawSamples + " samples, wanted " + aa);
+                            gl.events.clear();
+                            gl.badBlits.clear();
+                            StretchedMode.glPresent(false, l.canvasW, l.canvasH);
+                            for (String bad : gl.badBlits) {
+                                check(false, "AA: a multisampled buffer is blitted scaled / moved or into a multisampled window (INVALID_OPERATION = black)", name + ": " + bad);
+                            }
+                            boolean oneToOne = l.drawX == 0 && l.drawY == 0 && l.realW == l.canvasW && l.realH == l.canvasH && l.drawnW == l.canvasW && l.drawnH == l.canvasH;
+                            if (gl.drawFb == 0 && oneToOne && windowSamples > 1) {
+                                continue; // drawn straight into a multisampled window (the old path) - judged by the canvas rules above
+                            }
+                            int[] want = {0, 0, l.realW, l.realH, l.drawX, l.canvasH - l.drawY - l.drawnH, l.drawX + l.drawnW, l.canvasH - l.drawY};
+                            check(gl.blit != null && java.util.Arrays.equals(gl.blit, want), "AA: the frame is not blitted onto its drawn rectangle",
+                                name + ": blit " + (gl.blit == null ? "none" : java.util.Arrays.toString(gl.blit)) + ", want " + java.util.Arrays.toString(want));
+                            if (gl.blit != null) {
+                                check(gl.blitReadSamples <= 1, "AA: the window blit reads a multisampled buffer (must be resolved 1:1 first)",
+                                    name + ": read framebuffer has " + gl.blitReadSamples + " samples");
+                            }
+                            // The minimap / sprites are copied from the frame (glCopyTexSubImage2D) while the toolkit's scissor test is on.
+                            gl.scissorOn = true;
+                            Boolean resolved = readBegin();
+                            if (resolved != null) {
+                                int readSamples = gl.samplesOf(gl.readFb, windowSamples);
+                                check(readSamples <= 1, "AA: a screenshot (glReadPixels) reads a multisampled buffer",
+                                    name + ": read framebuffer " + gl.readFb + " has " + readSamples + " samples");
+                                check(gl.scissorOn, "AA: the toolkit's scissor test is left off after a read", name);
+                                if (resolved) {
+                                    readEnd();
+                                    check(gl.drawFb != 0 && gl.samplesOf(gl.drawFb, windowSamples) == aa, "AA: after a screenshot the game no longer draws into its buffer",
+                                        name + ": draw framebuffer " + gl.drawFb);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        glToolkitAa(true, 0);
+        StretchedMode.useGlForTest(new RecordingGl());
+
         // 2. Other toolkits (DirectX / software / Java): unchanged - the canvas is the drawn size, placed by the game's margins.
         glToolkit(false);
         for (int[] w : new int[][] {{944, 581}, {1648, 989}, {765, 503}}) {
@@ -218,32 +330,75 @@ public final class StretchedSwitchSurfaceRegressionTest {
         }
     }
 
-    /** A GL that records the window clear and the blit of one present (framebuffer objects always complete). */
+    /**
+     * A GL that records the window clear and the blit of one present (framebuffer objects always complete). Models
+     * multisampled renderbuffers: which renderbuffer is attached to which framebuffer, with how many samples; a blit out of a
+     * multisampled framebuffer must be 1:1 into a single-sample one (else INVALID_OPERATION).
+     */
     private static final class RecordingGl implements StretchedMode.Gl {
         final List<String> events = new ArrayList<String>();
+        final List<String> badBlits = new ArrayList<String>();
+        final Map<Integer, Integer> rbSamples = new java.util.HashMap<Integer, Integer>();
+        final Map<Integer, Integer> fbColour = new java.util.HashMap<Integer, Integer>();
         int drawFb;
+        int readFb;
+        int boundRb;
         int nextId = 1;
         int[] blit;
+        int blitReadSamples;
+        boolean scissorOn;
         boolean clearedWindowBeforeBlit;
+
+        /** Samples of framebuffer [fb]'s colour buffer; 0 = the window, which has [windowSamples]. */
+        int samplesOf(int fb, int windowSamples) {
+            if (fb == 0) {
+                return windowSamples;
+            }
+            Integer rb = fbColour.get(fb);
+            Integer n = rb == null ? null : rbSamples.get(rb);
+            return n == null ? 0 : n;
+        }
 
         public void glBindFramebufferEXT(int target, int framebuffer) {
             if (target == 0x8D40 || target == 0x8CA9) {
                 drawFb = framebuffer;
             }
+            if (target == 0x8D40 || target == 0x8CA8) {
+                readFb = framebuffer;
+            }
         }
 
         public void glBlitFramebufferEXT(int a, int b, int c, int d, int e, int f, int g, int h, int mask, int filter) {
+            int rs = samplesOf(readFb, 0);
+            int ds = samplesOf(drawFb, 0);
+            if (scissorOn) {
+                badBlits.add("blit from framebuffer " + readFb + " -> " + drawFb + " with the scissor test on (clipped: part of the frame stays old/black)");
+            }
+            if (rs > 1 && (a != e || b != f || c != g || d != h || ds > 1)) {
+                badBlits.add("blit from framebuffer " + readFb + " (" + rs + " samples) " + a + "," + b + "-" + c + "," + d + " -> " + drawFb + " " + e + "," + f + "-" + g + "," + h);
+            }
             if (drawFb == 0) {
                 blit = new int[] {a, b, c, d, e, f, g, h};
+                blitReadSamples = rs;
                 clearedWindowBeforeBlit = events.contains("clear0");
             }
             events.add("blit" + drawFb);
         }
 
+        public void glRenderbufferStorageMultisampleEXT(int target, int samples, int format, int width, int height) {
+            rbSamples.put(boundRb, samples);
+        }
+
         public void glDisable(int cap) {
+            if (cap == 0x0C11) {
+                scissorOn = false;
+            }
         }
 
         public void glEnable(int cap) {
+            if (cap == 0x0C11) {
+                scissorOn = true;
+            }
         }
 
         public void glGenFramebuffersEXT(int n, int[] ids, int offset) {
@@ -255,12 +410,17 @@ public final class StretchedSwitchSurfaceRegressionTest {
         }
 
         public void glBindRenderbufferEXT(int target, int renderbuffer) {
+            boundRb = renderbuffer;
         }
 
         public void glRenderbufferStorageEXT(int target, int format, int width, int height) {
+            rbSamples.put(boundRb, 0);
         }
 
         public void glFramebufferRenderbufferEXT(int target, int attachment, int renderbufferTarget, int renderbuffer) {
+            if (attachment == 0x8CE0) {
+                fbColour.put(drawFb, renderbuffer);
+            }
         }
 
         public int glCheckFramebufferStatusEXT(int target) {
@@ -288,6 +448,51 @@ public final class StretchedSwitchSurfaceRegressionTest {
             m.invoke(null, on);
         } catch (NoSuchMethodException absent) {
             // old code: no notion of the toolkit; every layout is the one the client used for OpenGL
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** The window samples Static595.createWithHeap asks for (old code: plain only while stretching - glPlainWindow). */
+    private static int windowSamples(int playerSamples) {
+        try {
+            return (Integer) StretchedMode.class.getMethod("glWindowSamples", int.class).invoke(null, playerSamples);
+        } catch (NoSuchMethodException absent) {
+            return StretchedMode.glPlainWindow() ? 0 : playerSamples;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** Static595's report of the OpenGL toolkit: plain window or not, offscreen anti-aliasing samples (old code: no samples). */
+    private static void glToolkitAa(boolean plain, int samples) {
+        try {
+            StretchedMode.class.getMethod("glToolkit", boolean.class, boolean.class, int.class).invoke(null, true, plain, samples);
+        } catch (NoSuchMethodException absent) {
+            try {
+                StretchedMode.class.getMethod("glToolkit", boolean.class, boolean.class).invoke(null, true, plain);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** StretchedMode.glReadBegin (null when absent: the old code never had a multisampled offscreen frame to resolve). */
+    private static Boolean readBegin() {
+        try {
+            return (Boolean) StretchedMode.class.getMethod("glReadBegin", boolean.class).invoke(null, true);
+        } catch (NoSuchMethodException absent) {
+            return null;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void readEnd() {
+        try {
+            StretchedMode.class.getMethod("glReadEnd").invoke(null);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

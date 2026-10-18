@@ -3324,8 +3324,34 @@ public final class GlToolkit extends Toolkit {
      * toolkit again on a new canvas, the same way a change of the Anti-aliasing option does.
      */
     public boolean rspsWindowNeedsRebuild() {
-        int wanted = com.jagex.StretchedMode.glPlainWindow() ? 0 : ClientOptions.instance.antialiasingQuality.getValue() * 2;
-        return this.anInt7986 != wanted;
+        int wanted = com.jagex.StretchedMode.glWindowSamples(ClientOptions.instance.antialiasingQuality.getValue() * 2);
+        if (this.anInt7986 != wanted) {
+            return true;
+        }
+        // A2 round 8 review: a plain window draws the player's anti-aliasing offscreen - an Anti-aliasing change only remakes
+        // that buffer (no new window, no new canvas).
+        if (this.rspsPlainWindow() && this.rspsStretchSupported()) {
+            com.jagex.StretchedMode.glSamples(this.rspsOffscreenSamples());
+        }
+        return false;
+    }
+
+    /**
+     * A2 round 8 review: the samples of the offscreen frame for the player's Anti-aliasing (0 / 2 / 4), when the driver has
+     * multisampled framebuffers (GL_EXT_framebuffer_multisample - the extension the 667 client's own Class276 uses).
+     */
+    public int rspsOffscreenSamples() {
+        return this.aBoolean617 ? ClientOptions.instance.antialiasingQuality.getValue() * 2 : 0;
+    }
+
+    /**
+     * A2 round 8 review: before glReadPixels / glCopyTex(Sub)Image2D read "the window" - a multisampled offscreen frame (the
+     * player's anti-aliasing) is resolved and the resolve buffer bound for reading; then StretchedMode.glReadEnd. Only when
+     * none of the toolkit's own render targets is pushed (then the read buffer is that target, not the frame).
+     */
+    public boolean rspsResolveForRead() {
+        boolean scissor = this.anInt8000 != 0 || this.anInt8032 != 0 || this.anInt8028 != this.anInt7869 || this.anInt8012 != this.anInt7956;
+        return this.anInterface14_2 == null && com.jagex.StretchedMode.glReadBegin(scissor);
     }
 
     /** A2 round 8: this window is not multisampled (a framebuffer blit can write it). */
@@ -3401,8 +3427,13 @@ public final class GlToolkit extends Toolkit {
     @Override
     public int[] na(@OriginalArg(0) int x, @OriginalArg(1) int y, @OriginalArg(2) int width, @OriginalArg(3) int height) {
         @Pc(10) int[] local10 = new int[width * height];
+        // A2 round 8 review: a multisampled offscreen frame (anti-aliasing) is resolved before glReadPixels can read it.
+        boolean resolved = this.rspsResolveForRead();
         for (@Pc(12) int local12 = 0; local12 < height; local12++) {
             OpenGL.glReadPixelsi(x, this.anInt7956 - y - local12, width, 1, OpenGL.GL_BGRA, this.anInt8030, local10, local12 * width);
+        }
+        if (resolved) {
+            com.jagex.StretchedMode.glReadEnd();
         }
         return local10;
     }

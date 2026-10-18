@@ -108,12 +108,38 @@ public final class StretchedMode {
     }
 
     /**
-     * OpenGL makes its window without multisampling while stretching: glBlitFramebuffer cannot write into a multisampled
-     * window (INVALID_OPERATION - a black screen with the game's Anti-aliasing on), and RuneLite's GPU plugin keeps its
-     * window plain as well. The player's own anti-aliasing setting is kept and comes back when stretching goes off.
+     * OpenGL makes its window without multisampling whenever the driver has framebuffer objects: glBlitFramebuffer cannot
+     * write into a multisampled window (INVALID_OPERATION - a black screen with the game's Anti-aliasing on), and RuneLite's
+     * GPU plugin keeps its window plain as well. A2 round 8 review (nakijker FOUTEN 1): before, the window was plain only
+     * while stretching, so with Stretched OFF and Anti-aliasing on the canvas still resized at every fixed <-> resizable
+     * switch (black on the real screen) and switching Stretched on/off rebuilt the toolkit. The player's anti-aliasing now
+     * lives in the offscreen framebuffer ({@link #glSamples}), the way RuneLite's GpuPlugin (initAAFbo + resolve blit) and
+     * the 667 client's own post-processing (Class276: multisampled renderbuffers, glBlitFramebufferEXT 1:1 GL_NEAREST) do.
      */
     public static boolean glPlainWindow() {
-        return enabled && !glFailed && !glNoFramebuffers;
+        return !glFailed && !glNoFramebuffers;
+    }
+
+    /** Multisampling the OpenGL window is made with for the player's anti-aliasing [playerSamples] (0 = plain). */
+    public static int glWindowSamples(int playerSamples) {
+        return glPlainWindow() ? 0 : playerSamples;
+    }
+
+    /** Anti-aliasing samples of the offscreen frame (the player's setting while the window is plain; 0 = none). */
+    private static int glSamples;
+
+    /** The offscreen frame is multisampled with [samples] (the player's anti-aliasing; a plain window cannot be). */
+    public static void glSamples(int samples) {
+        int wanted = samples > 1 ? samples : 0;
+        if (glSamples != wanted) {
+            glSamples = wanted;
+            Client.changingWindowMode = true;
+        }
+    }
+
+    /** Tests / log: the anti-aliasing samples the current offscreen buffer was made with (0 = single-sample or none). */
+    public static int glBufferSamples() {
+        return bound ? bufferSamples : 0;
     }
 
     /** The GL driver has no framebuffer objects / blit (stays so for this run): OpenGL is never stretched. */
@@ -146,9 +172,15 @@ public final class StretchedMode {
         }
     }
 
+    /** The OpenGL toolkit ([on]) with a plain window ([plain]) whose frames are drawn with [samples] anti-aliasing samples. */
+    public static void glToolkit(boolean on, boolean plain, int samples) {
+        glToolkit(on, plain);
+        glSamples(on && plain ? samples : 0);
+    }
+
     /** Tests: the OpenGL toolkit with a plain window ([on]) or another toolkit. */
     public static void glToolkit(boolean on) {
-        glToolkit(on, true);
+        glToolkit(on, true, 0);
     }
 
     /** The canvas fills the window's game area and the blit places the game in it (OpenGL, framebuffer objects, plain window). */
@@ -172,6 +204,9 @@ public final class StretchedMode {
         }
         if (!windowCanvas() || realWidth <= 0 || realHeight <= 0) {
             return false;
+        }
+        if (glSamples > 1) {
+            return true; // anti-aliasing: the plain window has no samples, every frame is drawn multisampled offscreen
         }
         return drawX != 0 || drawY != 0 || realWidth != canvasWidth() || realHeight != canvasHeight();
     }
@@ -484,6 +519,10 @@ public final class StretchedMode {
         void glGenRenderbuffersEXT(int n, int[] ids, int offset);
         void glBindRenderbufferEXT(int target, int renderbuffer);
         void glRenderbufferStorageEXT(int target, int format, int width, int height);
+        /** Multisampled storage (anti-aliasing); a GL that does not model samples stores a plain buffer. */
+        default void glRenderbufferStorageMultisampleEXT(int target, int samples, int format, int width, int height) {
+            glRenderbufferStorageEXT(target, format, width, height);
+        }
         void glFramebufferRenderbufferEXT(int target, int attachment, int renderbufferTarget, int renderbuffer);
         int glCheckFramebufferStatusEXT(int target);
         void glDeleteFramebuffersEXT(int n, int[] ids, int offset);
@@ -501,6 +540,7 @@ public final class StretchedMode {
         public void glGenRenderbuffersEXT(int n, int[] ids, int offset) { OpenGL.glGenRenderbuffersEXT(n, ids, offset); }
         public void glBindRenderbufferEXT(int target, int renderbuffer) { OpenGL.glBindRenderbufferEXT(target, renderbuffer); }
         public void glRenderbufferStorageEXT(int target, int format, int width, int height) { OpenGL.glRenderbufferStorageEXT(target, format, width, height); }
+        public void glRenderbufferStorageMultisampleEXT(int target, int samples, int format, int width, int height) { OpenGL.glRenderbufferStorageMultisampleEXT(target, samples, format, width, height); }
         public void glFramebufferRenderbufferEXT(int target, int attachment, int rbTarget, int rb) { OpenGL.glFramebufferRenderbufferEXT(target, attachment, rbTarget, rb); }
         public int glCheckFramebufferStatusEXT(int target) { return OpenGL.glCheckFramebufferStatusEXT(target); }
         public void glDeleteFramebuffersEXT(int n, int[] ids, int offset) { OpenGL.glDeleteFramebuffersEXT(n, ids, offset); }
@@ -629,7 +669,7 @@ public final class StretchedMode {
             deleteBuffer();
             return true;
         }
-        if (bound && bufferWidth == width && bufferHeight == height) {
+        if (bound && bufferWidth == width && bufferHeight == height && bufferSamples == wantedSamples()) {
             return false;
         }
         if (!createBuffer(width, height)) {
@@ -651,7 +691,8 @@ public final class StretchedMode {
      * binds the offscreen framebuffer again for the next frame. The scissor test clips blits, so it is off meanwhile.
      */
     public static void glPresent(boolean scissor, int canvasWidth, int canvasHeight) {
-        String state = "stretch active=" + active() + " offscreen=" + bound + " real=" + bufferWidth + "x" + bufferHeight + " drawn=" + canvasWidth + "x" + canvasHeight;
+        String state = "stretch active=" + active() + " offscreen=" + bound + " real=" + bufferWidth + "x" + bufferHeight + " drawn=" + canvasWidth + "x" + canvasHeight
+            + " samples=" + bufferSamples;
         if (!state.equals(lastPresent)) {
             lastPresent = state;
             System.out.println("[78] " + state);
@@ -662,7 +703,7 @@ public final class StretchedMode {
         if (scissor) {
             gl.glDisable(GL_SCISSOR_TEST);
         }
-        gl.glBindFramebufferEXT(GL_READ_FRAMEBUFFER, framebuffer);
+        gl.glBindFramebufferEXT(GL_READ_FRAMEBUFFER, resolveSource());
         gl.glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, 0);
         int x0 = 0;
         int y0 = 0;
@@ -686,7 +727,82 @@ public final class StretchedMode {
         }
     }
 
+    /** The samples the offscreen buffer should have now (the player's anti-aliasing unless the driver refused it). */
+    private static int wantedSamples() {
+        return glSamples > 1 && !glNoMultisample ? glSamples : 0;
+    }
+
+    /**
+     * The single-sample framebuffer a multisampled frame is resolved into before it is blitted / read: a multisampled
+     * buffer may only be blitted 1:1 (same rectangle) - a scaled or moved blit out of it is INVALID_OPERATION.
+     */
+    private static int resolveFramebuffer;
+    private static int resolveColourBuffer;
+    /** Samples of the current offscreen buffer (0 = single-sample). */
+    private static int bufferSamples;
+    /** The driver could not make a complete multisampled framebuffer: the offscreen frame stays single-sample (this run). */
+    private static boolean glNoMultisample;
+
+    /**
+     * The framebuffer that holds the finished single-sample frame: the offscreen buffer itself, or - when it is multisampled -
+     * the resolve buffer after a 1:1 GL_NEAREST blit (the 667 client's Class276.method6245, RuneLite GpuPlugin's AA resolve).
+     */
+    private static int resolveSource() {
+        if (bufferSamples <= 1 || resolveFramebuffer == 0) {
+            return framebuffer;
+        }
+        gl.glBindFramebufferEXT(GL_READ_FRAMEBUFFER, framebuffer);
+        gl.glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, resolveFramebuffer);
+        gl.glBlitFramebufferEXT(0, 0, bufferWidth, bufferHeight, 0, 0, bufferWidth, bufferHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        return resolveFramebuffer;
+    }
+
+    /**
+     * Before the toolkit reads pixels of "the window" - glReadPixels (Toolkit.na: hook / bug screenshots) and
+     * glCopyTexImage2D / glCopyTexSubImage2D (Class93_Sub2: the minimap and every sprite copied from the frame): a multisampled
+     * offscreen frame cannot be read (INVALID_OPERATION - in game the minimap stayed black), so it is resolved and the resolve
+     * buffer is bound for reading. [scissor] = the toolkit's scissor test is on (it clips the resolve blit, so it is off for
+     * it). True when {@link #glReadEnd} must bind the offscreen buffer again afterwards.
+     */
+    public static boolean glReadBegin(boolean scissor) {
+        if (!bound || bufferSamples <= 1 || resolveFramebuffer == 0) {
+            return false;
+        }
+        if (scissor) {
+            gl.glDisable(GL_SCISSOR_TEST);
+        }
+        gl.glBindFramebufferEXT(GL_READ_FRAMEBUFFER, resolveSource());
+        if (scissor) {
+            gl.glEnable(GL_SCISSOR_TEST);
+        }
+        return true;
+    }
+
+    /** {@link #glReadBegin(boolean)} with the scissor test off. */
+    public static boolean glReadBegin() {
+        return glReadBegin(false);
+    }
+
+    public static void glReadEnd() {
+        gl.glBindFramebufferEXT(GL_FRAMEBUFFER, framebuffer);
+    }
+
     private static boolean createBuffer(int width, int height) {
+        int samples = wantedSamples();
+        if (allocateBuffer(width, height, samples)) {
+            return true;
+        }
+        if (samples > 1) {
+            // The player's anti-aliasing cannot be made offscreen on this driver: keep the picture, single-sample.
+            System.out.println("[78] stretch: multisampled offscreen framebuffer (" + samples + " samples) incomplete at " + width + "x" + height
+                + " - anti-aliasing off for the offscreen frame");
+            glNoMultisample = true;
+            return allocateBuffer(width, height, 0);
+        }
+        return false;
+    }
+
+    private static boolean allocateBuffer(int width, int height, int samples) {
         int[] ids = new int[1];
         if (framebuffer == 0) {
             gl.glGenFramebuffersEXT(1, ids, 0);
@@ -697,23 +813,59 @@ public final class StretchedMode {
             depthBuffer = ids[0];
         }
         gl.glBindRenderbufferEXT(GL_RENDERBUFFER, colourBuffer);
-        gl.glRenderbufferStorageEXT(GL_RENDERBUFFER, GL_RGBA8, width, height);
+        storage(GL_RGBA8, width, height, samples);
         // The 3D scene needs a depth buffer like the window's (the client uses no stencil).
         gl.glBindRenderbufferEXT(GL_RENDERBUFFER, depthBuffer);
-        gl.glRenderbufferStorageEXT(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height);
+        storage(GL_DEPTH_COMPONENT24, width, height, samples);
         gl.glBindRenderbufferEXT(GL_RENDERBUFFER, 0);
         gl.glBindFramebufferEXT(GL_FRAMEBUFFER, framebuffer);
         gl.glFramebufferRenderbufferEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colourBuffer);
         gl.glFramebufferRenderbufferEXT(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
         int status = gl.glCheckFramebufferStatusEXT(GL_FRAMEBUFFER);
+        if (status == GL_FRAMEBUFFER_COMPLETE && samples > 1) {
+            if (resolveFramebuffer == 0) {
+                gl.glGenFramebuffersEXT(1, ids, 0);
+                resolveFramebuffer = ids[0];
+                gl.glGenRenderbuffersEXT(1, ids, 0);
+                resolveColourBuffer = ids[0];
+            }
+            gl.glBindRenderbufferEXT(GL_RENDERBUFFER, resolveColourBuffer);
+            gl.glRenderbufferStorageEXT(GL_RENDERBUFFER, GL_RGBA8, width, height);
+            gl.glBindRenderbufferEXT(GL_RENDERBUFFER, 0);
+            gl.glBindFramebufferEXT(GL_FRAMEBUFFER, resolveFramebuffer);
+            gl.glFramebufferRenderbufferEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, resolveColourBuffer);
+            status = gl.glCheckFramebufferStatusEXT(GL_FRAMEBUFFER);
+        } else if (samples <= 1) {
+            deleteResolve();
+        }
         gl.glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
         bufferWidth = width;
         bufferHeight = height;
+        bufferSamples = samples;
         if (status != GL_FRAMEBUFFER_COMPLETE) {
             deleteBuffer();
             return false;
         }
         return true;
+    }
+
+    private static void storage(int format, int width, int height, int samples) {
+        if (samples > 1) {
+            gl.glRenderbufferStorageMultisampleEXT(GL_RENDERBUFFER, samples, format, width, height);
+        } else {
+            gl.glRenderbufferStorageEXT(GL_RENDERBUFFER, format, width, height);
+        }
+    }
+
+    private static void deleteResolve() {
+        if (resolveFramebuffer != 0) {
+            int[] ids = new int[1];
+            ids[0] = resolveFramebuffer;
+            gl.glDeleteFramebuffersEXT(1, ids, 0);
+            ids[0] = resolveColourBuffer;
+            gl.glDeleteRenderbuffersEXT(1, ids, 0);
+        }
+        resolveFramebuffer = resolveColourBuffer = 0;
     }
 
     private static void deleteBuffer() {
@@ -726,15 +878,17 @@ public final class StretchedMode {
             ids[0] = depthBuffer;
             gl.glDeleteRenderbuffersEXT(1, ids, 0);
         }
+        deleteResolve();
         framebuffer = colourBuffer = depthBuffer = 0;
-        bufferWidth = bufferHeight = 0;
+        bufferWidth = bufferHeight = bufferSamples = 0;
         bound = false;
     }
 
     /** The GL context went away (toolkit change): its framebuffer ids are gone with it. */
     public static void glContextLost() {
         framebuffer = colourBuffer = depthBuffer = 0;
-        bufferWidth = bufferHeight = 0;
+        resolveFramebuffer = resolveColourBuffer = 0;
+        bufferWidth = bufferHeight = bufferSamples = 0;
         bound = false;
         prerenderWidth = prerenderHeight = 0;
     }

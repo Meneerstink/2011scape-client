@@ -52,7 +52,10 @@ public final class Static595 {
         // blitted into it, so a fixed <-> resizable switch never resizes the window or the canvas (RuneLite ClientUI).
         boolean gl = Toolkit.active instanceof GlToolkit && !ClientOptions.instance.orthographic.isToolkitCompatible()
             && ((GlToolkit) Toolkit.active).rspsStretchSupported();
-        com.jagex.StretchedMode.glToolkit(gl, gl && ((GlToolkit) Toolkit.active).rspsPlainWindow());
+        // A2 round 8 review: the window is plain whenever the driver has framebuffer objects; the player's anti-aliasing is
+        // drawn into a multisampled offscreen framebuffer and resolved (GlToolkit.rspsOffscreenSamples).
+        boolean plain = gl && ((GlToolkit) Toolkit.active).rspsPlainWindow();
+        com.jagex.StretchedMode.glToolkit(gl, plain, plain ? ((GlToolkit) Toolkit.active).rspsOffscreenSamples() : 0);
         if (toolkit != requested && requested == ToolkitType.SSE) {
             Static171.graphicsError = true;
         }
@@ -81,8 +84,10 @@ public final class Static595 {
     }
 
     private static Toolkit createWithHeap(int type) {
-        // RuneLite Stretched Mode: OpenGL gets a plain (not multisampled) window while stretching (GlToolkit.rspsWindowNeedsRebuild).
-        int antialiasing = type == ToolkitType.GL && com.jagex.StretchedMode.glPlainWindow() ? 0 : ClientOptions.instance.antialiasingQuality.getValue() * 2;
+        // RuneLite GpuPlugin: OpenGL gets a plain (not multisampled) window whenever it has framebuffer objects; anti-aliasing is
+        // drawn offscreen (StretchedMode.glWindowSamples, GlToolkit.rspsWindowNeedsRebuild).
+        int playerSamples = ClientOptions.instance.antialiasingQuality.getValue() * 2;
+        int antialiasing = type == ToolkitType.GL ? com.jagex.StretchedMode.glWindowSamples(playerSamples) : playerSamples;
         Toolkit created = Static255.create(type, js5.SHADERS, GameShell.canvas,
                 Js5TextureSource.instance, antialiasing);
         boolean ready = false;

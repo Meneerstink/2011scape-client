@@ -152,7 +152,9 @@ public final class StretchedModeRegressionTest {
         StretchedMode.configure(true, false, false, false, 50);
         check(StretchedMode.glPlainWindow(), "AA: plain GL window while stretching");
         StretchedMode.configure(false, false, false, false, 50);
-        check(!StretchedMode.glPlainWindow(), "AA: the player's anti-aliasing while not stretching");
+        // A2 round 8 review: also plain while not stretching - the player's anti-aliasing is drawn into a multisampled
+        // offscreen framebuffer (StretchedSwitchSurfaceRegressionTest section 1c), so Stretched on/off never rebuilds the window.
+        check(StretchedMode.glPlainWindow(), "AA: plain GL window while not stretching too (anti-aliasing offscreen)");
         StretchedMode.configure(true, false, false, false, 50);
         StretchedMode.glUnsupported();
         check(!StretchedMode.glPlainWindow(), "AA: no framebuffers - the player's anti-aliasing, OpenGL unstretched");
