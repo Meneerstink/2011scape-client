@@ -220,13 +220,37 @@ final class RspsHud {
             RspsHudTimers.addInfoboxes();
         }
         if (RspsInfoBoxes.count() > 0) {
-            panel(RspsInfoBoxes.ID, RspsInfoBoxes.width(), RspsInfoBoxes.height(), x, y, width, height, stackY);
+            int[] hud = DeadmanSkullHud.recentBlock();
+            if (hud != null) {
+                infoboxesBesideHud(hud, x, y, width, height);
+            } else {
+                panel(RspsInfoBoxes.ID, RspsInfoBoxes.width(), RspsInfoBoxes.height(), x, y, width, height, stackY);
+            }
             RspsInfoBoxes.drawTooltip(x, y, width, height);
         }
         // Developer place mode (owner 2026-10-06): the selected decoration's values and keys.
         if (RspsDev.placing) {
             RspsDev.drawOverlay(x, y, width, height);
         }
+    }
+
+    /** N105 layout ids of the infobox row beside the Deadman HUD (new ids: an old saved mid-screen "infoboxes" spot is not used). */
+    static final String INFOBOXES_BESIDE_HUD = "infoboxes.dmm";
+
+    /**
+     * N105 (owner 2026-10-17: the floating timer box "netjes naast de DMM-HUD"): while the Deadman HUD is shown, the infobox row
+     * defaults to beside the HUD block, level with its icon row - on its right when that fits in the view, else on its left - so
+     * it follows a dragged HUD; Alt + drag / Alt + right-click reset keep working per window mode.
+     */
+    private static void infoboxesBesideHud(int[] hud, int viewX, int viewY, int viewWidth, int viewHeight) {
+        int boxWidth = RspsInfoBoxes.width();
+        int boxHeight = RspsInfoBoxes.height();
+        int right = hud[0] + hud[2] + PANEL_GAP;
+        int defaultX = right + boxWidth <= viewX + viewWidth ? right : hud[0] - PANEL_GAP - boxWidth;
+        String id = InterfaceManager.getWindowMode() == com.jagex.core.constants.WindowMode.FIXED ? INFOBOXES_BESIDE_HUD : INFOBOXES_BESIDE_HUD + ".resizable";
+        int[] at = RspsOverlayLayout.place(id, defaultX, hud[4], boxWidth, boxHeight, viewX, viewY, viewWidth, viewHeight);
+        RspsInfoBoxes.draw(at[0], at[1]);
+        RspsOverlayLayout.decorate(id);
     }
 
     /** Places and draws one panel; returns the next free y of the default stack. */

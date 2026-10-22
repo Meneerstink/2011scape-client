@@ -179,6 +179,8 @@ public final class Static294 {
             Static208.method3105(local155, local153, local159, local161);
             // RSPS information overlays (Ground Items labels in the scene, then the Opponent / Boosts / Timers panels).
             RspsHud.render(local153, local159, local155, local161);
+            // N105: the Deadman HUD in the game view layer, under every interface drawn after the scene.
+            DeadmanSkullHud.drawInScene(local153, local159, local155, local161);
         }
         Static712.method9323();
         Camera.z = local325;

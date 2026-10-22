@@ -133,7 +133,12 @@ final class DeadmanSkullHud {
         boolean changed;
         if (kind.equals("dmmz")) {
             changed = !text.equals(zoneState);
+            boolean wasPvp = inPvpArea();
             zoneState = text;
+            if (wasPvp != inPvpArea()) {
+                // N72: spell icon resizing works outside PvP areas only - lay the open book out again at the border.
+                RspsSpellFilters.relayout();
+            }
         } else {
             changed = !text.equals(timerState);
             timerState = text;
@@ -155,10 +160,58 @@ final class DeadmanSkullHud {
         return slot == ZONE_TEXT ? zoneState : timerState;
     }
 
+    /** Canvas origin of the frame being drawn (InterfaceManager.method3833 sets it before the scene pass). */
+    static int frameOriginX;
+    static int frameOriginY;
+
     /**
-     * Called once per frame from InterfaceManager.method3833, right after the top-level interface (gameframe, world map, any
-     * fullscreen screen) and everything mounted in it was drawn. The clip is reset to the whole canvas first.
+     * N105 (owner 2026-10-17): called from the scene pass (Static294.method4339, after RspsHud), so every interface drawn after
+     * the scene - bank, GE, drop viewer, info window, world map top level - covers the HUD (RuneLite OverlayLayer.UNDER_WIDGETS;
+     * Darkan sends the wilderness skull HUD to the overlay sub, not the modal). The scene's clip is put back afterwards.
      */
+    static void drawInScene(int sceneX, int sceneY, int sceneWidth, int sceneHeight) {
+        viewX = sceneX;
+        viewY = sceneY;
+        viewWidth = sceneWidth;
+        viewHeight = sceneHeight;
+        try {
+            drawOverlay(frameOriginX, frameOriginY);
+        } finally {
+            viewWidth = 0;
+            if (Toolkit.active != null) {
+                Toolkit.active.KA(sceneX, sceneY, sceneX + sceneWidth, sceneY + sceneHeight);
+            }
+        }
+    }
+
+    /** N105: where the HUD block was last drawn - x, y, width, height and the y of its icon row. */
+    private static int[] lastBlock;
+    private static long lastBlockTime;
+
+    /** The HUD block of the last frame (null when the HUD was not drawn in the last second). */
+    static int[] recentBlock() {
+        return lastBlock != null && System.currentTimeMillis() - lastBlockTime < 1000L ? lastBlock : null;
+    }
+
+    /** The game view of the scene pass being drawn (width 0: none). */
+    private static int viewX;
+    private static int viewY;
+    private static int viewWidth;
+    private static int viewHeight;
+
+    /**
+     * N105: under the interfaces, a block placed (dragged) outside the game view would vanish behind the side panel or chat, so
+     * it is pulled inside the view - never clipped away (the old C3 failure). Inside the view nothing moves (A30 spots stay).
+     */
+    static void clampIntoView(int[] at, int width, int height) {
+        if (viewWidth <= 0 || viewHeight <= 0) {
+            return;
+        }
+        at[0] = Math.max(viewX, Math.min(at[0], viewX + viewWidth - width));
+        at[1] = Math.max(viewY, Math.min(at[1], viewY + viewHeight - height));
+    }
+
+    /** Draws the HUD with the whole canvas as clip ([drawInScene] is the only caller). */
     static void drawOverlay(int originX, int originY) {
         if (!com.jagex.core.constants.MainLogicStep.isAtGameScreen(MainLogicManager.step)) {
             return;
@@ -195,6 +248,12 @@ final class DeadmanSkullHud {
                 System.out.println("[dmmhud] PROBLEM NOT drawn: " + e);
             }
         }
+    }
+
+    /** True in a PvP area: the HUD names a Deadman / Wilderness zone (anything but "Guarded"); false before the first state. */
+    static boolean inPvpArea() {
+        String l = label(zoneState);
+        return l.length() > 0 && !l.equalsIgnoreCase("Guarded");
     }
 
     private static String label(String zoneText) {
@@ -372,6 +431,9 @@ final class DeadmanSkullHud {
         int defaultY = fixedMode ? FIXED_DEFAULT_Y : y - swordsReserve;
         int[] at = placeBlock(fixedMode, defaultX, defaultY, blockWidth, swordsReserve + totalHeight, chat,
             GameShell.canvasWid, GameShell.canvasHei);
+        clampIntoView(at, blockWidth, swordsReserve + totalHeight);
+        lastBlock = new int[] {at[0], at[1], blockWidth, swordsReserve + totalHeight, at[1] + swordsReserve};
+        lastBlockTime = System.currentTimeMillis();
         cx = at[0] + blockWidth / 2;
         y = at[1] + swordsReserve;
 

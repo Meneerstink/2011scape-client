@@ -1402,23 +1402,23 @@ public final class InterfaceManager {
     @OriginalMember(owner = "client!ic", name = "a", descriptor = "(I)V")
     public static void method3833() {
         dragChildren = null;
-        if (OrthoMode.toolkitActive && getWindowMode() != 1) {
-            Static294.method4339(0, MainLogicManager.step == 3 || MainLogicManager.step == 7, OrthoMode.method7779(), OrthoMode.method1260(), 0);
-        }
-
         @Pc(46) int x1 = 0;
         @Pc(48) int y1 = 0;
         if (OrthoMode.toolkitActive) {
             x1 = OrthoMode.method2283();
             y1 = Static422.method5771();
         }
+        // RSPS Deadman HUD: N105 (owner 2026-10-17, reverses E16 10-03) - the HUD lies BEHIND every open window (bank, GE, drop
+        // viewer, info window, world map), so it is drawn in the scene pass (Static294.method4339, beside RspsHud) under the
+        // interface tree instead of after it; the scene pass needs the canvas origin of this frame.
+        DeadmanSkullHud.frameOriginX = x1;
+        DeadmanSkullHud.frameOriginY = y1;
+        if (OrthoMode.toolkitActive && getWindowMode() != 1) {
+            Static294.method4339(0, MainLogicManager.step == 3 || MainLogicManager.step == 7, OrthoMode.method7779(), OrthoMode.method1260(), 0);
+        }
 
         draw(topLevelInterface, x1, y1, GameShell.canvasWid + x1, GameShell.canvasHei + y1, x1, y1, -1);
 
-        // RSPS Deadman HUD (E16, owner 2026-10-03: "DE DMM HUD MOET ALTIJD IN BEELD ZIJN"; 04:3x: also over bank / GE and the world
-        // map): drawn here, after every top level (gameframe, world map, fullscreen screens) and every modal, with the whole canvas
-        // as clip - so no interface slot, overlay, top-level switch or clip can hide it.
-        DeadmanSkullHud.drawOverlay(x1, y1);
         RspsPkHud.drawInterfaceOverlay(); // 78Legacy v5 PK HUD: outline of the protect prayer against your target's weapon
 
         if (dragChildren != null) {

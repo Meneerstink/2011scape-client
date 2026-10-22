@@ -41,6 +41,9 @@ public final class RspsSpellFilters {
     static final int BIT_HIDE_LEVEL = 22;
     static final int BIT_HIDE_RUNES = 23;
     static final int BIT_HIDE_REQUIREMENTS = 24;
+    /** OSRS line 7 (varbit 6548): bigger icons for the spells that are left, outside PvP areas. Set = OFF (server SpellFilters:
+     *  0 is the OSRS default, resizing on), like every "hide" bit above. */
+    static final int BIT_ICON_RESIZING_OFF = 25;
 
     static final int SPELL_SCRIPT = 21;
     static final int RUNE_SCRIPT = 19;
@@ -90,8 +93,14 @@ public final class RspsSpellFilters {
         "Show spells you lack the Magic level to cast",
         "Show spells you lack the runes to cast",
         "Show spells you lack the requirements to cast",
+        "Enable icon resizing (outside PvP areas)",
     };
-    static final int[] OPTION_BITS = {BIT_HIDE_COMBAT, BIT_HIDE_TELEPORT, BIT_HIDE_UTILITY, BIT_HIDE_LEVEL, BIT_HIDE_RUNES, BIT_HIDE_REQUIREMENTS};
+    static final int[] OPTION_BITS = {BIT_HIDE_COMBAT, BIT_HIDE_TELEPORT, BIT_HIDE_UTILITY, BIT_HIDE_LEVEL, BIT_HIDE_RUNES, BIT_HIDE_REQUIREMENTS, BIT_ICON_RESIZING_OFF};
+
+    /** Menu line [i] shows the tick while its bit is clear (every bit is an "off" / "hide" bit). */
+    static boolean optionTicked(int i) {
+        return !bit(OPTION_BITS[i]);
+    }
 
     /** Script 21 args per spell component hash (the last real run). */
     static final Map<Integer, int[]> args = new HashMap<>();
@@ -351,6 +360,7 @@ public final class RspsSpellFilters {
             optionLines[i] = null;
             optionBoxes[i] = null;
         }
+        resizeIcons(iface, enabled() && !panelOpen && !bit(BIT_ICON_RESIZING_OFF) && !DeadmanSkullHud.inPvpArea());
         if (!enabled()) {
             panelOpen = false;
             InterfaceManager.redraw(layer);
@@ -384,7 +394,7 @@ public final class RspsSpellFilters {
             edge.colour = 0x726451;
             for (int i = 0; i < OPTIONS.length; i++) {
                 int y = boxY + MENU_PAD / 2 + i * LINE;
-                boolean shown = !bit(OPTION_BITS[i]);
+                boolean shown = optionTicked(i);
                 Component tick = create(layer, Component.TYPE_GRAPHIC);
                 place(tick, boxX + 5, y + 4, 17, 17);
                 tick.graphic = shown ? RspsSprites.RES_FILTER_ON : RspsSprites.RES_FILTER_OFF;
@@ -399,6 +409,76 @@ public final class RspsSpellFilters {
         InterfaceManager.redraw(layer);
         trace("decorate book=" + iface + " varp=0x" + Integer.toHexString(varp()) + " panel=" + panelOpen + " layer=" + (layer.slot >>> 16) + ":"
             + (layer.slot & 0xFFFF) + " children=" + (layer.staticComponents == null ? 0 : layer.staticComponents.length) + " spells=" + layoutSpells.size());
+    }
+
+    /** The cache size of every spell icon, kept the first time this class sees it (icon resizing changes the live size). */
+    static final Map<Integer, int[]> normalSize = new HashMap<>();
+
+    /**
+     * N72 line 7, "Enable icon resizing (outside PvP areas)" (OSRS script 2611 after varbit 6548 and the PvP check): the spells left
+     * after the filters are laid out again in a grid of 4 columns under 28 spells, else (count + 8) / 9 columns kept within 4..7, each
+     * icon square and as big as its cell allows, in the order the cache layout put them. Off (or in a PvP area, or with the menu open)
+     * every icon gets its cache size back; the cache layout script 2059 places them again.
+     */
+    static void resizeIcons(int iface, boolean on) {
+        java.util.List<Component> shown = new java.util.ArrayList<>();
+        for (Integer hash : layoutSpells) {
+            if ((hash >>> 16) != iface) {
+                continue;
+            }
+            Component spell = InterfaceList.getComponent(hash, -1);
+            if (spell == null) {
+                continue;
+            }
+            int[] normal = normalSize.get(hash);
+            if (normal == null) {
+                normal = new int[] {spell.originalWidth, spell.originalHeight};
+                normalSize.put(hash, normal);
+            }
+            if (spell.originalWidth != normal[0] || spell.originalHeight != normal[1]) {
+                spell.originalWidth = normal[0];
+                spell.originalHeight = normal[1];
+                InterfaceManager.resizeAndReposition(spell);
+                InterfaceManager.redraw(spell);
+            }
+            if (!spell.hidden) {
+                shown.add(spell);
+            }
+        }
+        if (!on || shown.isEmpty()) {
+            return;
+        }
+        Component area = InterfaceList.list(shown.get(0).layer);
+        if (area == null) {
+            return;
+        }
+        shown.sort((a, b) -> a.originalY != b.originalY ? Integer.compare(a.originalY, b.originalY) : Integer.compare(a.originalX, b.originalX));
+        int[] grid = iconGrid(shown.size(), area.width, area.height);
+        int columns = grid[0];
+        int size = grid[1];
+        int cellWidth = grid[2];
+        int cellHeight = grid[3];
+        int[] normal = normalSize.get(shown.get(0).slot);
+        if (normal != null && size <= Math.max(normal[0], normal[1])) {
+            return; // resizing only ever makes icons bigger; a full book keeps the cache layout
+        }
+        for (int i = 0; i < shown.size(); i++) {
+            int x = (i % columns) * cellWidth + (cellWidth - size) / 2;
+            int y = (i / columns) * cellHeight + (cellHeight - size) / 2;
+            place(shown.get(i), x, y, size, size);
+            InterfaceManager.redraw(shown.get(i));
+        }
+        trace("icon resizing book=" + iface + " spells=" + shown.size() + " columns=" + columns + " size=" + size);
+    }
+
+    /** {columns, icon size, cell width, cell height} for [count] icons in a [width] x [height] area (OSRS 2611 column rule). */
+    static int[] iconGrid(int count, int width, int height) {
+        int columns = count < 28 ? 4 : Math.max(4, Math.min(7, (count + 8) / 9));
+        int rows = Math.max(1, (count + columns - 1) / columns);
+        int cellWidth = width / columns;
+        int cellHeight = height / rows;
+        int size = Math.max(1, Math.min(cellWidth, cellHeight) - 2);
+        return new int[] {columns, size, cellWidth, cellHeight};
     }
 
     /** One client-log line per menu draw / click (the evidence the Keurmeester greps: "[spellfilters]"). */
