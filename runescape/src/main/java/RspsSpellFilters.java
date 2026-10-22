@@ -1,4 +1,6 @@
 import com.jagex.ClientProt;
+import com.jagex.core.datastruct.key.HashTableIterator;
+import com.jagex.game.runetek6.config.iftype.SubInterface;
 import com.jagex.game.runetek6.config.vartype.TimedVarDomain;
 
 import java.util.HashMap;
@@ -77,12 +79,14 @@ public final class RspsSpellFilters {
     static final int SPELL_AREA = 229;
     static final int ORANGE = 0xff981f;
     static final int FONT = 494;
+    /** Filters button top: centred on the old 667 bottom row (layer 190x261, row 231-261), owner 2026-10-22 'iets te hoog' at 224. */
+    static final int FILTERS_Y = 237;
 
-    /** {interface, menu layer (struct param 688), bottom-bar sprite, first Filter, first Sort, Defensive Casting}. */
+    /** {interface, menu layer (struct param 688), bottom-bar sprite, first Filter, first Sort, Defensive Casting, scrollbar layer}. */
     static final int[][] BOOKS = {
-        {192, 97, 21, 7, 15, 2},
-        {193, 54, 15, 5, 9, 18},
-        {430, 66, 17, 5, 11, 20},
+        {192, 97, 21, 7, 15, 2, 94},
+        {193, 54, 15, 5, 9, 18, 51},
+        {430, 66, 17, 5, 11, 20, 63},
     };
 
     /** OSRS script 2603 texts, menu slot 1-6 (slot 0 = enable/disable). */
@@ -247,6 +251,12 @@ public final class RspsSpellFilters {
 
     /** Main loop, after the hook queue ran (top level, no script running). */
     static void afterHooks() {
+        // Owner 2026-10-22: the filter menu stayed open after a tab switch. OSRS closes it when the book leaves the screen.
+        if (panelOpen && !bookShown(currentBook())) {
+            panelOpen = false;
+            trace("menu closed: the book left the screen");
+            relayout();
+        }
         // The book's own var trigger does not re-run the layout for every bit of varp 1376 (the OSRS bits 18-25 are new):
         // a changed varp re-lays the open book out here.
         int now = varp();
@@ -272,6 +282,39 @@ public final class RspsSpellFilters {
             layoutRan = false;
             decorate(currentBook());
         }
+    }
+
+    /**
+     * The book [iface] is on screen: it is mounted and no component from its mount up to the top level is hidden (a tab switch
+     * hides the tab's slot in the gameframe).
+     */
+    static boolean bookShown(int iface) {
+        int hash = mountOf(iface);
+        if (hash == -1) {
+            return false;
+        }
+        for (int guard = 0; guard < 64 && hash != -1; guard++) {
+            Component c = InterfaceList.list(hash);
+            if (c == null) {
+                return false;
+            }
+            if (c.hidden) {
+                return false;
+            }
+            hash = c.layer != -1 ? c.layer : mountOf(c.slot >>> 16);
+        }
+        return true;
+    }
+
+    /** The parent component hash [iface] is mounted in (-1: not mounted, e.g. the top level). */
+    static int mountOf(int iface) {
+        HashTableIterator iterator = new HashTableIterator(InterfaceManager.subInterfaces);
+        for (SubInterface sub = (SubInterface) iterator.first(); sub != null; sub = (SubInterface) iterator.next()) {
+            if (sub.id == iface) {
+                return (int) sub.key;
+            }
+        }
+        return -1;
     }
 
     /** One probe run of script 21 for [hash]: level 0, marker sprites; the outcome is recorded, nothing is drawn. */
@@ -345,6 +388,12 @@ public final class RspsSpellFilters {
                 InterfaceManager.redraw(frame);
             }
         }
+        // Owner 2026-10-22 ("overlapt"): the spell list's scrollbar showed through the right edge of the open filter menu.
+        Component scrollbar = InterfaceList.list((iface << 16) | b[6]);
+        if (scrollbar != null && scrollbar.hidden != panelOpen) {
+            scrollbar.hidden = panelOpen;
+            InterfaceManager.redraw(scrollbar);
+        }
         Component bar = InterfaceList.list((iface << 16) | (b[2]));
         if (bar == null || bar.layer == -1) {
             return;
@@ -369,14 +418,14 @@ public final class RspsSpellFilters {
         }
         // The Filters button, bottom centre (wiki image "Spellbook_filtering.png").
         Component frame = create(layer, Component.TYPE_RECTANGLE);
-        place(frame, 63, 224, 64, 18);
+        place(frame, 63, FILTERS_Y, 64, 18);
         frame.colour = 0x0e0e0c;
         frame.filled = true;
         frame.transparency = 80;
         Component border = create(layer, Component.TYPE_RECTANGLE);
-        place(border, 63, 224, 64, 18);
+        place(border, 63, FILTERS_Y, 64, 18);
         border.colour = panelOpen ? 0xffffff : 0x726451;
-        filtersButton = text(layer, "Filters", 63, 224, 64, 18, 1);
+        filtersButton = text(layer, "Filters", 63, FILTERS_Y, 64, 18, 1);
         // InterfaceManager.logicComponentList only hit-tests (hover, menu entries) components with hasHook / events / layers.
         filtersButton.hasHook = true;
         if (panelOpen) {
