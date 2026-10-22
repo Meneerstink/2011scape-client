@@ -1477,6 +1477,11 @@ public final class InterfaceManager {
                 if (isHidden(component)) {
                     continue;
                 }
+                // N158 (2026-10-22): a frame component the intro's cinematic mode does not draw (RspsCinematic.hide) takes no
+                // clicks either - the invisible resizable logout X opened the Logout tab once the player reached the hall.
+                if (RspsCinematic.hide(component)) {
+                    continue;
+                }
 
                 @Pc(42) int orthoDeltaX = 0;
                 @Pc(47) int orthoDeltaY = 0;
