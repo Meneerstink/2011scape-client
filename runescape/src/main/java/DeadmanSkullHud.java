@@ -73,8 +73,17 @@ final class DeadmanSkullHud {
      * RspsOverlayLayout ids, one per display mode (owner A30 2026-10-11: "per-mode storage"): fixed mode keeps the original
      * key, so the owner's approved deadman=427,249 stays his fixed position; resizable and fullscreen have their own.
      */
-    static final String LAYOUT_ID = "deadman";
-    static final String LAYOUT_ID_RESIZABLE = "deadman.resizable";
+    // N195: new ids for the OSRS default spot - an old saved spot (A30, above the chatbox / mid-screen) would keep the HUD there.
+    static final String LAYOUT_ID = "deadman.osrs";
+    static final String LAYOUT_ID_RESIZABLE = "deadman.osrs.resizable";
+
+    /** OSRS interface 90 component 44: the PvP block sits this many pixels above the bottom of the game area. */
+    static final int OSRS_BOTTOM_GAP = 40;
+    /** Room kept between the block and the side panel / chat. */
+    static final int SIDE_MARGIN = 4;
+    /** Resizable 746: the side-panel tab slots (bug reports: 746:90..108 hold the tab interfaces). */
+    private static final int RESIZABLE_TAB_FIRST = 90;
+    private static final int RESIZABLE_TAB_LAST = 108;
     /**
      * Owner A30 2026-10-11: the fixed-mode default for every player is the owner's own spot - the HUD block's top-left corner
      * at 427,249 of the 765x503 game (reference\owner-overlays-approved-2026-10-11.properties). Alt + right-click puts it back here.
@@ -307,6 +316,64 @@ final class DeadmanSkullHud {
         return rectangle;
     }
 
+    /**
+     * Resizable / fullscreen: the screen rectangle of the open side-panel tab (the 746:90..108 slot laid out most recently), or
+     * null when none is laid out (intro curtain, fixed mode).
+     */
+    private static Rectangle sidePanelBounds() {
+        Component newest = null;
+        for (int child = RESIZABLE_TAB_FIRST; child <= RESIZABLE_TAB_LAST; child++) {
+            Component slot = InterfaceList.getComponent((RESIZABLE_ROOT << 16) | child, -1);
+            if (slot == null || slot.hidden || slot.rectangle < 0 || slot.rectangle >= InterfaceManager.rectangles.length) {
+                continue;
+            }
+            if (newest == null || slot.lastUpdate > newest.lastUpdate) {
+                newest = slot;
+            }
+        }
+        if (newest == null) {
+            return null;
+        }
+        Rectangle r = InterfaceManager.rectangles[newest.rectangle];
+        return r == null || r.width <= 0 || r.height <= 0 ? null : r;
+    }
+
+    /** The bottom-right corner the block's default spot hangs from (OSRS: right-aligned, [OSRS_BOTTOM_GAP] above the bottom). */
+    static int[] defaultCorner(boolean fixedMode, Rectangle side) {
+        int right;
+        int bottom;
+        if (viewWidth > 0 && viewHeight > 0) {
+            right = viewX + viewWidth;
+            bottom = viewY + viewHeight - OSRS_BOTTOM_GAP;
+        } else {
+            right = GameShell.canvasWid;
+            bottom = GameShell.canvasHei - OSRS_BOTTOM_GAP;
+        }
+        if (fixedMode) {
+            return new int[] {right, bottom};
+        }
+        if (side != null) {
+            // Left of the side panel, its bottom at most level with the panel's bottom (the tab stones below it reach further left).
+            right = Math.min(right, side.x - SIDE_MARGIN);
+            bottom = Math.min(bottom, side.y + side.height);
+        }
+        return new int[] {right, bottom};
+    }
+
+    /** N178: a block (default or Alt-dragged) never lies under the side panel or the chatbox - it is moved out, left / up. */
+    static void keepClear(int[] at, int width, int height, Rectangle side, Rectangle chat) {
+        if (side != null && overlaps(at[0], at[1], width, height, side)) {
+            at[0] = Math.max(0, side.x - SIDE_MARGIN - width);
+        }
+        if (chat != null && chat.width > 1 && overlaps(at[0], at[1], width, height, chat)) {
+            at[1] = Math.max(0, chat.y - CHAT_MARGIN - height);
+        }
+    }
+
+    private static boolean overlaps(int x, int y, int width, int height, Rectangle r) {
+        return x < r.x + r.width && x + width > r.x && y < r.y + r.height && y + height > r.y;
+    }
+
     private static Rectangle remembered() {
         if (lastChatX == Integer.MIN_VALUE) {
             return null;
@@ -427,11 +494,18 @@ final class DeadmanSkullHud {
         blockWidth += 8;
         boolean fixedMode = InterfaceManager.getWindowMode() == com.jagex.core.constants.WindowMode.FIXED;
         String layoutId = layoutId(fixedMode);
-        int defaultX = fixedMode ? FIXED_DEFAULT_X : cx - blockWidth / 2;
-        int defaultY = fixedMode ? FIXED_DEFAULT_Y : y - swordsReserve;
-        int[] at = placeBlock(fixedMode, defaultX, defaultY, blockWidth, swordsReserve + totalHeight, chat,
+        // N195 (owner 2026-10-22, OSRS cache 2686 interface 90 component 44: right-aligned, 40 px above the bottom of the game
+        // area): the block's default is the bottom-right of the game view in every mode - fixed: the 3D view; resizable and
+        // fullscreen: left of the side panel (OSRS 161:97), never under it, the tab stones or the chat (N178).
+        int blockHeight = swordsReserve + totalHeight;
+        Rectangle side = fixedMode ? null : sidePanelBounds();
+        int[] corner = defaultCorner(fixedMode, side);
+        int defaultX = corner[0] - blockWidth;
+        int defaultY = corner[1] - blockHeight;
+        int[] at = placeBlock(fixedMode, defaultX, defaultY, blockWidth, blockHeight, chat,
             GameShell.canvasWid, GameShell.canvasHei);
-        clampIntoView(at, blockWidth, swordsReserve + totalHeight);
+        clampIntoView(at, blockWidth, blockHeight);
+        keepClear(at, blockWidth, blockHeight, side, chat);
         lastBlock = new int[] {at[0], at[1], blockWidth, swordsReserve + totalHeight, at[1] + swordsReserve};
         lastBlockTime = System.currentTimeMillis();
         cx = at[0] + blockWidth / 2;
