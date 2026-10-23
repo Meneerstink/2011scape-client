@@ -2589,6 +2589,36 @@ public final class InterfaceManager {
         }
     }
 
+    /** N193: the resizable gameframe's modal slot and the two right-hand blocks it must stay clear of. */
+    static final int RESIZABLE_MODAL = (746 << 16) | 12;
+    static final int RESIZABLE_MINIMAP = (746 << 16) | 13;
+    static final int RESIZABLE_SIDE_PANEL = (746 << 16) | 79;
+
+    /**
+     * Left edge of a right-anchored (x mode 2) gameframe block in a view [width] wide, from its own definition - the same
+     * formula as below, so the order in which the root's children are laid out does not matter. -1 when it is not loaded.
+     */
+    static int rightAnchoredLeft(int slot, int width) {
+        Component c = InterfaceList.list(slot);
+        if (c == null || c.reposModeX != 2) {
+            return -1;
+        }
+        return width - c.width - c.originalX;
+    }
+
+    /**
+     * N193: x of the resizable modal slot in a view [width] wide whose right column starts at [minimapLeft] / [sidePanelLeft]
+     * (-1 = not there): the centre of the free area when the view's centre would run into that column, else -1 (keep the
+     * game's own position).
+     */
+    static int narrowModalX(int width, int modalWidth, int minimapLeft, int sidePanelLeft) {
+        int free = minimapLeft > 0 && sidePanelLeft > 0 ? Math.min(minimapLeft, sidePanelLeft) : Math.max(minimapLeft, sidePanelLeft);
+        if (free <= 0 || (width + modalWidth) / 2 <= free) {
+            return -1;
+        }
+        return Math.max(0, (free - modalWidth) / 2);
+    }
+
     @OriginalMember(owner = "client!or", name = "a", descriptor = "(Lclient!hda;III)V")
     public static void reposition(@OriginalArg(0) Component component, @OriginalArg(1) int width, @OriginalArg(2) int height) {
         if (component.reposModeY == 0) {
@@ -2625,6 +2655,18 @@ public final class InterfaceManager {
         if (component.slot == ((1151 << 16) | 1)) {
             component.x = Math.max(0, Math.min(component.x, width - component.width));
             component.y = Math.max(0, Math.min(component.y, height - component.height));
+        }
+
+        // N193 (owner 2026-10-22: "in resizable mode the shop doesnt layout correctly in the middle of the screen it now opens a
+        // little bit to the right"): the resizable modal slot (746:12 - stores, bank, every main window) is centred on the whole
+        // view; when that would run into the right-hand column (minimap 746:13, side panel 746:79) the gameframe script pushes
+        // it right up against the minimap instead. A narrow view (a small window, Stretched Mode's real sizes) then shows the
+        // window off to the right. It is centred in the free area left of that column instead; wide views are unchanged.
+        if (component.slot == RESIZABLE_MODAL) {
+            int x = narrowModalX(width, component.width, rightAnchoredLeft(RESIZABLE_MINIMAP, width), rightAnchoredLeft(RESIZABLE_SIDE_PANEL, width));
+            if (x >= 0) {
+                component.x = x;
+            }
         }
 
         if (testOpacity && (serverActiveProperties(component).events != 0 || component.type == Component.TYPE_LAYER)) {

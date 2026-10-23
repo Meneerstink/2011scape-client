@@ -52,6 +52,16 @@ val deadmanHudRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
+val resizableModalRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "N193: the resizable modal slot is centred in the free area left of the minimap / side panel in a narrow view."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("ResizableModalRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
 val stretchedModeRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks RuneLite Stretched Mode layout, toolkit gating and mouse scaling without a display or GL context."
