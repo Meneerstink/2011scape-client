@@ -94,6 +94,9 @@ final class RspsHud {
             } else if (kind.equals("npcicons")) {
                 // World-map icons of npcs with a map element, at their live posts (owner 2026-10-09 214334).
                 NpcWorldMapIcons.update(rest);
+            } else if (kind.equals("locicons")) {
+                // World-map icons of spawned locs with a map element (N231, the GE summoning obelisk).
+                NpcWorldMapIcons.updateLocs(rest);
             } else if (kind.equals("dmmz") || kind.equals("dmmt")) {
                 // Deadman HUD state (E16, owner 2026-10-03: "DE DMM HUD MAG NOOOIT VERDWIJNEN"): the HUD is no interface any more.
                 DeadmanSkullHud.update(kind, rest);

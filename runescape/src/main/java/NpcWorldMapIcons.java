@@ -19,6 +19,12 @@ public final class NpcWorldMapIcons {
     /** id, x, z, level per post, as last sent by the server. */
     private static volatile int[] posts = new int[0];
 
+    /**
+     * N231 (owner 2026-10-23, the GE summoning obelisk): map element, x, z, level per spawned loc whose LocType carries a map
+     * element ({@code __RSPS_HUD__:locicons|...}) - the minimap draws scene locs itself, the world map's data never has them.
+     */
+    private static volatile int[] locPosts = new int[0];
+
     /** The entries this class added to {@link WorldMap#elements}, so an update can take them out again. */
     private static final List<MapElementListEntry> added = new ArrayList<MapElementListEntry>();
 
@@ -26,6 +32,16 @@ public final class NpcWorldMapIcons {
     }
 
     static void update(String rest) {
+        posts = parse(rest);
+        refresh();
+    }
+
+    static void updateLocs(String rest) {
+        locPosts = parse(rest);
+        refresh();
+    }
+
+    private static int[] parse(String rest) {
         String[] parts = rest.isEmpty() ? new String[0] : rest.split(";");
         int[] next = new int[parts.length * 4];
         for (int i = 0; i < parts.length; i++) {
@@ -34,7 +50,10 @@ public final class NpcWorldMapIcons {
                 next[i * 4 + j] = Integer.parseInt(p[j].trim());
             }
         }
-        posts = next;
+        return next;
+    }
+
+    private static void refresh() {
         // The map is open (or loaded): swap the entries now, as loadStaticElements would on the next load.
         if (WorldMap.area != null && WorldMap.staticElements != null) {
             removeAdded();
@@ -44,6 +63,7 @@ public final class NpcWorldMapIcons {
 
     static void reset() {
         posts = new int[0];
+        locPosts = new int[0];
         removeAdded();
     }
 
@@ -69,11 +89,22 @@ public final class NpcWorldMapIcons {
             if (!WorldMap.area.projectDisplay(coord, current[i + 1], current[i + 2])) {
                 continue;
             }
-            MapElementListEntry entry = new MapElementListEntry(type.mapElement);
-            entry.x = coord[1] - WorldMap.areaX;
-            entry.z = coord[2] - WorldMap.areaZ;
-            WorldMap.elements.addLast(entry);
-            added.add(entry);
+            add(type.mapElement, coord);
         }
+        int[] locs = locPosts;
+        for (int i = 0; i + 3 < locs.length; i += 4) {
+            if (locs[i] < 0 || !WorldMap.area.projectDisplay(coord, locs[i + 1], locs[i + 2])) {
+                continue;
+            }
+            add(locs[i], coord);
+        }
+    }
+
+    private static void add(int element, int[] coord) {
+        MapElementListEntry entry = new MapElementListEntry(element);
+        entry.x = coord[1] - WorldMap.areaX;
+        entry.z = coord[2] - WorldMap.areaZ;
+        WorldMap.elements.addLast(entry);
+        added.add(entry);
     }
 }
