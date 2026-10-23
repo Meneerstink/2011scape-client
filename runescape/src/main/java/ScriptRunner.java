@@ -1338,6 +1338,9 @@ public final class ScriptRunner {
 
             if (op == CC_IF_SETHIDE) {
                 @Pc(834) boolean hidden = intStack[--intStackPointer] == 1;
+                if ((component.slot >>> 16) == LoginScreenTrim.INTERFACE && LoginScreenTrim.hidden(component.slot & 0xFFFF)) {
+                    hidden = true; // N1: the login box's Jagex account links stay hidden
+                }
 
                 if (component.hidden != hidden) {
                     component.hidden = hidden;

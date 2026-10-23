@@ -82,6 +82,16 @@ val xpDropsRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
+val loginScreenTrimRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "N1: the login box 596 loads without Recover Your Password / Facebook / Create Account Now."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("LoginScreenTrimRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
 val stretchedModeRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks RuneLite Stretched Mode layout, toolkit gating and mouse scaling without a display or GL context."
