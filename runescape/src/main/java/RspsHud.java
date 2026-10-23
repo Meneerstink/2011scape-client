@@ -123,6 +123,7 @@ final class RspsHud {
         RspsQuestHelper.reset();
         RspsQuestHelperHints.reset();
         RspsCinematic.reset();
+        RspsXpDrops.reset();
         commands.clear();
         RspsRenderTest.cull = true;
         RspsRenderTest.alphaDepth = false;
@@ -228,6 +229,8 @@ final class RspsHud {
             }
             RspsInfoBoxes.drawTooltip(x, y, width, height);
         }
+        // N207: OSRS XP drops at the right of the game view, under the XP counter.
+        RspsXpDrops.draw(x, y, width, height);
         // Developer place mode (owner 2026-10-06): the selected decoration's values and keys.
         if (RspsDev.placing) {
             RspsDev.drawOverlay(x, y, width, height);

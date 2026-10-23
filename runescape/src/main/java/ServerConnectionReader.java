@@ -943,6 +943,7 @@ public final class ServerConnectionReader {
             @Pc(277) int level = bitPacket.g1_alt3();
             @Pc(100) int skill = bitPacket.g1_alt1();
             @Pc(526) int xp = bitPacket.g4_alt1();
+            RspsXpDrops.stat(skill, xp); // N207: OSRS XP drops
             Static237.statXps[skill] = xp;
             Static581.statLevels[skill] = level;
             Static498.statBaseLevels[skill] = 1;

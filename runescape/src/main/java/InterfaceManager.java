@@ -486,6 +486,7 @@ public final class InterfaceManager {
             if (isHidden(child)) {
                 continue;
             }
+            RspsXpDrops.drawn(child); // N207: is the 2011 XP total box on?
 
             // Cinematic mode (RspsCinematic, the intro's guard scene): the game frame is not drawn.
             if (RspsCinematic.hide(child)) {
