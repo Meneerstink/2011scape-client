@@ -48,6 +48,7 @@ public final class ChatHistory {
             line.update(type, flags, name, nameUnfiltered, displayName, channel, quickChatId, message);
         }
 
+        line.time = System.currentTimeMillis(); // A33: Chat timestamps
         lines[0] = line;
         lastTransmit = World.tick;
         length++;

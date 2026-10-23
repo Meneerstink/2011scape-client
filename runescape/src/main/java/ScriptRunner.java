@@ -1529,6 +1529,7 @@ public final class ScriptRunner {
             if (op == CC_IF_SETTEXT) {
                 @Pc(1394) String text = stringStack[--stringStackPointer];
                 text = OldStyleOrbDisplay.text(component.id, component.slot, text);
+                text = RspsChatTimestamps.line(component, text); // A33: Chat timestamps
 
                 if (!text.equals(component.text)) {
                     component.text = text;
@@ -5143,6 +5144,7 @@ public final class ScriptRunner {
             if (opcode == CHAT_GETHISTORY_BYUID) {
                 @Pc(192) int index = intStack[--intStackPointer];
                 @Pc(196) ChatLine line = ChatHistory.getLine(index);
+                RspsChatTimestamps.reading(line); // A33: the line the chatbox script builds next
                 @Pc(109) int type = -1;
                 if (line != null) {
                     type = line.type;

@@ -706,10 +706,10 @@ public final class MainLogicManager {
                                             }
                                             for (@Pc(2281) FriendNotification local2281 = (FriendNotification) FriendsList.notifications.first(); local2281 != null; local2281 = (FriendNotification) FriendsList.notifications.next()) {
                                                 if (SystemTimer.safetime() / 1000L - 5L > (long) local2281.arrivalTime) {
-                                                    if (local2281.world > 0) {
+                                                    if (local2281.world > 0 && RspsChatNotices.friendLines()) {
                                                         ChatHistory.add(5, 0, "", "", "", local2281.name + LocalisedText.FRIENDLOGIN.localise(Client.language));
                                                     }
-                                                    if (local2281.world == 0) {
+                                                    if (local2281.world == 0 && RspsChatNotices.friendLines()) {
                                                         ChatHistory.add(5, 0, "", "", "", local2281.name + LocalisedText.FRIENDLOGOUT.localise(Client.language));
                                                     }
                                                     local2281.unlink();

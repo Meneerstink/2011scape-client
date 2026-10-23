@@ -44,6 +44,9 @@ public final class ChatLine {
     @OriginalMember(owner = "client!pa", name = "e", descriptor = "Ljava/lang/String;")
     public String message;
 
+    /** A33: when the line arrived (System.currentTimeMillis), for the Chatbox plugin's timestamps. */
+    public long time;
+
     @OriginalMember(owner = "client!pa", name = "<init>", descriptor = "(IILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;)V")
     public ChatLine(@OriginalArg(0) int type, @OriginalArg(1) int flags, @OriginalArg(2) String name, @OriginalArg(3) String nameUnfiltered, @OriginalArg(4) String displayName, @OriginalArg(5) String clan, @OriginalArg(6) int quickChatId, @OriginalArg(7) String message) {
         this.flags = flags;

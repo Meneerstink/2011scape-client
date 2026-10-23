@@ -928,6 +928,7 @@ public final class ServerConnectionReader {
                 } else {
                     ChatHistory.add(ChatLineType.QUICKCHAT_PRIVATE, 0, name, nameUnfiltered, name, null, quickChatId, message);
                 }
+                RspsChatNotices.privateMessage(name, message); // A33: Notify on private message
             }
 
             context.currentProt = null;
@@ -1649,6 +1650,7 @@ public final class ServerConnectionReader {
                 } else {
                     ChatHistory.add(ChatLineType.PRIVATE, 0, name, nameUnfiltered, name, null, -1, message);
                 }
+                RspsChatNotices.privateMessage(name, message); // A33: Notify on private message
             }
 
             context.currentProt = null;

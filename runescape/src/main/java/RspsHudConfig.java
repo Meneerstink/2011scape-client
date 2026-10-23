@@ -85,7 +85,7 @@ final class RspsHudConfig {
         {"minimap", "Minimap", "Zoom the minimap"},
         {"loottracker", "Loot Tracker", "Tracks loot from monsters and minigames"},
         // Owner 2026-10-01: the resizable/fullscreen chatbox background (RspsChatbox).
-        {"chatbox", "Chatbox", "Transparent or opaque chatbox in resizable and fullscreen"},
+        {"chatbox", "Chatbox", "Chatbox look, friend login/logout messages and private-message notifications"},
         // Owner 2026-10-07: the Quest Helper as a plugin (RuneLite Quest Helper: "An in-game interactive guide for quests").
         {"questhelper", "Quest Helper", "An in-game interactive guide for quests"},
         // Owner 2026-10-11 (bug 012046 "we need the runelite stretched plugin"): RuneLite's Stretched Mode (com.jagex.StretchedMode).
@@ -256,6 +256,10 @@ final class RspsHudConfig {
         // RuneLite LootTrackerConfig (the ignore lists are the panel's own right-click actions here).
         bool("chatbox", "transparent", "Transparent chatbox",
             "Resizable and fullscreen: see the game through the chatbox. Off = the opaque parchment chatbox of fixed mode.", true, null);
+        // A33 (owner 2026-10-11): the chat options in the one place the player looks (OSRS Settings > Chat / RuneLite names).
+        bool("chatbox", "friendLogin", "Friend login/logout messages", "Show 'Name has logged in.' / 'has logged out.' for your friends.", true, null);
+        bool("chatbox", "timestamps", "Chat timestamps", "Show the time each message arrived in front of it, [HH:mm] (local time).", false, null);
+        bool("chatbox", "notifyOnPM", "Notify on private message", "Notifies you whenever you receive a private message while the game window is not active.", false, null);
 
         // RuneLite QuestHelperConfig items this helper has (the server ClientHudConfig keeps the same keys).
         String q = "questhelper";

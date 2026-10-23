@@ -19,7 +19,7 @@ public final class DesktopDisplay {
      * The window the game sits in: the player client's own Frame around the loader applet (RS2Loader), else GameShell's.
      * GameShell.frame is null in the player client, so asking it alone missed the real window.
      */
-    private static Frame window() {
+    public static Frame window() {
         Component source = GameShell.loaderApplet != null ? GameShell.loaderApplet : GameShell.frame;
         while (source != null && !(source instanceof Frame)) source = source.getParent();
         return source instanceof Frame ? (Frame) source : null;

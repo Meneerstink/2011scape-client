@@ -621,10 +621,10 @@ public final class client extends GameShell {
                                             }
                                             for (@Pc(672) FriendNotification local672 = (FriendNotification) FriendsList.notifications.first(); local672 != null; local672 = (FriendNotification) FriendsList.notifications.next()) {
                                                 if ((long) local672.arrivalTime < SystemTimer.safetime() / 1000L - 5L) {
-                                                    if (local672.world > 0) {
+                                                    if (local672.world > 0 && RspsChatNotices.friendLines()) {
                                                         ChatHistory.add(5, 0, "", "", "", local672.name + LocalisedText.FRIENDLOGIN.localise(Client.language));
                                                     }
-                                                    if (local672.world == 0) {
+                                                    if (local672.world == 0 && RspsChatNotices.friendLines()) {
                                                         ChatHistory.add(5, 0, "", "", "", local672.name + LocalisedText.FRIENDLOGOUT.localise(Client.language));
                                                     }
                                                     local672.unlink();
