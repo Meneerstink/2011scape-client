@@ -159,8 +159,9 @@ public final class RspsHudRegressionTest {
         check(RspsHudGroundItems.isDirty(), "a server entry marks its tile");
         List<String> l = labels();
         check(l.contains("0,3200,3200 0 Abyssal whip (2.4M gp) #ffff9600 beam"), "whip: name, GE price, high tier colour, lowest row, a lootbeam (RuneLite default: High tier): " + l);
-        check(l.contains("0,3200,3200 1 Shark x3 (2.4K gp) #ffffffff"), "three separate sharks are one x3 label with the stack value: " + l);
-        check(l.contains("0,3201,3200 0 Coins x150 #ffffffff"), "coins: quantity, no price (RuneLite shows none for coins): " + l);
+        // RuneLite parity (d2c87280, owner 2026-10-09): one label "Name (qty)" for the merged stack, as RuneLite GroundItemsOverlay.
+        check(l.contains("0,3200,3200 1 Shark (3) (2.4K gp) #ffffffff"), "three separate sharks are one (3) label with the stack value: " + l);
+        check(l.contains("0,3201,3200 0 Coins (150) #ffffffff"), "coins: quantity, no price (RuneLite shows none for coins): " + l);
         check(joined(l).contains("Dragon bones") && joined(l).contains("#ff808080 hidden"), "hidden (*bones) is kept as a hidden label in the hidden colour (drawn only with the hotkey): " + l);
 
         RspsHud.handle("hl|add|shark");
@@ -202,9 +203,10 @@ public final class RspsHudRegressionTest {
         RspsHud.handle("cfg|grounditems.priceDisplayMode=BOTH");
         check(labels().contains("0,3300,3300 0 Abyssal whip (GE: 2.4M gp) (HA: 72K gp) #ffff9600 beam"), "price display Both: " + labels());
         RspsHud.handle("cfg|grounditems.priceDisplayMode=HA");
-        check(labels().contains("0,3300,3300 0 Abyssal whip (HA: 72K gp) #ffff9600 beam"), "price display HA (the tier still uses the highest value): " + labels());
+        // RuneLite: a single price mode shows " (N gp)" without a label; only BOTH names GE / HA (d2c87280).
+        check(labels().contains("0,3300,3300 0 Abyssal whip (72K gp) #ffff9600 beam"), "price display HA (the tier still uses the highest value): " + labels());
         RspsHud.handle("cfg|grounditems.highlightValueCalculation=HA");
-        check(labels().contains("0,3300,3300 0 Abyssal whip (HA: 72K gp) #ff66b2ff"), "value calculation HA: 72K is the low tier: " + labels());
+        check(labels().contains("0,3300,3300 0 Abyssal whip (72K gp) #ff66b2ff"), "value calculation HA: 72K is the low tier: " + labels());
         RspsHud.handle("cfg|grounditems.priceDisplayMode=OFF;grounditems.highlightValueCalculation=HIGHEST");
         check(labels().contains("0,3300,3300 0 Abyssal whip #ffff9600 beam"), "price display Off");
         RspsHud.handle("cfg|grounditems.hideUnderValue=1000");
@@ -304,11 +306,12 @@ public final class RspsHudRegressionTest {
         RspsHud.handle("cfg|boosts.relativeBoost=true;boosts.boostThreshold=20");
         check(RspsHudBoosts.text(0, true).equals("+19") && RspsHudBoosts.text(1, false).equals("-22"), "relative boosts");
         check(RspsHudBoosts.colour(19) == RspsHudBoosts.NEAR_THRESHOLD, "a boost at or under the threshold is yellow");
-        check(RspsHudBoosts.nextBuffSeconds() == 30 && RspsHudBoosts.nextDebuffSeconds() == 12, "next change seconds from the server cycles (BOOSTED mode)");
+        // Seconds are truncated like RuneLite (d2c87280): 50 / 20 cycles at 0.6 s = 30 / 12 s -> 29 / 11 shown once a cycle has passed.
+        check(RspsHudBoosts.nextBuffSeconds() == 29 && RspsHudBoosts.nextDebuffSeconds() == 11, "next change seconds from the server cycles (BOOSTED mode): " + RspsHudBoosts.nextBuffSeconds() + "/" + RspsHudBoosts.nextDebuffSeconds());
         RspsHud.handle("cfg|boosts.displayNextBuffChange=NEVER;boosts.displayNextDebuffChange=NEVER");
         check(RspsHudBoosts.nextBuffSeconds() == -1 && RspsHudBoosts.nextDebuffSeconds() == -1, "NEVER hides both");
         RspsHud.handle("cfg|boosts.displayBoosts=NON_COMBAT;boosts.displayNextBuffChange=BOOSTED");
-        check(RspsHudBoosts.nextBuffSeconds() == 42, "non-combat boosts use the non-combat cycle (Mining +5)");
+        check(RspsHudBoosts.nextBuffSeconds() == 41, "non-combat boosts use the non-combat cycle (Mining +5), truncated: " + RspsHudBoosts.nextBuffSeconds());
         cur[14] = 99;
         check(RspsHudBoosts.nextBuffSeconds() == -1, "BOOSTED: nothing boosted, nothing shown");
         RspsHud.handle("cfg|boosts.displayNextBuffChange=ALWAYS");
@@ -372,9 +375,10 @@ public final class RspsHudRegressionTest {
         RspsHud.handle("opp|n|5|170|20|30");
         check(RspsHudOpponent.healthText().equals("20/30"), "Hitpoints style: " + RspsHudOpponent.healthText());
         RspsHud.handle("cfg|opponent.hitpointsDisplayStyle=PERCENTAGE");
-        check(RspsHudOpponent.healthText().equals("67%"), "Percentage style");
+        // RuneLite OpponentInfoOverlay: one decimal in Percentage style (d2c87280).
+        check(RspsHudOpponent.healthText().equals("66.7%"), "Percentage style: " + RspsHudOpponent.healthText());
         RspsHud.handle("cfg|opponent.hitpointsDisplayStyle=BOTH");
-        check(RspsHudOpponent.healthText().equals("20/30 (67%)"), "Both style");
+        check(RspsHudOpponent.healthText().equals("20/30 (66.7%)"), "Both style: " + RspsHudOpponent.healthText());
         RspsHud.handle("opp|p|3|128");
         check(RspsHudOpponent.healthText().equals("50%"), "a player: the percentage only (hit-mask ratio)");
         RspsHud.handle("opp|none");
@@ -470,7 +474,7 @@ public final class RspsHudRegressionTest {
         try {
             File dir = Files.createTempDirectory("rsps-overlays-a30").toFile();
             System.setProperty("rsps.preferencesDir", dir.getAbsolutePath());
-            java.nio.file.Files.write(new File(dir, "overlays.properties").toPath(), java.util.Arrays.asList("deadman=427,249"));
+            java.nio.file.Files.write(new File(dir, "overlays.properties").toPath(), java.util.Arrays.asList(DeadmanSkullHud.layoutId(true) + "=427,249"));
         } catch (java.io.IOException e) {
             throw new AssertionError(e);
         }
@@ -481,7 +485,8 @@ public final class RspsHudRegressionTest {
         MouseMonitor.instance = mouse;
         String fixed = DeadmanSkullHud.layoutId(true);
         String resizable = DeadmanSkullHud.layoutId(false);
-        check(fixed.equals("deadman") && !resizable.equals(fixed), "A30: fixed keeps the old key, resizable has its own");
+        // N195 (10-22): new layout ids, so an old saved mid-screen spot is not used any more.
+        check(fixed.equals("deadman.osrs") && !resizable.equals(fixed), "A30: fixed and resizable have their own keys: " + fixed + " / " + resizable);
         int[] at = RspsOverlayLayout.place(fixed, DeadmanSkullHud.FIXED_DEFAULT_X, DeadmanSkullHud.FIXED_DEFAULT_Y, 90, 80, 0, 0, 765, 503);
         check(at[0] == 427 && at[1] == 249, "A30: the owner's saved fixed spot: " + at[0] + "," + at[1]);
         at = RspsOverlayLayout.place(resizable, 30, 600, 90, 80, 0, 0, 1200, 800);
@@ -540,7 +545,7 @@ public final class RspsHudRegressionTest {
         int combinations = 0;
         for (int[] spot : spots) {
             if (spot[2] == 1) {
-                write(dir, "deadman=" + spot[0] + "," + spot[1]);
+                write(dir, DeadmanSkullHud.layoutId(true) + "=" + spot[0] + "," + spot[1]);
             } else {
                 write(dir, "# none");
             }
@@ -574,13 +579,13 @@ public final class RspsHudRegressionTest {
         int[] at = DeadmanSkullHud.placeBlock(true, 427, 249, 72, plain, FIXED_CHAT, 765, 503);
         check(plain == 80 && at[0] == 427 && at[1] == 249, "A30: the plain Guarded / Level block stays on 427,249: " + at[0] + "," + at[1] + " " + plain);
         // Moving the block up never rewrites the saved spot: once the rows are gone it is back on 427,249.
-        write(dir, "deadman=427,249");
+        write(dir, DeadmanSkullHud.layoutId(true) + "=427,249");
         RspsOverlayLayout.reloadForTest();
         DeadmanSkullHud.placeBlock(true, 427, 249, 72, 170, FIXED_CHAT, 765, 503);
         at = DeadmanSkullHud.placeBlock(true, 427, 249, 72, plain, FIXED_CHAT, 765, 503);
-        check(at[0] == 427 && at[1] == 249 && read(dir).contains("deadman=427,249"), "A30: the saved spot is unchanged after a tall block: " + at[0] + "," + at[1]);
+        check(at[0] == 427 && at[1] == 249 && read(dir).contains(DeadmanSkullHud.layoutId(true) + "=427,249"), "A30: the saved spot is unchanged after a tall block: " + at[0] + "," + at[1]);
         // A spot the player dragged onto the chatbox itself is his choice: kept (only clamped inside the canvas).
-        write(dir, "deadman=100,400");
+        write(dir, DeadmanSkullHud.layoutId(true) + "=100,400");
         RspsOverlayLayout.reloadForTest();
         at = DeadmanSkullHud.placeBlock(true, 427, 249, 72, 80, FIXED_CHAT, 765, 503);
         check(at[0] == 100 && at[1] == 400, "A30: a spot dragged onto the chatbox is kept: " + at[0] + "," + at[1]);
@@ -646,7 +651,7 @@ public final class RspsHudRegressionTest {
         // A server push refreshes the open view.
         RspsHud.handle("cfg|grounditems.highlightTiles=false");
         sidebar.refresh();
-        check(!tiles.isSelected(), "a push refreshes the controls");
+        check(!((JCheckBox) sidebar.find("grounditems.highlightTiles")).isSelected(), "a push refreshes the controls (Reset rebuilt the page)");
         ((javax.swing.JButton) sidebar.find("back")).doClick();
         check(sidebar.openPlugin() == null && sidebar.find("toggle.timers") != null, "back to the plugin list");
         RspsHudConfig.resetToDefaults();
