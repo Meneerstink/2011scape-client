@@ -509,6 +509,7 @@ public final class InterfaceManager {
                     rectangles[rectangle].setBounds(offsetX, offsetY, child.width, child.height);
                 }
             }
+            RspsSpellbookEdit.drawn(child, offsetX, offsetY); // N189: where each spell is, for dragging
             if (child.slot == RspsPkHotkeys.PRAYER_HASH) RspsPkHud.prayerCell(child.id, offsetX, offsetY, child.width, child.height); // 78Legacy v5 PK HUD
 
             // RSPS Deadman: both layers of the PvP overlay (381:0 zone state, 381:3 skull timer) are

@@ -170,6 +170,10 @@ public final class RspsSpellFilters {
 
     /** True when the OSRS filters hide spell [hash]; the panel being open hides the whole grid. */
     static boolean hidden(int hash) {
+        // N189: a spell the player hid (Spellbook editing) leaves the book whether or not the filters are on.
+        if (RspsSpellbookEdit.userHidden(hash)) {
+            return true;
+        }
         if (!enabled()) {
             return false;
         }
@@ -409,6 +413,7 @@ public final class RspsSpellFilters {
             optionLines[i] = null;
             optionBoxes[i] = null;
         }
+        RspsSpellbookEdit.apply(iface); // N189: the player's own order, hidden spells dimmed while editing
         resizeIcons(iface, enabled() && !panelOpen && !bit(BIT_ICON_RESIZING_OFF) && !DeadmanSkullHud.inPvpArea());
         if (!enabled()) {
             panelOpen = false;
@@ -591,6 +596,9 @@ public final class RspsSpellFilters {
         if (component == null) {
             return;
         }
+        if (RspsSpellbookEdit.addOptions(component)) {
+            return;
+        }
         if (component.id == -1 && (component.slot == TAB_FIXED || component.slot == TAB_RESIZABLE)) {
             String verb = enabled() ? "Disable spell filtering" : "Enable spell filtering";
             MiniMenu.addEntryInner(false, -1, 0L, component.id, component.slot, verb, ACTION_TAB + LOW, true, -1, "", 0L, false);
@@ -610,6 +618,9 @@ public final class RspsSpellFilters {
 
     /** MiniMenu action dispatch (action already without the low-priority offset). */
     static boolean handle(int action, long v1) {
+        if (RspsSpellbookEdit.handle(action, v1)) {
+            return true;
+        }
         if (action == ACTION_TAB) {
             send(0);
             return true;

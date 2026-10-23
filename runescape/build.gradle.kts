@@ -112,6 +112,16 @@ val dungeoneeringRemovedRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
+val spellbookEditRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "N189: spellbook order (saved order + new spells) and drag moves."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("SpellbookEditRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
 val stretchedModeRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks RuneLite Stretched Mode layout, toolkit gating and mouse scaling without a display or GL context."
