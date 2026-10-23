@@ -84,7 +84,9 @@ public final class RspsSpellFiltersRegressionTest {
         check(Boolean.TRUE.equals(RspsSpellFilters.laidOut.get(FIRE_SURGE)), "the layout decision is remembered for the re-layout check");
 
         // OSRS menu texts (cache 2686 script 2603) and bits line up 1:1 with the server's SpellFilters actions 1-6.
-        check(RspsSpellFilters.OPTIONS.length == 6 && RspsSpellFilters.OPTION_BITS.length == 6, "six filter lines");
+        // N72 (owner 2026-10-22) added OSRS line 7, "Enable icon resizing (outside PvP areas)" (varbit 6548 -> bit 25).
+        check(RspsSpellFilters.OPTIONS.length == 7 && RspsSpellFilters.OPTION_BITS.length == 7, "seven filter lines");
+        check(RspsSpellFilters.OPTION_BITS[6] == RspsSpellFilters.BIT_ICON_RESIZING_OFF, "line 7 = icon resizing");
         check(RspsSpellFilters.OPTIONS[3].equals("Show spells you lack the Magic level to cast"), "OSRS text of the level filter");
         for (int i = 0; i < 6; i++) {
             check(RspsSpellFilters.OPTION_BITS[i] == RspsSpellFilters.BIT_HIDE_COMBAT + i, "line " + (i + 1) + " = server slot " + (i + 1) + " = bit " + (19 + i));
