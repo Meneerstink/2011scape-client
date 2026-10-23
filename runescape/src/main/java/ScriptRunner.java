@@ -1341,6 +1341,9 @@ public final class ScriptRunner {
                 if ((component.slot >>> 16) == LoginScreenTrim.INTERFACE && LoginScreenTrim.hidden(component.slot & 0xFFFF)) {
                     hidden = true; // N1: the login box's Jagex account links stay hidden
                 }
+                if (component.slot == ((DungeoneeringRemoved.STATS_INTERFACE << 16) | DungeoneeringRemoved.CELL)) {
+                    hidden = true; // DGN: the Dungeoneering cell stays hidden
+                }
 
                 if (component.hidden != hidden) {
                     component.hidden = hidden;
@@ -2849,7 +2852,7 @@ public final class ScriptRunner {
 
             if (op == STAT_BASE) {
                 @Pc(15) int skill = intStack[--intStackPointer];
-                intStack[intStackPointer++] = Static498.statBaseLevels[skill];
+                intStack[intStackPointer++] = DungeoneeringRemoved.scriptBaseLevel(skill, Static498.statBaseLevels[skill]); // DGN
                 return;
             }
 

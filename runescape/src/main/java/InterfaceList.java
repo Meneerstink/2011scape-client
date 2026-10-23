@@ -60,6 +60,7 @@ public final class InterfaceList {
                         component.decode(new Packet(data));
                         EquipmentInterfaceLayout.apply(id, slot, component);
                         LoginScreenTrim.apply(id, slot, component); // N1: no Jagex account links on the login box
+                        DungeoneeringRemoved.apply(id, slot, component); // DGN: no Dungeoneering cell in the stats tab
 
                         // RSPS Deadman HUD: the Wilderness overlay's two text components
                         // (381:2 and 381:5) carry a baked onTimer hook (client script 54) that
