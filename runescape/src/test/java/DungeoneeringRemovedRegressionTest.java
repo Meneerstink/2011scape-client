@@ -8,6 +8,11 @@ public final class DungeoneeringRemovedRegressionTest {
         Component attack = new Component();
         DungeoneeringRemoved.apply(320, 195, attack);
         require(!attack.hidden, "other stats cells stay");
+        Component total = new Component();
+        total.originalX = 65;
+        total.originalWidth = 122;
+        DungeoneeringRemoved.apply(320, 201, total);
+        require(total.originalX == 3 && total.originalX + total.originalWidth == 187, "N236: Total level spans the bottom row, centred");
         Component other = new Component();
         DungeoneeringRemoved.apply(321, 151, other);
         require(!other.hidden, "other interfaces untouched");
