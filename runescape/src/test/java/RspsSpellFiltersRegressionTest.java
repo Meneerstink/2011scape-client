@@ -12,6 +12,12 @@ public final class RspsSpellFiltersRegressionTest {
     private static final int VENGEANCE = (430 << 16) | 37;
 
     public static void main(String[] args) {
+        // N237: resized icons stay left of the 16 px scrollbar of the 190 px spell area, whatever the count.
+        for (int count = 1; count <= 70; count++) {
+            int[] grid = RspsSpellFilters.iconGrid(count, 190 - RspsSpellFilters.SCROLLBAR_SPACE, 229);
+            int right = (grid[0] - 1) * grid[2] + (grid[2] - grid[1]) / 2 + grid[1];
+            check(right <= 190 - RspsSpellFilters.SCROLLBAR_SPACE, count + " spells: rightmost icon ends at " + right);
+        }
         reset();
         // Script 21 args: component, lit, dark, level, base-level flag, 4x rune + amount.
         RspsSpellFilters.enter(21, new int[] {FIRE_SURGE, 1, 2, 95, 0, 554, 10, 556, 7, 560, 1, 565, 1});

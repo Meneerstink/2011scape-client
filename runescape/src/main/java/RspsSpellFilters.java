@@ -465,6 +465,9 @@ public final class RspsSpellFilters {
             + (layer.slot & 0xFFFF) + " children=" + (layer.staticComponents == null ? 0 : layer.staticComponents.length) + " spells=" + layoutSpells.size());
     }
 
+    /** Width the spellbook scrollbar takes at the right of the spell area: 16 px wide, 1 px from the edge, 1 px gap to the icons. */
+    static final int SCROLLBAR_SPACE = 18;
+
     /** The cache size of every spell icon, kept the first time this class sees it (icon resizing changes the live size). */
     static final Map<Integer, int[]> normalSize = new HashMap<>();
 
@@ -507,7 +510,9 @@ public final class RspsSpellFilters {
             return;
         }
         shown.sort((a, b) -> a.originalY != b.originalY ? Integer.compare(a.originalY, b.originalY) : Integer.compare(a.originalX, b.originalX));
-        int[] grid = iconGrid(shown.size(), area.width, area.height);
+        // N237 (owner 2026-10-23: "iconen steken buiten de scrollbar"): the book's scrollbar (16 px, right-aligned 1 px from the
+        // edge: 192:94 / 193:51 / 430:63) lies over the right of the spell area, so the grid uses only the width left of it.
+        int[] grid = iconGrid(shown.size(), area.width - SCROLLBAR_SPACE, area.height);
         int columns = grid[0];
         int size = grid[1];
         int cellWidth = grid[2];
