@@ -5,8 +5,6 @@ import com.jagex.graphics.Fonts;
 import com.jagex.core.util.TimeUtils;
 import com.jagex.graphics.Sprite;
 import com.jagex.graphics.Toolkit;
-import com.jagex.game.runetek6.config.objtype.ObjNumMode;
-import com.jagex.game.runetek6.config.objtype.ObjTypeList;
 
 import java.awt.Rectangle;
 
@@ -662,13 +660,9 @@ final class DeadmanSkullHud {
         return 0xFF0000 | (level << 8) | level;
     }
 
-    /** The emblem's own inventory icon (null until the client has rendered it once; the text still shows). */
+    /** The emblem's own inventory icon (rendered on the next frame when no interface drew it yet, N219; the text still shows). */
     private static Sprite emblemIcon(int tier) {
-        try {
-            return ObjTypeList.instance == null ? null : ObjTypeList.instance.getCachedSprite(null, Toolkit.active, ObjNumMode.SHOWCOUNT_NEVER, FIRST_EMBLEM + tier - 1, 1, 1, 0xFF000000);
-        } catch (RuntimeException ignored) {
-            return null;
-        }
+        return RspsSprites.itemIcon(Toolkit.active, FIRST_EMBLEM + tier - 1);
     }
 
     private static String formatPoints(String points) {

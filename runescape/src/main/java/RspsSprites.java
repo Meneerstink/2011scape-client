@@ -62,6 +62,39 @@ final class RspsSprites {
         return ITEM_BASE - itemId;
     }
 
+    /** Items whose icon is queued for rendering (N219), so a missing icon is asked for once, not every frame. */
+    private static final java.util.Set<Integer> requested = new java.util.HashSet<Integer>();
+
+    /**
+     * N219 (owner 2026-10-23: the Antipoison / Anti-venom timer showed its countdown without the potion): the client keeps item icons
+     * only once an interface has drawn them (ObjTypeList cache); an item that is in no open interface had none. Like the client's
+     * own interface code (Static485), a miss queues the icon for the next frame's sprite pass (Static369.updateObjSprites), so it
+     * appears one frame later and stays cached.
+     */
+    static Sprite itemIcon(Toolkit toolkit, int itemId) {
+        com.jagex.game.runetek6.config.objtype.ObjTypeList list = com.jagex.game.runetek6.config.objtype.ObjTypeList.instance;
+        if (list == null || toolkit == null) {
+            return null;
+        }
+        Sprite icon;
+        try {
+            icon = list.getCachedSprite(null, toolkit, com.jagex.game.runetek6.config.objtype.ObjNumMode.SHOWCOUNT_NEVER, itemId, 1, 1, 0xFF000000);
+        } catch (RuntimeException notLoaded) {
+            return null;
+        }
+        if (icon != null) {
+            requested.remove(itemId);
+        } else if (requested.add(itemId)) {
+            JavaToolkit.objSprites.addLast(new com.jagex.graphics.JavaObjSprite(itemId, 1, 1, 0xFF000000, com.jagex.game.runetek6.config.objtype.ObjNumMode.SHOWCOUNT_NEVER, false));
+        }
+        return icon;
+    }
+
+    /** Tests: whether [itemId]'s icon has been queued and not seen rendered yet. */
+    static boolean iconRequested(int itemId) {
+        return requested.contains(itemId);
+    }
+
     static int poisonSprite() {
         return POISON_HITMARK_SPRITE;
     }
@@ -121,12 +154,7 @@ final class RspsSprites {
         Sprite sprite = sprites.get(id);
         if (sprite == null && id <= ITEM_BASE) {
             // The inventory icon without a count, as RuneLite's ItemManager.getImage (DeadmanSkullHud draws emblems the same way).
-            try {
-                sprite = com.jagex.game.runetek6.config.objtype.ObjTypeList.instance == null ? null
-                    : com.jagex.game.runetek6.config.objtype.ObjTypeList.instance.getCachedSprite(null, toolkit, com.jagex.game.runetek6.config.objtype.ObjNumMode.SHOWCOUNT_NEVER, ITEM_BASE - id, 1, 1, 0xFF000000);
-            } catch (RuntimeException notLoaded) {
-                sprite = null;
-            }
+            sprite = itemIcon(toolkit, ITEM_BASE - id);
             if (sprite != null) {
                 sprites.put(id, sprite);
             }
