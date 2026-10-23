@@ -62,6 +62,16 @@ val resizableModalRegression by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
 
+val questHelperPanelMoveRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "N176: the Quest Helper panel (1166:1) is placed through RspsOverlayLayout (Alt + drag) like the other overlays."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("QuestHelperPanelMoveRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
+
 val stretchedModeRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks RuneLite Stretched Mode layout, toolkit gating and mouse scaling without a display or GL context."

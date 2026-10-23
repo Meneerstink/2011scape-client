@@ -498,6 +498,16 @@ public final class InterfaceManager {
 
             @Pc(125) int offsetX = screenX + child.x;
             @Pc(130) int offsetY = screenY + child.y;
+            // N176 (owner 2026-10-22): the Quest Helper panel (1166:1, top left of the game view) moves with Alt + drag and
+            // goes back with Alt + right-click like every RuneLite overlay; the spot is kept inside the view it opens in.
+            if (child.slot == QUEST_HELPER_PANEL) {
+                int[] at = RspsOverlayLayout.place(QUEST_HELPER_LAYOUT, offsetX, offsetY, child.width, child.height, x1, y1, x2 - x1, y2 - y1);
+                offsetX = at[0];
+                offsetY = at[1];
+                if (boundRectangle == -1) {
+                    rectangles[rectangle].setBounds(offsetX, offsetY, child.width, child.height);
+                }
+            }
             if (child.slot == RspsPkHotkeys.PRAYER_HASH) RspsPkHud.prayerCell(child.id, offsetX, offsetY, child.width, child.height); // 78Legacy v5 PK HUD
 
             // RSPS Deadman: both layers of the PvP overlay (381:0 zone state, 381:3 skull timer) are
@@ -770,6 +780,12 @@ public final class InterfaceManager {
                     @Pc(1214) SubInterface sub = (SubInterface) subInterfaces.get(child.slot);
                     if (sub != null) {
                         draw(sub.id, childX1, childY1, childX2, childY2, offsetX, offsetY, rectangle);
+                    }
+
+                    if (child.slot == QUEST_HELPER_PANEL) {
+                        // N176: the Alt outline, over the whole panel (its own clip would cut the 1 px border off).
+                        Toolkit.active.KA(x1, y1, x2, y2);
+                        RspsOverlayLayout.decorate(QUEST_HELPER_LAYOUT);
                     }
 
                     if (child.clientcode == ComponentClientCode.DEBUG_OVERLAY_LAYER) {
@@ -2588,6 +2604,10 @@ public final class InterfaceManager {
             hookRequests.addLast(hook);
         }
     }
+
+    /** N176: the Quest Helper panel (server QuestHelperPanelImportTool: interface 1166, component 1) and its overlay spot. */
+    static final int QUEST_HELPER_PANEL = (1166 << 16) | 1;
+    static final String QUEST_HELPER_LAYOUT = "questhelper";
 
     /** N193: the resizable gameframe's modal slot and the two right-hand blocks it must stay clear of. */
     static final int RESIZABLE_MODAL = (746 << 16) | 12;
