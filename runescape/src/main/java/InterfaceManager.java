@@ -192,6 +192,18 @@ public final class InterfaceManager {
      */
     private static final float FITTED_PREVIEW_FILL = 0.96F;
 
+    /** Nearest depth a fitted model's bounding box may have: clear of the hardware renderers' near plane (GlToolkit 50) (N26). */
+    private static final int FITTED_PREVIEW_MIN_DEPTH = 64;
+
+    /** Pixels kept free above and below a fitted model (N26). */
+    private static final int FITTED_PREVIEW_MARGIN_Y = 4;
+
+    /**
+     * N26: the 78 Store's model box (StoreInterfaceImportTool PREVIEW_Y / PREVIEW_HEIGHT: y 107, 78 high) sits 3 px under the top of
+     * its stage and 7 px above its bottom (StoreArtTool SHOW_Y 104, SHOW_HEIGHT 88): 2 px lower centres the model on the stage.
+     */
+    private static final int FITTED_PREVIEW_SHIFT_Y = 2;
+
     private static final int[] fitCorner = new int[3];
 
     /**
@@ -225,12 +237,31 @@ public final class InterfaceManager {
         int key = child.invObject != -1 ? child.invObject : 0x40000000 | child.obj;
         int[] cached = fitCache.get(child.slot);
         if (cached != null && cached[0] == key && cached[4] == child.width && cached[5] == child.height) {
+            if (cached[6] != 0) {
+                Static59.aMatrix_5.translate(0, 0, cached[6]);
+            }
             Toolkit.active.DA(offsetX + cached[2], offsetY + cached[3], cached[1], cached[1]);
             return;
         }
         int[] xs = { model.V(), model.RA() };
         int[] ys = { model.fa(), model.EA() };
         int[] zs = { model.HA(), model.G() };
+        // N26: the hardware renderers clip everything nearer than their near plane (GlToolkit 50). A small zoom2d (Ankou gloves:
+        // 112) put the near end of the model inside it, which cut it flat. Push the model back along the view axis first; the
+        // fit below scales it up again, so its size in the box stays the same.
+        int minDepth = Integer.MAX_VALUE;
+        for (int x : xs) {
+            for (int y : ys) {
+                for (int z : zs) {
+                    Static59.aMatrix_5.project(x, y, z, fitCorner);
+                    minDepth = Math.min(minDepth, fitCorner[2]);
+                }
+            }
+        }
+        int push = minDepth < FITTED_PREVIEW_MIN_DEPTH ? FITTED_PREVIEW_MIN_DEPTH - minDepth : 0;
+        if (push != 0) {
+            Static59.aMatrix_5.translate(0, 0, push);
+        }
         float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, minY = Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
         for (int x : xs) {
             for (int y : ys) {
@@ -254,14 +285,22 @@ public final class InterfaceManager {
             return;
         }
         float scaleX = spanX <= 0.0001F ? Float.MAX_VALUE : child.width * FITTED_PREVIEW_FILL / spanX;
-        float scaleY = spanY <= 0.0001F ? Float.MAX_VALUE : child.height * FITTED_PREVIEW_FILL / spanY;
+        // N26: vertically a fixed margin, not 4% of the 78 px box - a model whose bounding box is as tall as what it draws (the long
+        // cuffs of the Ankou gloves, Elder chaos top) otherwise touched the box's top edge, which looks cut off under the panel frame.
+        float scaleY = spanY <= 0.0001F ? Float.MAX_VALUE : Math.min(child.height * FITTED_PREVIEW_FILL, child.height - 2 * FITTED_PREVIEW_MARGIN_Y) / spanY;
         int scale = (int) Math.min(scaleX, scaleY);
         if (scale <= 0) {
             return;
         }
         int centreX = offsetX + child.width / 2 - (int) ((minX + maxX) / 2.0F * scale);
-        int centreY = offsetY + child.height / 2 - (int) ((minY + maxY) / 2.0F * scale);
-        fitCache.put(child.slot, new int[] { key, scale, centreX - offsetX, centreY - offsetY, child.width, child.height });
+        int centreY = offsetY + child.height / 2 + FITTED_PREVIEW_SHIFT_Y - (int) ((minY + maxY) / 2.0F * scale);
+        fitCache.put(child.slot, new int[] { key, scale, centreX - offsetX, centreY - offsetY, child.width, child.height, push });
+        if (MEASURE_HEADS) {
+            System.out.println("[78] fit key=" + key + " bounds x=" + model.V() + ".." + model.RA() + " y=" + model.fa() + ".." + model.EA() + " z=" + model.HA() + ".." + model.G()
+                + " proj x=" + minX + ".." + maxX + " y=" + minY + ".." + maxY + " box=" + child.width + "x" + child.height + " scale=" + scale
+                + " centre=" + (centreX - offsetX) + "," + (centreY - offsetY) + " xan=" + child.xan2d + " yan=" + child.yan2d + " zan=" + child.zan2d + " zoom=" + child.zoom2d
+                + " xof=" + child.xof2d + " yof=" + child.yof2d + " minDepth=" + minDepth + " push=" + push);
+        }
         Toolkit.active.DA(centreX, centreY, scale, scale);
     }
 
