@@ -1349,9 +1349,13 @@ final class RspsSidebar extends JPanel {
         com.jagex.StretchedMode.onScalingRange(RspsSidebar::refreshLater);
     }
 
-    /** RuneLite's spinner, but stopped at the last step that still changes the game for the current window. */
+    /**
+     * RuneLite's spinner exactly (N188, owner 2026-10-22: "exact RuneLite - zelfde bereik, standaard 50%", replacing VRAGEN 23's
+     * window maximum): 0 .. Integer.MAX_VALUE, the stored value shown as it is. Above the window's last changing step every value
+     * draws the same picture, as in RuneLite.
+     */
     private static int scalingMax(RspsHudConfig.Setting setting) {
-        return Math.max(setting.min, Math.min(setting.max, com.jagex.StretchedMode.maxScalingPercent()));
+        return setting.max;
     }
 
     /**

@@ -9,11 +9,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A2 round 2 (owner 2026-10-17, VRAGEN 23 = "RuneLite + max"): Resizable scaling is RuneLite's StretchedModeMixin, but the
- * sidebar spinner stops at the percentage above which nothing changes for the current window - every step up to that maximum
- * makes the game visibly smaller (so the UI bigger), there is no 150 % that does nothing, and the maximum follows the window
- * at once (resize, maximise, fullscreen). In fixed mode the setting does nothing (RuneLite "In resizable mode, ...") but the
- * spinner stays there and keeps the maximum of the player's window. A window change never rewrites the player's stored value.
+ * Resizable scaling is RuneLite's StretchedModeMixin: every step up to the window's last changing step makes the game visibly
+ * smaller (so the UI bigger), every step above it draws the same picture. N188 (owner 2026-10-22, "exact RuneLite - zelfde
+ * bereik, standaard 50%", replacing A2 round 2 / VRAGEN 23's window maximum): the sidebar spinner is RuneLite's - 0 ..
+ * Integer.MAX_VALUE, the stored value shown as it is. In fixed mode the setting does nothing (RuneLite "In resizable mode, ...").
+ * A window change never rewrites the player's stored value.
  *
  * The oracle is the layout itself: for every window the test walks p = 0..400 through StretchedMode.layout and takes the first
  * p whose game size equals the size of every larger p. It then checks the real 78 Plugins sidebar (headless Swing) against it.
@@ -99,25 +99,26 @@ public final class StretchedScalingRegressionTest {
         }
         RspsHud.drainForTest();
 
-        // 2a. Every window (resizable): maximum = the oracle, shown value = what is in effect, nothing sent to the server.
+        // 2a. N188 (owner 2026-10-22: "exact RuneLite - zelfde bereik, standaard 50%", replacing VRAGEN 23's window maximum):
+        //     RuneLite's spinner in every window - 0 .. Integer.MAX_VALUE, the stored value shown as it is, nothing sent.
         int[] stored = {0, 5, 10, 11, 12, 50, 90, 150};
         for (int[] w : windows) {
-            int max = oracleMax(w[0], w[1]);
             for (int s : stored) {
                 RspsHudConfig.put(KEY, Integer.toString(s));
                 window(w[0], w[1], false);
                 edt(sidebar::refresh);
                 SpinnerNumberModel model = (SpinnerNumberModel) spinner.getModel();
-                check(((Number) model.getMaximum()).intValue() == max, w, "stored " + s + "%: spinner maximum " + model.getMaximum() + " = the last changing step " + max + "%");
-                check(((Number) spinner.getValue()).intValue() == Math.min(s, max), w, "stored " + s + "%: spinner shows " + spinner.getValue() + " = the step in effect " + Math.min(s, max) + "%");
+                check(((Number) model.getMaximum()).intValue() == Integer.MAX_VALUE, w, "stored " + s + "%: spinner maximum " + model.getMaximum() + " = RuneLite's Integer.MAX_VALUE");
+                check(((Number) model.getMinimum()).intValue() == 0, w, "stored " + s + "%: spinner minimum " + model.getMinimum() + " = 0");
+                check(((Number) spinner.getValue()).intValue() == s, w, "stored " + s + "%: spinner shows " + spinner.getValue());
                 check(RspsHudConfig.integer(KEY) == s, w, "stored " + s + "%: a window change keeps the player's value (now " + RspsHudConfig.integer(KEY) + ")");
                 String sent = RspsHud.drainForTest();
-                check(sent == null || sent.isEmpty(), w, "stored " + s + "%: fitting the spinner sends nothing to the server (sent '" + sent + "')");
+                check(sent == null || sent.isEmpty(), w, "stored " + s + "%: refreshing the spinner sends nothing to the server (sent '" + sent + "')");
             }
         }
 
-        // 2b. The owner's window 944x581: holding the up arrow stops at the maximum, the next arrow step does nothing, a typed
-        //     150 becomes the maximum, and every arrow step is saved (hud set).
+        // 2b. The owner's window 944x581: the up arrow keeps going past the last changing step (RuneLite), every step is saved,
+        //     and a typed 150 stays 150.
         int ownerMax = oracleMax(944, 581);
         RspsHudConfig.put(KEY, "0");
         window(944, 581, false);
@@ -125,14 +126,10 @@ public final class StretchedScalingRegressionTest {
         RspsHud.drainForTest();
         for (int p = 1; p <= ownerMax + 5; p++) {
             Object next = spinner.getNextValue();
-            if (p <= ownerMax) {
-                check(next != null && ((Number) next).intValue() == p, new int[] {944, 581}, "up arrow step " + p + " gives " + next);
-                if (next != null) {
-                    edt(() -> spinner.setValue(next));
-                    check(("hud set " + KEY + " " + p).equals(RspsHud.drainForTest()), new int[] {944, 581}, "up arrow step " + p + " is saved");
-                }
-            } else {
-                check(next == null, new int[] {944, 581}, "up arrow above the maximum " + ownerMax + "% does nothing (gives " + next + ")");
+            check(next != null && ((Number) next).intValue() == p, new int[] {944, 581}, "up arrow step " + p + " gives " + next);
+            if (next != null) {
+                edt(() -> spinner.setValue(next));
+                check(("hud set " + KEY + " " + p).equals(RspsHud.drainForTest()), new int[] {944, 581}, "up arrow step " + p + " is saved");
             }
         }
         javax.swing.JFormattedTextField field = ((JSpinner.DefaultEditor) spinner.getEditor()).getTextField();
@@ -144,46 +141,42 @@ public final class StretchedScalingRegressionTest {
                 throw new AssertionError(e);
             }
         });
-        check(((Number) spinner.getValue()).intValue() == ownerMax, new int[] {944, 581}, "typed 150% becomes the maximum " + ownerMax + "% (shows " + spinner.getValue() + ")");
-        RspsHud.drainForTest();
+        check(((Number) spinner.getValue()).intValue() == 150, new int[] {944, 581}, "typed 150% stays 150% (shows " + spinner.getValue() + ")");
+        check(("hud set " + KEY + " 150").equals(RspsHud.drainForTest()), new int[] {944, 581}, "typed 150% is saved");
 
-        // 2c. The window grows and shrinks: the maximum and the shown value follow at once, without a sidebar rebuild, through
-        //     the layout itself (the client's resize path), and the stored 50 % comes back on the big window.
+        // 2c. The window grows and shrinks: the spinner keeps the stored 50 % and RuneLite's range.
         RspsHudConfig.put(KEY, "50");
+        edt(sidebar::refresh);
         int[][] path = {{944, 581}, {1648, 989}, {944, 581}, {1890, 989}, {1690, 1080}, {765, 503}, {944, 581}};
         for (int[] w : path) {
             window(w[0], w[1], false);
             SwingUtilities.invokeAndWait(() -> { });
             SwingUtilities.invokeAndWait(() -> { });
-            int max = oracleMax(w[0], w[1]);
             SpinnerNumberModel model = (SpinnerNumberModel) spinner.getModel();
-            check(((Number) model.getMaximum()).intValue() == max, w, "resize: the spinner maximum follows the window at once (" + model.getMaximum() + ", expected " + max + ")");
-            check(((Number) spinner.getValue()).intValue() == Math.min(50, max), w, "resize: the spinner shows " + spinner.getValue() + ", expected " + Math.min(50, max));
+            check(((Number) model.getMaximum()).intValue() == Integer.MAX_VALUE, w, "resize: RuneLite's range (" + model.getMaximum() + ")");
+            check(((Number) spinner.getValue()).intValue() == 50, w, "resize: the spinner shows " + spinner.getValue() + ", expected the stored 50");
             check(RspsHudConfig.integer(KEY) == 50, w, "resize: the stored 50% is kept");
         }
 
-        // 2d. Fixed mode, Stretched on: the setting does nothing to the picture (RuneLite), the spinner stays usable with the
-        //     maximum of the player's window; fixed without stretching (window fitted to 765x503 by the client) keeps it too.
+        // 2d. Fixed mode, Stretched on: the setting does nothing to the picture (RuneLite getRealDimensions: 765x503 drawn over the
+        //     whole window), the spinner stays usable with the stored value.
         for (int[] w : new int[][] {{944, 581}, {1648, 989}, {1920, 1080}}) {
             int max = oracleMax(w[0], w[1]);
-            for (int s : new int[] {0, max / 2, max}) {
+            for (int s : new int[] {0, max / 2, max, 50, 150}) {
                 RspsHudConfig.put(KEY, Integer.toString(s));
                 window(w[0], w[1], true);
                 check(GameShell.canvasWid == 765 && GameShell.canvasHei == 503 && StretchedMode.canvasWidth() == w[0] && StretchedMode.canvasHeight() == w[1],
                     w, "fixed " + s + "%: 765x503 drawn over the whole window (" + GameShell.canvasWid + "x" + GameShell.canvasHei + " -> " + StretchedMode.canvasWidth() + "x" + StretchedMode.canvasHeight() + ")");
                 edt(sidebar::refresh);
                 check(spinner.isShowing() || spinner.isVisible(), w, "fixed: the spinner is still there");
-                check(((Number) ((SpinnerNumberModel) spinner.getModel()).getMaximum()).intValue() == max, w, "fixed " + s + "%: maximum of the player's window " + max + "% (" + ((SpinnerNumberModel) spinner.getModel()).getMaximum() + ")");
+                check(((Number) spinner.getValue()).intValue() == s, w, "fixed " + s + "%: shows the stored value (" + spinner.getValue() + ")");
             }
         }
-        int maxBig = oracleMax(1648, 989);
         RspsHudConfig.put(KEY, "50");
         window(1648, 989, false);
         RspsHudConfig.handle("cfg", "stretchedmode.enabled=false");
         window(765, 503, true);
         edt(sidebar::refresh);
-        check(((Number) ((SpinnerNumberModel) spinner.getModel()).getMaximum()).intValue() == maxBig, new int[] {765, 503},
-            "fixed without stretching (client-fitted 765x503): keeps the player's window maximum " + maxBig + "% (" + ((SpinnerNumberModel) spinner.getModel()).getMaximum() + ")");
         check(((Number) spinner.getValue()).intValue() == 50, new int[] {765, 503}, "fixed without stretching: shows the stored 50% (" + spinner.getValue() + ")");
 
         // 3. N93 / A2 round 3: a new account's login never switches Stretched Mode off (RuneLite: the client's config). The
