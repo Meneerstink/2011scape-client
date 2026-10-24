@@ -19,6 +19,21 @@ public final class Static431 {
      */
     private static final java.util.Set<Integer> PRAYER_SEQUENCES = new java.util.HashSet<>(java.util.Arrays.asList(12566, 12568, 12570, 12574, 12576, 12581, 12590));
 
+    /**
+     * N333 (owner 2026-10-24, "noon pet ... je hoort em continu best wel hard"): a pet's own stand/walk frame sounds (Noon's wing
+     * flaps, seq 15897) play the whole time it follows, so they are as soft as the pets' walking sounds (server PetVoices.STEP_VOLUME).
+     */
+    private static final int PET_FRAME_VOLUME = 70;
+
+    /** A pet follower: an npc with a "Pick-up" option (every 667 and OSRS pet here; familiars and monsters have none). */
+    private static boolean isPet(com.jagex.game.runetek6.config.npctype.NPCType type) {
+        if (type == null || type.op == null) return false;
+        for (String op : type.op) {
+            if ("Pick-up".equalsIgnoreCase(op)) return true;
+        }
+        return false;
+    }
+
     @OriginalMember(owner = "client!nk", name = "a", descriptor = "(Lclient!cka;ILclient!eo;B)V")
     public static void method5827(@OriginalArg(0) SeqType arg0, @OriginalArg(1) int arg1, @OriginalArg(2) Entity arg2) {
         if (SoundManager.count >= 50 || (arg0 == null || arg0.soundInfo == null || arg0.soundInfo.length <= arg1 || arg0.soundInfo[arg1] == null)) {
@@ -48,6 +63,9 @@ public final class Static431 {
         if (arg2 instanceof NPCEntity && ((NPCEntity) arg2).type != null
             && SummoningNpcAudioOverrides.soundFor(((NPCEntity) arg2).type.id) != -1) {
             local134 = Math.min(local134, 122);
+        }
+        if (arg2 instanceof NPCEntity && isPet(((NPCEntity) arg2).type)) {
+            local134 = Math.min(local134, PET_FRAME_VOLUME);
         }
         if (PRAYER_SEQUENCES.contains(arg0.id)) {
             local134 = local134 * 9 / 10;
