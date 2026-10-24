@@ -16,8 +16,8 @@ import rs2.client.event.keyboard.KeyLog;
  *     focuses it; while focused every key goes to the field and nowhere else (not the chat, not the camera); Enter or Escape or a
  *     click anywhere else ends it, so does closing the window. The text shows in the text component with a caret; every change
  *     reaches the server as the command {@code uisearch <text>} (at most every 200 ms, never in the chat).</li>
- * <li><b>Full npc models</b> on model components ({@code npc|hash,npc,zoom,xangle,spin;...}): the 667 IF_SETNPCMODEL the store
- *     scripts use, with the zoom and angle; spin = the model turns slowly.</li>
+ * <li><b>Full npc models</b> on model components ({@code npc|hash,npc,zoom,xangle,spin[,yangle];...}): the 667 IF_SETNPCMODEL the
+ *     store scripts use, with the zoom and angle; spin = the model turns slowly, else it stands at yangle (N283).</li>
  * <li><b>Plain models</b> ({@code mdl|hash,model,zoom,xangle,spin;...}, N277): a loc's own model (the Deadman's Chest) the same
  *     way - fitted to its box in the fitted interfaces, turning when spin is set.</li>
  * <li><b>Sizes</b> ({@code size|hash,width,height;...}): a component resized (a sprite drawn at its own size, a wider text).</li>
@@ -89,7 +89,8 @@ public final class RspsUi {
                     c.obj = Integer.parseInt(v[1]);
                     c.zoom2d = Integer.parseInt(v[2]);
                     c.xan2d = Integer.parseInt(v[3]);
-                    c.yan2d = 0;
+                    // N283: an optional sixth field turns a still model to a fixed angle (the Drop Viewer's 3/4 view); older lines: 0.
+                    c.yan2d = v.length > 5 ? Integer.parseInt(v[5]) & 2047 : 0;
                     c.zan2d = 0;
                     // Spin flag second: every registered model is redrawn each loop (its npc data may still be loading).
                     spinning.put(hash, new int[] {c.obj, "1".equals(v[4]) ? 1 : 0, Component.OBJ_TYPE_NPCMODEL});
@@ -112,7 +113,8 @@ public final class RspsUi {
                     c.obj = Integer.parseInt(v[1]);
                     c.zoom2d = Integer.parseInt(v[2]);
                     c.xan2d = Integer.parseInt(v[3]);
-                    c.yan2d = 0;
+                    // N283: an optional sixth field turns a still model to a fixed angle (the Drop Viewer's 3/4 view); older lines: 0.
+                    c.yan2d = v.length > 5 ? Integer.parseInt(v[5]) & 2047 : 0;
                     c.zan2d = 0;
                     spinning.put(hash, new int[] {c.obj, "1".equals(v[4]) ? 1 : 0, Component.OBJ_TYPE_MODEL});
                     InterfaceManager.redraw(c);
