@@ -126,6 +126,9 @@ public final class RspsUi {
                         continue;
                     }
                     Component c = InterfaceList.list(Integer.parseInt(v[0]));
+                    if (c == null) {
+                        pend("size|" + part);
+                    }
                     if (c != null) {
                         // CC_IF_SETSIZE with absolute sizes (ScriptRunner).
                         c.originalWidth = Integer.parseInt(v[1]);
@@ -162,6 +165,8 @@ public final class RspsUi {
                     if (c != null) {
                         c.fontGraphic = Integer.parseInt(v[1]);
                         InterfaceManager.redraw(c);
+                    } else {
+                        pend("font|" + part);
                     }
                 }
             } else if (line.startsWith("tip|")) {
@@ -283,7 +288,49 @@ public final class RspsUi {
     }
 
     /** Once per client loop: the caret blink, the debounced send, the spinning models; forgets a closed window's field. */
+    /**
+     * N319 (2026-10-24: the Drop Viewer's first open after an update drew its rows in the wrong font): a line for a component whose
+     * interface is not loaded yet (a changed interface is still coming in from the cache) used to be dropped. It is kept and tried
+     * again every tick for a few seconds.
+     */
+    private static final java.util.ArrayList<String> pending = new java.util.ArrayList<>();
+    private static long pendingSince = 0L;
+    private static final long PENDING_MS = 5000L;
+
+    private static void pend(String line) {
+        if (pending.isEmpty()) {
+            pendingSince = System.currentTimeMillis();
+        }
+        if (pending.size() < 4000) {
+            pending.add(line);
+        }
+        if (System.getProperty("rsps.testHook") != null && pending.size() == 1) {
+            System.out.println("[78] rspsui pending (component not loaded yet) " + line);
+        }
+    }
+
+    private static void retryPending() {
+        if (pending.isEmpty()) {
+            return;
+        }
+        if (System.currentTimeMillis() - pendingSince > PENDING_MS) {
+            pending.clear();
+            return;
+        }
+        long since = pendingSince;
+        java.util.ArrayList<String> again = new java.util.ArrayList<>(pending);
+        pending.clear();
+        for (String line : again) {
+            handle(line);
+        }
+        // A line still waiting keeps its first time, so it gives up after PENDING_MS.
+        if (!pending.isEmpty()) {
+            pendingSince = since;
+        }
+    }
+
     public static synchronized void tick() {
+        retryPending();
         if (fieldText >= 0) {
             if (!interfaceOpen(fieldText)) {
                 fieldText = -1;

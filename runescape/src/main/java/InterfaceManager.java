@@ -222,6 +222,19 @@ public final class InterfaceManager {
         return child.invObject != -1 || child.objType == Component.OBJ_TYPE_NPCMODEL || child.objType == Component.OBJ_TYPE_MODEL;
     }
 
+    /** The Drop Viewer (1176) and the quest tab's Drops panel (1182): models in their standing pose, not moving (N283 / N319). */
+    private static final int[] STILL_PREVIEW_INTERFACES = { 1176, 1182 };
+
+    private static boolean isStillPreview(Component child) {
+        int interfaceId = child.slot >>> 16;
+        for (int id : STILL_PREVIEW_INTERFACES) {
+            if (id == interfaceId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean isFittedPreview(Component child) {
         int interfaceId = child.slot >>> 16; // slot = (interface << 16) | component (InterfaceList); id is unrelated
         for (int id : FITTED_PREVIEW_INTERFACES) {
@@ -267,19 +280,41 @@ public final class InterfaceManager {
             Static59.aMatrix_5.translate(0, 0, push);
         }
         float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, minY = Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
-        for (int x : xs) {
-            for (int y : ys) {
-                for (int z : zs) {
-                    Static59.aMatrix_5.project(x, y, z, fitCorner);
-                    if (fitCorner[2] <= 16) {
-                        return; // a corner at or behind the eye: keep the cache scale rather than divide by ~0
+        boolean exact = false;
+        if (model instanceof JavaModel && ((JavaModel) model).vertexCount > 0) {
+            // N319 (owner 2026-10-24: the Drop Viewer's npc pictures "te klein en passen niet allemaal"): the corners of the model's
+            // bounding box, turned to the 3/4 view, spread far wider and taller than the model itself (a Barrows brother or Bork
+            // came out a few pixels high). The software renderer's model has its vertices: fit what is really drawn.
+            JavaModel m = (JavaModel) model;
+            for (int v = 0; v < m.vertexCount; v++) {
+                Static59.aMatrix_5.project(m.vertexX[v], m.vertexY[v], m.vertexZ[v], fitCorner);
+                if (fitCorner[2] <= 16) {
+                    continue;
+                }
+                float sx = (float) fitCorner[0] / fitCorner[2];
+                float sy = (float) fitCorner[1] / fitCorner[2];
+                minX = Math.min(minX, sx);
+                maxX = Math.max(maxX, sx);
+                minY = Math.min(minY, sy);
+                maxY = Math.max(maxY, sy);
+                exact = true;
+            }
+        }
+        if (!exact) {
+            for (int x : xs) {
+                for (int y : ys) {
+                    for (int z : zs) {
+                        Static59.aMatrix_5.project(x, y, z, fitCorner);
+                        if (fitCorner[2] <= 16) {
+                            return; // a corner at or behind the eye: keep the cache scale rather than divide by ~0
+                        }
+                        float sx = (float) fitCorner[0] / fitCorner[2];
+                        float sy = (float) fitCorner[1] / fitCorner[2];
+                        minX = Math.min(minX, sx);
+                        maxX = Math.max(maxX, sx);
+                        minY = Math.min(minY, sy);
+                        maxY = Math.max(maxY, sy);
                     }
-                    float sx = (float) fitCorner[0] / fitCorner[2];
-                    float sy = (float) fitCorner[1] / fitCorner[2];
-                    minX = Math.min(minX, sx);
-                    maxX = Math.max(maxX, sx);
-                    minY = Math.min(minY, sy);
-                    maxY = Math.max(maxY, sy);
                 }
             }
         }
@@ -292,7 +327,8 @@ public final class InterfaceManager {
         // N26: vertically a fixed margin, not 4% of the 78 px box - a model whose bounding box is as tall as what it draws (the long
         // cuffs of the Ankou gloves, Elder chaos top) otherwise touched the box's top edge, which looks cut off under the panel frame.
         // N108: a small box (the Drop Viewer's 20 px npc thumbs) keeps a margin in proportion; 4 px each side left 7 of 15 px.
-        int marginY = Math.min(FITTED_PREVIEW_MARGIN_Y, child.height / 10);
+        // N319: an exact (vertex) fit in a small box keeps 1 px; the bounding-box fit keeps its proportional margin.
+        int marginY = exact && child.height < 40 ? 1 : Math.min(FITTED_PREVIEW_MARGIN_Y, child.height / 10);
         float scaleY = spanY <= 0.0001F ? Float.MAX_VALUE : Math.min(child.height * FITTED_PREVIEW_FILL, child.height - 2 * marginY) / spanY;
         int scale = (int) Math.min(scaleX, scaleY);
         if (scale <= 0) {
@@ -1431,7 +1467,9 @@ public final class InterfaceManager {
                         component.animator.update(true, component.modelAnimation);
                     }
 
-                    if (component.animator.tick(Static35.currentTick) && component.animator.isFinished()) {
+                    // N319 (owner 2026-10-24, N283: the Drop Viewer's models stand still): there the standing animation gives only the
+                    // pose - its first frame - and never plays on (the npcs moved). The store's pet showcase keeps playing its idle.
+                    if (!isStillPreview(component) && component.animator.tick(Static35.currentTick) && component.animator.isFinished()) {
                         component.animator.resetImmediately();
                     }
                 }
