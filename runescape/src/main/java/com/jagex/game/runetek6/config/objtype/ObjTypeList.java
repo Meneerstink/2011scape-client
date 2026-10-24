@@ -185,6 +185,8 @@ public final class ObjTypeList {
             cacheKey.objId = objId;
             cacheKey.graphicShadow = graphicShadow;
             this.spriteCache.put(sprite, cacheKey);
+            // N319: the pixels, for a picture drawn smaller than 36 x 32 (RspsObjSmooth shrinks them cleanly).
+            RspsObjSmooth.remember(objId, outline, invCount, graphicShadow, objNumMode, playerModel != null, image);
         }
 
         return sprite;

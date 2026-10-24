@@ -968,6 +968,13 @@ public final class InterfaceManager {
                             if (child.invObject != -1) {
                                 @Pc(1836) PlayerModel model = child.objWearCol ? PlayerEntity.self.playerModel : null;
                                 sprite = ObjTypeList.instance.getCachedSprite(model, Toolkit.active, RspsUi.objNumMode(child), child.invObject, child.outline, child.invCount, child.graphicShadow | 0xFF000000);
+                                if (sprite != null) {
+                                    // N319: smaller than the item sprite - its own pixels shrunk by averaging, drawn at their size.
+                                    @Pc(1837) Sprite smooth = com.jagex.game.runetek6.config.objtype.RspsObjSmooth.get(Toolkit.active, child.invObject, child.outline, child.invCount, child.graphicShadow | 0xFF000000, RspsUi.objNumMode(child), model != null, child.width, child.height);
+                                    if (smooth != null) {
+                                        sprite = smooth;
+                                    }
+                                }
                             } else if (child.video != -1) {
                                 sprite = VideoTypeList.frame(child.video, Toolkit.active);
                             } else {
