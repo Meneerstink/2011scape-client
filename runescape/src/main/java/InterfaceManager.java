@@ -182,9 +182,10 @@ public final class InterfaceManager {
      * Item preview panels whose model is fitted to the box per item instead of by one fixed scale (owner 2026-09-22,
      * "shopp ui.png": the Dark bow ran out of the store preview). The cache can hold only one scale, and item models
      * differ several times in size, so every fixed scale either overflowed long weapons or left small items tiny.
-     * Interface 1151 is the 78 Store (StoreInterfaceImportTool.PREVIEW_MODEL).
+     * Interface 1151 is the 78 Store (StoreInterfaceImportTool.PREVIEW_MODEL); 1176 the Drop Viewer and 1182 the quest tab's
+     * Drops & Collection Log panel (N108, 2026-10-24: every npc from a rat to the King Black Dragon in the same thumb / head box).
      */
-    private static final int[] FITTED_PREVIEW_INTERFACES = { 1151 };
+    private static final int[] FITTED_PREVIEW_INTERFACES = { 1151, 1176, 1182 };
 
     /**
      * Share of the box the fitted model may use; the rest is margin. The fit uses the model's projected 3D bounding box, which is
@@ -287,7 +288,9 @@ public final class InterfaceManager {
         float scaleX = spanX <= 0.0001F ? Float.MAX_VALUE : child.width * FITTED_PREVIEW_FILL / spanX;
         // N26: vertically a fixed margin, not 4% of the 78 px box - a model whose bounding box is as tall as what it draws (the long
         // cuffs of the Ankou gloves, Elder chaos top) otherwise touched the box's top edge, which looks cut off under the panel frame.
-        float scaleY = spanY <= 0.0001F ? Float.MAX_VALUE : Math.min(child.height * FITTED_PREVIEW_FILL, child.height - 2 * FITTED_PREVIEW_MARGIN_Y) / spanY;
+        // N108: a small box (the Drop Viewer's 20 px npc thumbs) keeps a margin in proportion; 4 px each side left 7 of 15 px.
+        int marginY = Math.min(FITTED_PREVIEW_MARGIN_Y, child.height / 10);
+        float scaleY = spanY <= 0.0001F ? Float.MAX_VALUE : Math.min(child.height * FITTED_PREVIEW_FILL, child.height - 2 * marginY) / spanY;
         int scale = (int) Math.min(scaleX, scaleY);
         if (scale <= 0) {
             return;
@@ -961,7 +964,7 @@ public final class InterfaceManager {
                             @Pc(1816) Sprite sprite;
                             if (child.invObject != -1) {
                                 @Pc(1836) PlayerModel model = child.objWearCol ? PlayerEntity.self.playerModel : null;
-                                sprite = ObjTypeList.instance.getCachedSprite(model, Toolkit.active, child.objNumMode, child.invObject, child.outline, child.invCount, child.graphicShadow | 0xFF000000);
+                                sprite = ObjTypeList.instance.getCachedSprite(model, Toolkit.active, RspsUi.objNumMode(child), child.invObject, child.outline, child.invCount, child.graphicShadow | 0xFF000000);
                             } else if (child.video != -1) {
                                 sprite = VideoTypeList.frame(child.video, Toolkit.active);
                             } else {
@@ -1369,6 +1372,7 @@ public final class InterfaceManager {
         }
 
         Toolkit.active.la();
+        RspsUi.drawTooltip();
         MiniMenu.draw(Toolkit.active);
 
         @Pc(116) int cursor = MiniMenu.cursor();
@@ -1444,6 +1448,7 @@ public final class InterfaceManager {
             method3833();
         }
         Toolkit.active.la();
+        RspsUi.drawTooltip();
         MiniMenu.draw(Toolkit.active);
         @Pc(77) int local77 = MiniMenu.cursor();
         if (local77 == -1) {

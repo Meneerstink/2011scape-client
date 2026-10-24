@@ -1313,6 +1313,8 @@ public final class MiniMenu {
         if (action >= 2000) {
             action -= 2000;
         }
+        // 78Legacy N108: the window text field focuses on its own click and lets go on any other.
+        RspsUi.action(action, v3);
         @Pc(35) long v1Long = entry.v1;
         // 78Legacy PK hotkeys v2: remember the player of a real Attack / spell-on-player click as the "last target".
         RspsPkTarget.observe(action, v1);

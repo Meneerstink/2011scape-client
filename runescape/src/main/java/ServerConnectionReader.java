@@ -1170,6 +1170,8 @@ public final class ServerConnectionReader {
                     RspsHud.handle(message.substring(RspsHud.PREFIX.length()));
                 } else if (message.startsWith(RspsGrandExchange.PREFIX)) {
                     RspsGrandExchange.handle(message.substring(RspsGrandExchange.PREFIX.length()));
+                } else if (message.startsWith(RspsUi.PREFIX)) {
+                    RspsUi.handle(message.substring(RspsUi.PREFIX.length()));
                 } else if (message.startsWith(RspsBank.PREFIX)) {
                     RspsBank.handle(message.substring(RspsBank.PREFIX.length()));
                 } else if (message.startsWith(RspsDev.PREFIX)) {

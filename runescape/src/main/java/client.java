@@ -998,6 +998,10 @@ public final class client extends GameShell {
             if (RspsDev.placing && RspsDev.key(log)) {
                 continue;
             }
+            // 78Legacy N108: a focused text field in a window (Drop Viewer search) takes every key; none reaches the chat.
+            if (RspsUi.key(log)) {
+                continue;
+            }
             // 78Legacy v3 hotkeys on any key: the rest of a press a PK / gear hotkey handled (repeats, typed character,
             // release) reaches nothing - not the chat, not the teleport shortcuts below (RspsKeyBind).
             if (RspsKeyBind.swallowing(log)) {
@@ -1080,6 +1084,7 @@ public final class client extends GameShell {
         RspsOverlayLayout.tick();
         RspsSpellbookEdit.tick();
         RspsDeferredOnLoad.tick();
+        RspsUi.tick();
         // The 78 Plugins sidebar's changes go to the server on this (the game) thread.
         RspsHud.tickInput();
 
