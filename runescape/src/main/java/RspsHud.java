@@ -91,6 +91,9 @@ final class RspsHud {
             } else if (kind.equals("grave")) {
                 // The player's own gravestone on the world map (owner 2026-10-04 031637).
                 GraveWorldMapMarker.update(rest);
+            } else if (kind.equals("chest")) {
+                // N273: the blue arrow over the Deadman's Chest on the world map.
+                ChestWorldMapMarker.update(rest);
             } else if (kind.equals("npcicons")) {
                 // World-map icons of npcs with a map element, at their live posts (owner 2026-10-09 214334).
                 NpcWorldMapIcons.update(rest);
@@ -121,6 +124,7 @@ final class RspsHud {
         RspsHudGroundItems.reset();
         DeadmanSkullHud.reset();
         GraveWorldMapMarker.reset();
+        ChestWorldMapMarker.reset();
         NpcWorldMapIcons.reset();
         RspsLootTracker.reset(LoginManager.username);
         RspsQuestHelper.reset();

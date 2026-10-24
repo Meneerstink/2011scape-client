@@ -214,9 +214,12 @@ public final class InterfaceManager {
      */
     private static final java.util.HashMap<Integer, int[]> fitCache = new java.util.HashMap<>();
 
-    /** A preview component that shows an item or an npc model (Component.OBJ_TYPE_NPCMODEL, set by the store's clientscript). */
+    /**
+     * A preview component that shows an item, an npc model (Component.OBJ_TYPE_NPCMODEL, set by the store's clientscript) or a plain
+     * model (OBJ_TYPE_MODEL: the Drop Viewer's Deadman's Chest, N277).
+     */
     private static boolean hasFittedModel(Component child) {
-        return child.invObject != -1 || child.objType == Component.OBJ_TYPE_NPCMODEL;
+        return child.invObject != -1 || child.objType == Component.OBJ_TYPE_NPCMODEL || child.objType == Component.OBJ_TYPE_MODEL;
     }
 
     private static boolean isFittedPreview(Component child) {
@@ -235,7 +238,7 @@ public final class InterfaceManager {
      * scale for both axes, so the item is never stretched.
      */
     private static void fitModelToBox(Component child, Model model, int offsetX, int offsetY) {
-        int key = child.invObject != -1 ? child.invObject : 0x40000000 | child.obj;
+        int key = child.invObject != -1 ? child.invObject : (child.objType == Component.OBJ_TYPE_MODEL ? 0x20000000 : 0x40000000) | child.obj;
         int[] cached = fitCache.get(child.slot);
         if (cached != null && cached[0] == key && cached[4] == child.width && cached[5] == child.height) {
             if (cached[6] != 0) {

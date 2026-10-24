@@ -18,6 +18,8 @@ import rs2.client.event.keyboard.KeyLog;
  *     reaches the server as the command {@code uisearch <text>} (at most every 200 ms, never in the chat).</li>
  * <li><b>Full npc models</b> on model components ({@code npc|hash,npc,zoom,xangle,spin;...}): the 667 IF_SETNPCMODEL the store
  *     scripts use, with the zoom and angle; spin = the model turns slowly.</li>
+ * <li><b>Plain models</b> ({@code mdl|hash,model,zoom,xangle,spin;...}, N277): a loc's own model (the Deadman's Chest) the same
+ *     way - fitted to its box in the fitted interfaces, turning when spin is set.</li>
  * <li><b>Sizes</b> ({@code size|hash,width,height;...}): a component resized (a sprite drawn at its own size, a wider text).</li>
  * <li><b>Ops</b> ({@code op|hash,text;...}): the first right-click option of a component (the search field's "x").</li>
  * <li><b>Fonts</b> ({@code font|hash,fontSprite;...}): a text component drawn in another game font (a list line that is a bold
@@ -90,7 +92,29 @@ public final class RspsUi {
                     c.yan2d = 0;
                     c.zan2d = 0;
                     // Spin flag second: every registered model is redrawn each loop (its npc data may still be loading).
-                    spinning.put(hash, new int[] {c.obj, "1".equals(v[4]) ? 1 : 0});
+                    spinning.put(hash, new int[] {c.obj, "1".equals(v[4]) ? 1 : 0, Component.OBJ_TYPE_NPCMODEL});
+                    InterfaceManager.redraw(c);
+                }
+            } else if (line.startsWith("mdl|")) {
+                for (String part : line.substring(4).split(";")) {
+                    String[] v = part.split(",");
+                    if (v.length < 5) {
+                        continue;
+                    }
+                    int hash = Integer.parseInt(v[0]);
+                    Component c = InterfaceList.list(hash);
+                    if (c == null) {
+                        continue;
+                    }
+                    c.invObject = -1;
+                    c.invCount = 0;
+                    c.objType = Component.OBJ_TYPE_MODEL;
+                    c.obj = Integer.parseInt(v[1]);
+                    c.zoom2d = Integer.parseInt(v[2]);
+                    c.xan2d = Integer.parseInt(v[3]);
+                    c.yan2d = 0;
+                    c.zan2d = 0;
+                    spinning.put(hash, new int[] {c.obj, "1".equals(v[4]) ? 1 : 0, Component.OBJ_TYPE_MODEL});
                     InterfaceManager.redraw(c);
                 }
             } else if (line.startsWith("size|")) {
@@ -286,7 +310,7 @@ public final class RspsUi {
             spinning.keySet().removeIf(hash -> !interfaceOpen(hash));
             for (Map.Entry<Integer, int[]> e : spinning.entrySet()) {
                 Component c = InterfaceList.list(e.getKey());
-                if (c == null || c.objType != Component.OBJ_TYPE_NPCMODEL || c.obj != e.getValue()[0]) {
+                if (c == null || c.objType != e.getValue()[2] || c.obj != e.getValue()[0]) {
                     continue;
                 }
                 if (e.getValue()[1] == 1) {
