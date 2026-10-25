@@ -1341,8 +1341,8 @@ public final class ScriptRunner {
                 if ((component.slot >>> 16) == LoginScreenTrim.INTERFACE && LoginScreenTrim.hidden(component.slot & 0xFFFF)) {
                     hidden = true; // N1: the login box's Jagex account links stay hidden
                 }
-                if (component.slot == ((DungeoneeringRemoved.STATS_INTERFACE << 16) | DungeoneeringRemoved.CELL)) {
-                    hidden = true; // DGN: the Dungeoneering cell stays hidden
+                if ((component.slot >>> 16) == DungeoneeringRemoved.STATS_INTERFACE && DungeoneeringRemoved.hiddenPart(component.slot & 0xFFFF)) {
+                    hidden = true; // DGN / N356: the Dungeoneering skill parts stay hidden (its frame holds the total level)
                 }
 
                 if (component.hidden != hidden) {
@@ -1533,6 +1533,7 @@ public final class ScriptRunner {
                 @Pc(1394) String text = stringStack[--stringStackPointer];
                 text = OldStyleOrbDisplay.text(component.id, component.slot, text);
                 text = RspsChatTimestamps.line(component, text); // A33: Chat timestamps
+                text = DungeoneeringRemoved.text(component.slot, text); // N356: the total level cell's two lines
 
                 if (!text.equals(component.text)) {
                     component.text = text;
@@ -2852,7 +2853,9 @@ public final class ScriptRunner {
 
             if (op == STAT_BASE) {
                 @Pc(15) int skill = intStack[--intStackPointer];
-                intStack[intStackPointer++] = DungeoneeringRemoved.scriptBaseLevel(skill, Static498.statBaseLevels[skill]); // DGN
+                @Pc(16) int base = DungeoneeringRemoved.scriptBaseLevel(skill, Static498.statBaseLevels[skill]); // DGN
+                // N358: Rigour / Augury stay grey in the prayer book until their prayer scroll is read.
+                intStack[intStackPointer++] = PrayerScrollUnlocks.baseLevel(currentScriptId, skill, base, intVars, id -> TimedVarDomain.instance.getVarBitValue(id));
                 return;
             }
 

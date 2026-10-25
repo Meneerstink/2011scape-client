@@ -111,6 +111,15 @@ val dungeoneeringRemovedRegression by tasks.registering(JavaExec::class) {
     jvmArgs("-Djava.awt.headless=true")
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
+val prayerScrollUnlocksRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "N358: Rigour / Augury stay grey in the prayer book until their scroll is read."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("PrayerScrollUnlocksRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
 
 val spellbookEditRegression by tasks.registering(JavaExec::class) {
     group = "verification"
