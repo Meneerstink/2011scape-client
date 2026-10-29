@@ -20,6 +20,7 @@ public class EntityAnimator extends Animator {
     @OriginalMember(owner = "client!wq", name = "a", descriptor = "(ILclient!cka;B)V")
     @Override
     protected final void newFrame(@OriginalArg(0) int arg0, @OriginalArg(1) SeqType arg1) {
-        Static431.method5827(arg1, arg0, this.aEntity_24);
+        // Which of the entity's two animators runs the sequence: its movement animator (stand/walk) or its action animator.
+        Static431.method5827(arg1, arg0, this.aEntity_24, this.aEntity_24 instanceof PathingEntity && ((PathingEntity) this.aEntity_24).animator == this);
     }
 }

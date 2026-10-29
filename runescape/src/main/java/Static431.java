@@ -21,9 +21,11 @@ public final class Static431 {
 
     /**
      * N333 (owner 2026-10-24, "noon pet ... je hoort em continu best wel hard"): a pet's own stand/walk frame sounds (Noon's wing
-     * flaps, seq 15897) play the whole time it follows, so they are as soft as the pets' walking sounds (server PetVoices.STEP_VOLUME).
+     * flaps, seq 15897) play the whole time it follows. Owner 2026-10-29: "10%" - so the movement sounds are 25 of 255; a pet's
+     * other sequences (Interact, emotes) stay at the pets' walking-sound volume 70 (server PetVoices.STEP_VOLUME).
      */
     private static final int PET_FRAME_VOLUME = 70;
+    private static final int PET_MOVEMENT_FRAME_VOLUME = 25;
 
     /** A pet follower: an npc with a "Pick-up" option (every 667 and OSRS pet here; familiars and monsters have none). */
     private static boolean isPet(com.jagex.game.runetek6.config.npctype.NPCType type) {
@@ -36,6 +38,11 @@ public final class Static431 {
 
     @OriginalMember(owner = "client!nk", name = "a", descriptor = "(Lclient!cka;ILclient!eo;B)V")
     public static void method5827(@OriginalArg(0) SeqType arg0, @OriginalArg(1) int arg1, @OriginalArg(2) Entity arg2) {
+        method5827(arg0, arg1, arg2, false);
+    }
+
+    /** [movement]: the sequence runs on the entity's stand/walk animator, not its action animator. */
+    public static void method5827(SeqType arg0, int arg1, Entity arg2, boolean movement) {
         if (SoundManager.count >= 50 || (arg0 == null || arg0.soundInfo == null || arg0.soundInfo.length <= arg1 || arg0.soundInfo[arg1] == null)) {
             if (SoundManager.count >= 50 && arg0 != null && arg0.soundInfo != null && arg0.soundInfo.length > arg1 && arg0.soundInfo[arg1] != null) {
                 AvTrace.log("PROBLEM frame sound dropped: queue full seq=" + arg0.id + " frame=" + arg1);
@@ -65,7 +72,7 @@ public final class Static431 {
             local134 = Math.min(local134, 122);
         }
         if (arg2 instanceof NPCEntity && isPet(((NPCEntity) arg2).type)) {
-            local134 = Math.min(local134, PET_FRAME_VOLUME);
+            local134 = Math.min(local134, movement ? PET_MOVEMENT_FRAME_VOLUME : PET_FRAME_VOLUME);
         }
         if (PRAYER_SEQUENCES.contains(arg0.id)) {
             local134 = local134 * 9 / 10;
@@ -88,7 +95,7 @@ public final class Static431 {
             @Pc(191) int local191 = arg2.z - 256 >> 9;
             @Pc(212) int local212 = arg2 == PlayerEntity.self ? 0 : local93 + (local191 << 8) + (local184 << 16) + (arg2.level << 24);
             SoundManager.sounds[SoundManager.count++] = new Sound((byte) (arg0.vorbisSound ? 2 : 1), local55, local61, 0, local134, local80, local212, arg2);
-            AvTrace.log("frame sound queued seq=" + arg0.id + " frame=" + arg1 + " id=" + local55 + " radius=" + local93 + " self=" + (arg2 == PlayerEntity.self) + " coord=" + local212);
+            AvTrace.log("frame sound queued seq=" + arg0.id + " frame=" + arg1 + " id=" + local55 + " radius=" + local93 + " volume=" + local134 + " movement=" + movement + " self=" + (arg2 == PlayerEntity.self) + " coord=" + local212);
         } else if (local93 != 0) {
             AvTrace.log("frame sound dropped: background option 0 (player setting) seq=" + arg0.id + " frame=" + arg1 + " id=" + local55);
         }
