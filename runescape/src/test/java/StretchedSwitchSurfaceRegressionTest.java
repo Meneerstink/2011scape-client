@@ -324,7 +324,8 @@ public final class StretchedSwitchSurfaceRegressionTest {
             for (boolean on : new boolean[] {false, true}) {
                 cases++;
                 String name = "non-GL " + (on ? "Stretched ON" : "Stretched OFF") + " window " + w[0] + "x" + w[1];
-                Layout fixed = layout(w, true, on, false, false, 0);
+                // N187/N188: in fixed the stretch is 765x503 times the scaling factor, at most the window - 200% fills every window here.
+                Layout fixed = layout(w, true, on, false, false, on ? 200 : 0);
                 int expectW = on ? w[0] : 765;
                 int expectH = on ? w[1] : 503;
                 check(fixed.canvasW == expectW && fixed.canvasH == expectH,
@@ -367,7 +368,7 @@ public final class StretchedSwitchSurfaceRegressionTest {
         }
         for (int[] w : new int[][] {{944, 581}, {1648, 989}}) {
             cases++;
-            Layout on = layout(w, true, true, false, false, 0);
+            Layout on = layout(w, true, true, false, false, 200);
             check(on.canvasW == w[0] && on.canvasH == w[1] && !swPlaced(), "Software Stretched ON: the Java stand-in's stretched path changed",
                 "window " + w[0] + "x" + w[1] + ": canvas " + on.canvasW + "x" + on.canvasH + " placed=" + swPlaced());
         }
@@ -933,7 +934,7 @@ public final class StretchedSwitchSurfaceRegressionTest {
     /** A StretchRect that fails sends this run back to the old canvas sizes (one PROBLEM line), never a frame left unplaced. */
     private static void d3dFallback() throws Exception {
         d3dToolkit(true);
-        Layout l = layoutFast(new int[] {944, 581}, true, true, false, false, 0, false);
+        Layout l = layoutFast(new int[] {944, 581}, true, true, false, false, 200, false);
         int[] plan = d3dPlan();
         check(plan != null && plan[6] != 0, "DirectX fallback case: Stretched ON fixed 944x581 is not a scaled plan", java.util.Arrays.toString(plan));
         FakeD3D dev = new FakeD3D(l.canvasW, l.canvasH, false);

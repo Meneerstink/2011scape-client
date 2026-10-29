@@ -60,6 +60,7 @@ public final class BugShotRegressionTest {
         wiring();
         uploadWiring();
         sessions();
+        freezeLog();
         if (!failures.isEmpty()) {
             failures.forEach(f -> System.out.println("FAILED: " + f));
             throw new AssertionError(failures.size() + " of " + assertions + " bug screenshot checks failed");
@@ -121,6 +122,24 @@ public final class BugShotRegressionTest {
         final boolean near = Math.abs((got >> 16 & 255) - (w >> 16 & 255)) <= 4 && Math.abs((got >> 8 & 255) - (w >> 8 & 255)) <= 4
             && Math.abs((got & 255) - (w & 255)) <= 4;
         check(near, what + " at " + x + "," + y + ": " + Integer.toHexString(got) + " want " + Integer.toHexString(w));
+    }
+
+    /** N244: the report's PNG carries the newest freeze-log lines as a tEXt chunk and still decodes as the same picture. */
+    private static void freezeLog() throws Exception {
+        BufferedImage image = new BufferedImage(40, 30, BufferedImage.TYPE_INT_RGB);
+        image.setRGB(5, 5, 0x123456);
+        java.io.ByteArrayOutputStream plain = new java.io.ByteArrayOutputStream();
+        ImageIO.write(image, "png", plain);
+        String text = "2026-10-29 21:00:00 PROBLEM client freeze in progress: 2400 ms in drawing ... at StaticWall.render:304";
+        byte[] png = RspsBugShot.withFreezeLog(plain.toByteArray(), text);
+        check(png.length > plain.size(), "freeze log: the PNG grew by the text chunk");
+        BufferedImage back = ImageIO.read(new java.io.ByteArrayInputStream(png));
+        check(back != null && back.getWidth() == 40 && (back.getRGB(5, 5) & 0xFFFFFF) == 0x123456, "freeze log: the PNG still decodes to the same picture");
+        String raw = new String(png, java.nio.charset.StandardCharsets.ISO_8859_1);
+        check(raw.contains("tEXt" + RspsBugShot.FREEZE_KEYWORD + '\0' + text), "freeze log: the tEXt chunk holds the lines");
+        check(raw.endsWith("IEND®B`\u0082"), "freeze log: IEND stays the last chunk");
+        check(RspsBugShot.withFreezeLog(plain.toByteArray(), "") == null ? false : RspsBugShot.withFreezeLog(plain.toByteArray(), "").length == plain.size(),
+            "freeze log: no lines, the PNG is unchanged");
     }
 
     private static void folders() throws Exception {

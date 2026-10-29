@@ -490,7 +490,37 @@ public final class RspsBugShot {
         if (!ImageIO.write(image, "png", bytes)) {
             throw new IOException("no png writer");
         }
-        return bytes.toByteArray();
+        return withFreezeLog(bytes.toByteArray(), com.jagex.core.util.FreezeWatchdog.tail(FREEZE_LINES));
+    }
+
+    /** N244: how many of the newest freeze-log lines a report's screenshot carries. */
+    static final int FREEZE_LINES = 40;
+
+    /** The PNG text keyword of the freeze lines (read on the server's side with any PNG metadata viewer). */
+    static final String FREEZE_KEYWORD = "rsps-freezes";
+
+    /**
+     * N244 (owner 2026-10-23: "client liep vast toen ik dood ging" - the client had no log): [png] with [text] (the newest
+     * FreezeWatchdog lines) as a tEXt chunk before IEND, so the report's screenshot that already goes to the server brings the
+     * stack of the last freeze along - also one from a session the player had to close. [png] itself when there is no text.
+     */
+    static byte[] withFreezeLog(byte[] png, String text) {
+        if (text == null || text.isEmpty() || png.length < 12) {
+            return png;
+        }
+        byte[] data = (FREEZE_KEYWORD + '\0' + text).getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
+        byte[] type = {'t', 'E', 'X', 't'};
+        java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+        crc.update(type);
+        crc.update(data);
+        java.nio.ByteBuffer chunk = java.nio.ByteBuffer.allocate(12 + data.length);
+        chunk.putInt(data.length).put(type).put(data).putInt((int) crc.getValue());
+        int iend = png.length - 12; // IEND is always the last, empty chunk
+        byte[] out = new byte[png.length + chunk.capacity()];
+        System.arraycopy(png, 0, out, 0, iend);
+        System.arraycopy(chunk.array(), 0, out, iend, chunk.capacity());
+        System.arraycopy(png, iend, out, iend + chunk.capacity(), 12);
+        return out;
     }
 
     /** Writes &lt;stem&gt;.png; when that file already exists &lt;stem&gt;-shot2.png, -shot3 ... - never overwrites. */

@@ -80,7 +80,13 @@ public final class StretchedClientConfigRegressionTest {
                 if (on) {
                     boolean keep = "true".equals(run[1]);
                     boolean integer = "true".equals(run[3]);
-                    int[] expected = integer ? new int[] {765, 503} : keep ? new int[] {883, 581} : new int[] {944, 581};
+                    // N187/N188: fixed is stretched to 765x503 times the scaling factor, at most the 944x581 window (then kept to aspect).
+                    double factor = 1 + Integer.parseInt(run[4]) / 100D;
+                    int boxW = Math.min(944, (int) Math.round(765 * factor));
+                    int boxH = Math.min(581, (int) Math.round(503 * factor));
+                    int keptW = (int) (boxH * (765D / 503)) > boxW ? boxW : (int) (boxH * (765D / 503));
+                    int keptH = (int) (boxH * (765D / 503)) > boxW ? (int) (boxW / (765D / 503)) : boxH;
+                    int[] expected = integer ? new int[] {765, 503} : keep ? new int[] {keptW, keptH} : new int[] {boxW, boxH};
                     check(StretchedMode.stretchedWidth() == expected[0] && StretchedMode.stretchedHeight() == expected[1],
                         what + ": login screen drawn " + expected[0] + "x" + expected[1] + " (is " + StretchedMode.stretchedWidth() + "x" + StretchedMode.stretchedHeight() + ")");
                 }

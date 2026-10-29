@@ -275,7 +275,7 @@ final class RspsHudConfig {
         bool(st, "increasedPerformance", "Increased performance mode", "Uses a fast algorithm when stretching, lowering quality but increasing performance.", false, null);
         bool(st, "integerScaling", "Integer scaling", "Forces use of a whole number scale factor when stretching.", false, null);
         // No @Range on RuneLite's scalingFactor: its spinner runs 0 .. Integer.MAX_VALUE (the 100 cap blocked 200%, night run 2026-10-12).
-        integer(st, "scalingFactor", "Resizable scaling", "In resizable mode, the game is reduced in size this much before it's stretched.", 50, Integer.MAX_VALUE, null);
+        integer(st, "scalingFactor", "Resizable scaling", "In resizable mode, the game is reduced in size this much before it's stretched. In fixed mode, the game is enlarged this much, up to the window size.", 50, Integer.MAX_VALUE, null);
 
         // v4 (user 2026-10-12, layout version C): Gear Switcher + PK Hotkeys are ONE plugin page ("Bruine Bonen Technologia",
         // plugin id pkhotkeys). The stored keys keep their names (gearswitcher.* / pkhotkeys.*), so nobody loses a binding.
@@ -578,8 +578,8 @@ final class RspsHudConfig {
         com.jagex.StretchedMode.configure(enabled("stretchedmode"), bool("stretchedmode.keepAspectRatio"), bool("stretchedmode.increasedPerformance"),
             bool("stretchedmode.integerScaling"), values.containsKey("stretchedmode.scalingFactor") ? integer("stretchedmode.scalingFactor") : 50);
         // Stretched Mode starts filling a fixed window this client had fitted to the game: the player's own window comes back
-        // (RuneLite never shrank it). Settings changes never touch the window (owner 2026-10-11: fixed mode exactly RuneLite -
-        // Resizable scaling does nothing in fixed mode).
+        // (RuneLite never shrank it). Settings changes never touch the window; Resizable scaling sizes the fixed stretch inside it
+        // (N187/N188, owner 2026-10-25: "Resizable scaling moet OOK in fixed werken").
         if (!wasOn && com.jagex.StretchedMode.fillsWindow() && InterfaceManager.getWindowMode() == com.jagex.core.constants.WindowMode.FIXED) {
             InterfaceManager.restoreRememberedWindow();
         }

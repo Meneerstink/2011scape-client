@@ -403,8 +403,8 @@ public final class StretchedMode {
             return;
         }
         // getRealDimensions (RuneLite StretchedModeMixin, exactly; owner 2026-10-11 "net als de officiele versie"). Fixed: the
-        // game is 765x503 and Resizable scaling does nothing ("In resizable mode, ..."). Resizable: the parent divided by the
-        // scaling factor, never below the minimum game size.
+        // game is 765x503 (Resizable scaling sizes its stretch below). Resizable: the parent divided by the scaling factor, never
+        // below the minimum game size.
         if (fixed) {
             realWidth = FIXED_WIDTH;
             realHeight = FIXED_HEIGHT;
@@ -412,6 +412,13 @@ public final class StretchedMode {
             long size = resizableSize(parentWidth, parentHeight, scalingFactor);
             realWidth = (int) (size >>> 32);
             realHeight = (int) size;
+        }
+        // N187/N188 (owner 2026-10-25: "Resizable scaling moet OOK in fixed werken", our own extension of RuneLite): in fixed the
+        // stretched game is the 765x503 game times the scaling factor (0% = its own size, 50% = 1.5x), never larger than the window
+        // - every step of the slider changes the picture until it fills the window. Resizable stays exactly RuneLite.
+        if (fixed) {
+            parentWidth = Math.min(parentWidth, (int) Math.round(realWidth * scalingFactor));
+            parentHeight = Math.min(parentHeight, (int) Math.round(realHeight * scalingFactor));
         }
         // getStretchedDimensions (RuneLite, exactly): the whole parent, then Keep aspect ratio, then Integer scaling per side.
         if (keepAspectRatio) {

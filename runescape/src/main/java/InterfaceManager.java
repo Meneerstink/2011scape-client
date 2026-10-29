@@ -356,7 +356,7 @@ public final class InterfaceManager {
      * "[78] npc head N on IF:C zoom Z ext up/down/left/right room up/down/left/right".
      */
     private static final int[][] NPC_HEAD_COMPONENTS = { { 241, 2 }, { 242, 2 }, { 243, 2 }, { 244, 2 }, { 662, 1 } };
-    private static final java.util.HashMap<Long, int[]> headExtents = new java.util.HashMap<>();
+    private static final java.util.HashMap<String, int[]> headExtents = new java.util.HashMap<>();
     /** Only the team's test client (test hook) or -Drsps.measureHeads=true measures - never a player's client log. */
     private static final boolean MEASURE_HEADS = System.getProperty("rsps.testHook") != null || Boolean.getBoolean("rsps.measureHeads");
 
@@ -394,7 +394,8 @@ public final class InterfaceManager {
         int down = Math.round(maxY * scaleY);
         int left = Math.round(-minX * scaleX);
         int right = Math.round(maxX * scaleX);
-        long key = ((long) child.slot << 32) | ((long) (child.obj & 0xFFFF) << 16) | (child.zoom2d & 0xFFFF);
+        // N397: per animation too - a head drawn for one tick in another pose (clientscript 751 on Follower Details) must not count.
+        String key = child.slot + ":" + child.obj + ":" + child.zoom2d + ":" + child.modelAnimation;
         int[] seen = headExtents.get(key);
         if (seen != null && up <= seen[0] && down <= seen[1] && left <= seen[2] && right <= seen[3]) {
             return;
@@ -403,7 +404,7 @@ public final class InterfaceManager {
             : new int[] { Math.max(up, seen[0]), Math.max(down, seen[1]), Math.max(left, seen[2]), Math.max(right, seen[3]) };
         headExtents.put(key, seen);
         System.out.println("[78] npc head " + child.obj + " on " + (child.slot >>> 16) + ":" + (child.slot & 0xFFFF) + " zoom " + child.zoom2d
-            + " ext " + seen[0] + "/" + seen[1] + "/" + seen[2] + "/" + seen[3]
+            + " ext " + seen[0] + "/" + seen[1] + "/" + seen[2] + "/" + seen[3] + " anim " + child.modelAnimation
             + " room " + (anchorY - clipY1) + "/" + (clipY2 - anchorY) + "/" + (anchorX - clipX1) + "/" + (clipX2 - anchorX));
     }
 

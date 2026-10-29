@@ -39,8 +39,9 @@ public final class StretchedModeRegressionTest {
         check(StretchedMode.canvasHeight() == 700 && StretchedMode.canvasWidth() == (int) (700 * (765D / 503)), "Keep aspect: width from the height");
         check(GameShell.leftMargin == (1100 - StretchedMode.canvasWidth()) / 2, "Keep aspect: centred");
 
-        // Integer scaling (RuneLite getStretchedDimensions): each side cut down to a whole multiple of the real size.
-        StretchedMode.configure(true, false, false, true, 50);
+        // Integer scaling (RuneLite getStretchedDimensions): each side cut down to a whole multiple of the real size. In fixed the
+        // stretch is at most 765x503 times the scaling factor (N187/N188), so 2x needs 100%.
+        StretchedMode.configure(true, false, false, true, 100);
         window(1600, 1100, 765, 503);
         StretchedMode.layout(true);
         check(StretchedMode.canvasWidth() == 1530 && StretchedMode.canvasHeight() == 1006, "Integer scaling: 2x");
@@ -48,15 +49,21 @@ public final class StretchedModeRegressionTest {
         StretchedMode.layout(true);
         check(StretchedMode.canvasWidth() == 1530 && StretchedMode.canvasHeight() == 503, "Integer scaling: per side, like RuneLite");
 
-        // Fixed mode (RuneLite, owner 2026-10-11 "net als de officiele versie"): Resizable scaling does nothing, the game always
-        // fills the window - no black borders whatever the slider says.
+        // Fixed mode (N187/N188, owner 2026-10-29 "Schuif = beeldgrootte", replacing 2026-10-11 "Resizable scaling does nothing"):
+        // the 765x503 game is stretched to 765x503 times the scaling factor, centred, never beyond the window - 0% its own size,
+        // every step bigger until it fills the window.
+        int previousFixed = 0;
         for (int percent : new int[] {0, 25, 50, 84, 100}) {
             StretchedMode.configure(true, false, false, false, percent);
             window(1648, 989, 765, 503);
             StretchedMode.layout(true);
+            int wantW = Math.min(1648, (int) Math.round(765 * (1 + percent / 100D)));
+            int wantH = Math.min(989, (int) Math.round(503 * (1 + percent / 100D)));
             check(GameShell.canvasWid == 765 && GameShell.canvasHei == 503, "Fixed " + percent + "%: the game stays 765x503");
-            check(StretchedMode.canvasWidth() == 1648 && StretchedMode.canvasHeight() == 989, "Fixed " + percent + "%: fills the window");
-            check(GameShell.leftMargin == 0 && GameShell.topMargin == 0, "Fixed " + percent + "%: no black borders");
+            check(StretchedMode.canvasWidth() == wantW && StretchedMode.canvasHeight() == wantH, "Fixed " + percent + "%: drawn " + wantW + "x" + wantH);
+            check(GameShell.leftMargin == (1648 - wantW) / 2 && GameShell.topMargin == (989 - wantH) / 2, "Fixed " + percent + "%: centred");
+            check(StretchedMode.canvasWidth() > previousFixed || StretchedMode.canvasWidth() == 1648, "Fixed " + percent + "%: bigger than the step before");
+            previousFixed = StretchedMode.canvasWidth();
         }
 
         // Resizable: the game is the window divided by the scaling factor (50% = 1.5), never below 765x503.
