@@ -1048,6 +1048,9 @@ public final class InterfaceManager {
                                     }
 
                                     Toolkit.active.KA(x1, y1, x2, y2);
+                                } else if (DungeoneeringRemoved.wideFrame(child) && child.angle2d == 0) {
+                                    // N356: the total level frame over the whole bottom row, its corners kept
+                                    DungeoneeringRemoved.renderWide(sprite, offsetX, offsetY, child.width, child.height, x1, y1, x2, y2);
                                 } else {
                                     if (child.colour != 0 || transparency != 0) {
                                         if (child.angle2d != 0) {

@@ -6,7 +6,7 @@ public final class DungeoneeringRemovedRegressionTest {
         cell.originalX = 3;
         cell.originalY = 229;
         DungeoneeringRemoved.apply(320, 151, cell);
-        require(!cell.hidden && cell.originalX == 65 && cell.originalY == 229, "N356: the old cell's frame moves to the middle column");
+        require(!cell.hidden && cell.originalX == 3 && cell.originalY == 229 && cell.originalWidth == 184, "N356 design A: the old cell spans the whole bottom row");
         for (int slot = 153; slot <= 158; slot++) {
             Component part = new Component();
             DungeoneeringRemoved.apply(320, slot, part);
@@ -14,7 +14,10 @@ public final class DungeoneeringRemovedRegressionTest {
         }
         Component frame = new Component();
         DungeoneeringRemoved.apply(320, 152, frame);
-        require(!frame.hidden, "320:152 the cell frame stays");
+        require(!frame.hidden && frame.originalWidth == 184, "320:152 the cell frame stays, as wide as the row");
+        frame.slot = (320 << 16) | 152;
+        require(DungeoneeringRemoved.wideFrame(frame), "the frame is drawn wide with its corners");
+        attackSlot();
         Component attack = new Component();
         DungeoneeringRemoved.apply(320, 195, attack);
         require(!attack.hidden, "other stats cells stay");
@@ -23,7 +26,7 @@ public final class DungeoneeringRemovedRegressionTest {
         total.originalY = 231;
         total.originalWidth = 122;
         DungeoneeringRemoved.apply(320, 201, total);
-        require(total.originalX == 65 && total.originalY == 229 && total.originalWidth == 60 && total.originalHeight == 27, "N356: Total level fills the cell");
+        require(total.originalX == 3 && total.originalY == 229 && total.originalWidth == 184 && total.originalHeight == 27, "N356: Total level fills the wide cell");
         require(total.textAlignX == 1 && total.textAlignY == 1, "centred both ways");
         require("Total level:<br>2376".equals(DungeoneeringRemoved.text((320 << 16) | 201, "Total level: 2376")), "two lines");
         require("Total level: 2376".equals(DungeoneeringRemoved.text((320 << 16) | 200, "Total level: 2376")), "other components untouched");
@@ -33,6 +36,12 @@ public final class DungeoneeringRemovedRegressionTest {
         require(DungeoneeringRemoved.scriptBaseLevel(24, 1) == 0, "Dungeoneering counts 0 in the total");
         require(DungeoneeringRemoved.scriptBaseLevel(23, 99) == 99 && DungeoneeringRemoved.scriptBaseLevel(0, 99) == 99, "every other skill unchanged");
         System.out.println("DungeoneeringRemovedRegressionTest OK");
+    }
+
+    private static void attackSlot() {
+        Component attack = new Component();
+        attack.slot = (320 << 16) | 194;
+        require(!DungeoneeringRemoved.wideFrame(attack), "the skill cells' frames keep their own size");
     }
 
     private static void require(boolean condition, String message) {
