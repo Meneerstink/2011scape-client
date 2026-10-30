@@ -275,7 +275,9 @@ final class RspsHudConfig {
         bool(st, "increasedPerformance", "Increased performance mode", "Uses a fast algorithm when stretching, lowering quality but increasing performance.", false, null);
         bool(st, "integerScaling", "Integer scaling", "Forces use of a whole number scale factor when stretching.", false, null);
         // No @Range on RuneLite's scalingFactor: its spinner runs 0 .. Integer.MAX_VALUE (the 100 cap blocked 200%, night run 2026-10-12).
-        integer(st, "scalingFactor", "Resizable scaling", "In resizable mode, the game is reduced in size this much before it's stretched. In fixed mode, the game is enlarged this much, up to the window size.", 50, Integer.MAX_VALUE, null);
+        // N460 (owner 2026-10-31, choice B): fixed stays as it is; the tooltip tells the player that resizable is the mode where the
+        // slider makes only the chatbox, side panel and orbs bigger while the world keeps filling the window.
+        integer(st, "scalingFactor", "Resizable scaling", "In resizable mode, the game is reduced in size this much before it's stretched:<br>the chatbox, side panel and orbs get bigger, the world still fills the window.<br>In fixed mode, the whole game is enlarged this much, up to the window size.<br>For a bigger chatbox, inventory and orbs, use resizable mode.", 50, Integer.MAX_VALUE, null);
 
         // v4 (user 2026-10-12, layout version C): Gear Switcher + PK Hotkeys are ONE plugin page ("Bruine Bonen Technologia",
         // plugin id pkhotkeys). The stored keys keep their names (gearswitcher.* / pkhotkeys.*), so nobody loses a binding.
