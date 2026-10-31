@@ -252,6 +252,7 @@ public final class RspsPrayerFilters {
     static int lastDefenceBase = -1;
     static int lastUnlocks = -1;
     static boolean lastQuick;
+    static int lastStatsTop = Integer.MIN_VALUE;
     static boolean dirty = true;
 
     /** Per book: the player's order (slots) and hidden prayers. */
@@ -304,10 +305,102 @@ public final class RspsPrayerFilters {
 
     // ------------------------------------------------------------------------------------------------------ main loop
 
-    /** ScriptRunner: a script starts. The grid builders mark the layout for redoing. */
-    static void enter(int scriptId) {
+    /** The prayer tooltip (cache script 1160 -> 1163 on 271:49) and the icon it belongs to (N498). */
+    static final int TOOLTIP = (IFACE << 16) | 49;
+    static final int TOOLTIP_SCRIPT = 1163;
+    static int tooltipSlot = -1;
+    static boolean tooltipCheck;
+    /** Cache script 1237 rebuilt the icons: a tooltip shown then lost its icon's mouse-leave (cache script 40). */
+    static boolean iconsRebuilt;
+    static final int TOOLTIP_CLEAR_SCRIPT = 41;
+    /** varc 1052: "Show stat adjustments" is open (cache scripts 1237 / 1704). */
+    static final int STATS_VARC = 1052;
+
+    /** ScriptRunner: a script starts. The grid builders mark the layout for redoing; a prayer tooltip is checked after it ran. */
+    static void enter(int scriptId, int[] vars) {
         if (scriptId == 1237 || scriptId == 1293 || scriptId == 1388 || scriptId == 1717) {
             dirty = true;
+        }
+        if (scriptId == 1237) {
+            iconsRebuilt = true;
+        }
+        if (scriptId == TOOLTIP_SCRIPT && vars != null && vars.length > 2 && vars[2] == TOOLTIP) {
+            tooltipSlot = vars[0] == ICONS ? vars[1] : -1;
+            tooltipCheck = true;
+        }
+    }
+
+    static boolean statsShown() {
+        return Static511.varcs != null && STATS_VARC < Static511.varcs.length && Static511.varcs[STATS_VARC] != 0;
+    }
+
+    /** [c]'s top in the coordinates of the interface the prayer tab is drawn in (every layer's scroll taken off). */
+    static int absY(Component c) {
+        int y = 0;
+        for (int guard = 0; c != null && guard < 32; guard++) {
+            y += c.y;
+            if (c.layer == -1) {
+                break;
+            }
+            Component parent = InterfaceList.list(c.layer);
+            if (parent != null) {
+                y -= parent.scrollY;
+            }
+            c = parent;
+        }
+        return y;
+    }
+
+    /**
+     * N498 (owner 2026-10-31 20:1x / 20:5x): the cache puts the tooltip of a prayer UNDER the icon and only flips it when it leaves the
+     * tab, so for the bottom row it lay over the stat adjustments and the Filters button. Any part of it below the prayer area (the top
+     * of the stat-adjustments bar, open or closed) puts it ABOVE the icon instead - every book, every row.
+     */
+    static void tooltip() {
+        if (iconsRebuilt) {
+            // N498 breaktest: a book switch / stat-adjustments toggle while a tooltip showed left it on screen for good (the old icon's
+            // mouse-leave never comes). The cache's own clear (script 41: children gone, varc 2 = 0); hovering shows it again.
+            iconsRebuilt = false;
+            Component tip = InterfaceList.list(TOOLTIP);
+            if (tip != null && tip.staticComponents != null && tip.staticComponents.length > 0 || tip != null && tip.dynamicComponents != null && tip.dynamicComponents.length > 0) {
+                HookRequest hook = new HookRequest();
+                hook.arguments = new Object[] {TOOLTIP_CLEAR_SCRIPT, TOOLTIP};
+                ScriptRunner.executeHookInner(hook);
+                tooltipCheck = false;
+                return;
+            }
+        }
+        if (!tooltipCheck) {
+            return;
+        }
+        tooltipCheck = false;
+        Component tip = InterfaceList.list(TOOLTIP);
+        Component iconLayer = InterfaceList.list(ICONS);
+        Component root = InterfaceList.list(ROOT);
+        if (tip == null || tip.hidden || iconLayer == null || root == null || tooltipSlot < 0 || iconLayer.staticComponents == null
+            || tooltipSlot >= iconLayer.staticComponents.length || tip.layer == -1) {
+            return;
+        }
+        Component icon = iconLayer.staticComponents[tooltipSlot];
+        Component stats = InterfaceList.list(STATS);
+        if (icon == null) {
+            return;
+        }
+        // The stat-adjustments bar (271:9: the "Show / Hide stat adjustments" strip, with the panel above it when open), else the bottom row.
+        int limit = stats != null && !stats.hidden ? absY(stats) : absY(root) + ROW_Y;
+        int tipTop = absY(tip);
+        if (tipTop + tip.height <= limit) {
+            return;
+        }
+        int iconTop = absY(icon);
+        Component layer = InterfaceList.list(tip.layer);
+        int layerTop = layer == null ? 0 : absY(layer) - layer.scrollY;
+        int want = Math.max(layer == null ? 0 : layer.scrollY, iconTop - 2 - tip.height - layerTop);
+        if (tip.originalY != want) {
+            tip.originalY = want;
+            InterfaceManager.resizeAndReposition(tip);
+            InterfaceManager.redraw(tip);
+            trace("tooltip slot " + tooltipSlot + " above its icon (y " + want + ", limit " + limit + ")");
         }
     }
 
@@ -360,6 +453,13 @@ public final class RspsPrayerFilters {
             lastQuick = quick;
             dirty = true;
         }
+        // N492: the stat-adjustments bar gets its new place a frame after the cache scripts ran (1698 / 1704): the rows follow it.
+        Component stats = InterfaceList.list(STATS);
+        int statsTop = stats == null || stats.hidden ? Integer.MIN_VALUE : absY(stats) * 2 + (statsShown() ? 1 : 0);
+        if (statsTop != lastStatsTop) {
+            lastStatsTop = statsTop;
+            dirty = true;
+        }
         if (panelOpen && !RspsSpellFilters.bookShown(IFACE)) {
             panelOpen = false; // the tab left the screen (owner 2026-10-22 for the spell menu)
             dirty = true;
@@ -368,6 +468,7 @@ public final class RspsPrayerFilters {
             dirty = false;
             layout();
         }
+        tooltip();
         hover();
     }
 
@@ -396,6 +497,7 @@ public final class RspsPrayerFilters {
         }
         List<Integer> shown = on ? shownSlots(book, count, editing) : null;
         Set<Integer> visible = shown == null ? null : new LinkedHashSet<>(shown);
+        int[] rows = rows(icons, shown == null ? count : shown.size(), quick);
         for (int slot = 0; slot < count; slot++) {
             Component icon = icons[slot];
             Component glow = glows != null && slot < glows.length ? glows[slot] : null;
@@ -407,9 +509,10 @@ public final class RspsPrayerFilters {
             setHidden(icon, hide);
             setHidden(glow, hide);
             if (!hide) {
-                moveTo(icon, icons[place]);
+                int dy = rows == null ? 0 : rows[place];
+                moveTo(icon, icons[place], dy);
                 if (glow != null && glows != null && place < glows.length) {
-                    moveTo(glow, glows[place]);
+                    moveTo(glow, glows[place], dy);
                 }
             }
             setDimmed(icon, editing && userHidden(book, slot));
@@ -427,15 +530,54 @@ public final class RspsPrayerFilters {
         }
     }
 
+    /**
+     * N492 (owner 2026-10-31 20:5x "alles past, geen scrollen"): the Curses / Ruinous grid has no scrollbar (cache script 1704), so with
+     * "Show stat adjustments" open the 24 Ruinous prayers (5 rows of the cache's 36 px) reached under the bar. Then the rows close up so
+     * the last one ends above the bar: per place the y shift (null = the cache's own rows). Normal scrolls (cache), the 20 Curses fit.
+     */
+    static int[] rows(Component[] icons, int shownCount, boolean quick) {
+        Component stats = InterfaceList.list(STATS);
+        Component iconLayer = InterfaceList.list(ICONS);
+        if (quick || shownCount < 1 || icons == null || stats == null || iconLayer == null || !statsShown() || varbit(BOOK_VARBIT) == 0) {
+            return null;
+        }
+        int[] first = nativePlace.get(icons[0]);
+        int[] last = shownCount - 1 < icons.length ? nativePlace.get(icons[shownCount - 1]) : null;
+        if (first == null || last == null) {
+            return null;
+        }
+        int limit = absY(stats) - (absY(iconLayer) - iconLayer.scrollY) - ROW_GAP;
+        int height = icons[0].originalHeight;
+        if (last[1] + height <= limit || last[1] <= first[1]) {
+            return null;
+        }
+        double factor = Math.max(0.5, (limit - height - first[1]) / (double) (last[1] - first[1]));
+        int[] out = new int[icons.length];
+        for (int place = 0; place < icons.length; place++) {
+            int[] at = nativePlace.get(icons[place]);
+            out[place] = at == null ? 0 : (int) Math.round(first[1] + (at[1] - first[1]) * factor) - at[1];
+        }
+        trace("rows close up above the stat adjustments: limit " + limit + ", factor " + String.format("%.3f", factor));
+        return out;
+    }
+
+    /** The space kept between the last row and the stat-adjustments bar. */
+    static final int ROW_GAP = 3;
+
     /** [c] to the cache place of [placeOf]. */
     static void moveTo(Component c, Component placeOf) {
+        moveTo(c, placeOf, 0);
+    }
+
+    /** [c] to the cache place of [placeOf], [dy] lower (N492: negative = closer rows). */
+    static void moveTo(Component c, Component placeOf, int dy) {
         int[] at = placeOf == null ? null : nativePlace.get(placeOf);
         if (at == null) {
             at = nativePlace.get(c);
         }
-        if (at != null && (c.originalX != at[0] || c.originalY != at[1])) {
+        if (at != null && (c.originalX != at[0] || c.originalY != at[1] + dy)) {
             c.originalX = at[0];
-            c.originalY = at[1];
+            c.originalY = at[1] + dy;
             InterfaceManager.resizeAndReposition(c);
             InterfaceManager.redraw(c);
         }
