@@ -32,8 +32,14 @@ import java.util.WeakHashMap;
  *   <li>the prayers that pass take the first places of the grid in order, no gaps, the icons keep their size (script 547);</li>
  *   <li>the quick-prayer selection is never filtered (script 466).</li>
  * </ul>
- * Owner's own additions (N482.txt DEFINITIEF): with filtering enabled every prayer has right-click "Hide" / "Unhide" and can be
- * moved (RuneLite PrayerReorder); a sixth menu line "Show hidden prayers" shows the hidden ones dimmed so they can be unhidden.
+ * Owner's own additions (N482.txt DEFINITIEF; N494 / N495 / N497 owner 2026-10-31 20:5x "Ja, zo"):
+ * <ul>
+ *   <li>the Filters button is ALWAYS there (not in the quick-prayer selection) and its five lines always work;</li>
+ *   <li>"Enable prayer filtering" = EDITING: every prayer the filters let through shows, the ones the player hid half see-through,
+ *       right-click "Hide" / "Unhide" and Shift + drag to move (RuneLite PrayerReorder);</li>
+ *   <li>"Disable prayer filtering" = DONE: the hidden prayers leave the grid, the player's order stays;</li>
+ *   <li>right-click on the prayer tab stone "Reset prayer layout": the open book's order and hidden prayers back to the cache's.</li>
+ * </ul>
  *
  * State: the five OSRS choices and the master switch are the server's (varp 1376 bits 26-31, saved with the account, sent by
  * IF_BUTTON1 on 271:4); hidden prayers, order and "Show hidden prayers" are kept on this machine (prayer.properties beside
@@ -85,18 +91,17 @@ public final class RspsPrayerFilters {
     static final int ACTION_FILTERS = 1981;
     static final int ACTION_OPTION = 1982;
     static final int ACTION_HIDE = 1983;
+    static final int ACTION_RESET = 1984;
     private static final int LOW = 2000;
 
-    /** OSRS script 3156 lines (menu slots 1-5), then the owner's own line. */
+    /** OSRS script 3156 lines (menu slots 1-5). The owner's "Show prayers you have hidden" went with N495 (Enable = editing). */
     static final String[] OPTIONS = {
         "Show lower tiers of tiered prayers",
         "Show tiered prayers even if multi-skill prayers are available",
         "Show <col=ffffff>Rapid Healing</col> prayers",
         "Show prayers you lack the Prayer level to activate",
         "Show prayers you lack the requirements to activate",
-        "Show prayers you have hidden",
     };
-    static final int SHOW_HIDDEN_LINE = 5;
     static final int[] OPTION_BITS = {BIT_BLOCK_LOWER, BIT_ALLOW_COMBINED, BIT_BLOCK_HEALING, BIT_BLOCK_LEVEL, BIT_BLOCK_LOCKED};
 
     // ------------------------------------------------------------------------------------------------- the three books
@@ -214,6 +219,7 @@ public final class RspsPrayerFilters {
         return TimedVarDomain.instance == null ? 0 : TimedVarDomain.instance.getVarBitValue(id);
     }
 
+    /** "Enable prayer filtering" = the editing mode (N495): hidden prayers shown half see-through, Hide / Unhide, moving. */
     static boolean enabled() {
         return bit(BIT_ENABLED);
     }
@@ -229,9 +235,9 @@ public final class RspsPrayerFilters {
         return Static511.varcs != null && QUICK_VARC < Static511.varcs.length && Static511.varcs[QUICK_VARC] != 0;
     }
 
-    /** Menu line [i] shows the tick (the line's bit is clear; line 6 is the local "show hidden"). */
+    /** Menu line [i] shows the tick (the line's bit is clear). */
     static boolean optionTicked(int i) {
-        return i == SHOW_HIDDEN_LINE ? showHidden : !bit(OPTION_BITS[i]);
+        return !bit(OPTION_BITS[i]);
     }
 
     /** OSRS script 2758: the second line is grey (no effect) while the first is ticked. */
@@ -240,7 +246,6 @@ public final class RspsPrayerFilters {
     }
 
     static boolean panelOpen;
-    static boolean showHidden;
     static int lastVarp = Integer.MIN_VALUE;
     static int lastBook = -1;
     static int lastPrayerBase = -1;
@@ -277,8 +282,11 @@ public final class RspsPrayerFilters {
         return set != null && set.contains(slot);
     }
 
-    /** The slots of [book] that the grid shows, in the order shown (null: the cache grid untouched). */
-    static List<Integer> shownSlots(int book, int count) {
+    /**
+     * The slots of [book] that the grid shows, in the order shown: the five filters always (N494); the player's hidden prayers only
+     * while editing ([editing] = filtering enabled, N495), dimmed by the caller.
+     */
+    static List<Integer> shownSlots(int book, int count, boolean editing) {
         load();
         List<Integer> base = new ArrayList<>();
         for (int slot = 0; slot < count; slot++) {
@@ -287,7 +295,7 @@ public final class RspsPrayerFilters {
         List<Integer> ordered = RspsSpellbookEdit.ordered(base, order.get(book));
         List<Integer> out = new ArrayList<>();
         for (Integer slot : ordered) {
-            if (slot < LEVELS[book].length && passes(book, slot) && (showHidden || !userHidden(book, slot))) {
+            if (slot < LEVELS[book].length && passes(book, slot) && (editing || !userHidden(book, slot))) {
                 out.add(slot);
             }
         }
@@ -372,7 +380,10 @@ public final class RspsPrayerFilters {
         }
         int book = book();
         boolean quick = quickSelect();
-        boolean on = enabled() && !quick;
+        // N494: the filters and the Filters button work whether filtering is enabled or not; only the quick-prayer selection is the
+        // cache's own grid (OSRS 466). N495: enabled = editing.
+        boolean on = !quick;
+        boolean editing = on && enabled();
         if (!on) {
             panelOpen = false;
         }
@@ -383,7 +394,7 @@ public final class RspsPrayerFilters {
             remember(icons[i]);
             remember(glows != null && i < glows.length ? glows[i] : null);
         }
-        List<Integer> shown = on ? shownSlots(book, count) : null;
+        List<Integer> shown = on ? shownSlots(book, count, editing) : null;
         Set<Integer> visible = shown == null ? null : new LinkedHashSet<>(shown);
         for (int slot = 0; slot < count; slot++) {
             Component icon = icons[slot];
@@ -401,12 +412,12 @@ public final class RspsPrayerFilters {
                     moveTo(glow, glows[place]);
                 }
             }
-            setDimmed(icon, on && showHidden && userHidden(book, slot));
+            setDimmed(icon, editing && userHidden(book, slot));
         }
         InterfaceManager.redraw(iconLayer);
         InterfaceManager.redraw(glowLayer);
         decorate(on, book, shown == null ? count : shown.size());
-        trace("layout book=" + BOOK_NAMES[book] + " on=" + on + " quick=" + quick + " panel=" + panelOpen + " varp=0x" + Integer.toHexString(varp())
+        trace("layout book=" + BOOK_NAMES[book] + " on=" + on + " editing=" + editing + " quick=" + quick + " panel=" + panelOpen + " varp=0x" + Integer.toHexString(varp())
             + " shown=" + (shown == null ? "all" : shown.toString()));
     }
 
@@ -444,7 +455,7 @@ public final class RspsPrayerFilters {
         }
     }
 
-    /** RuneLite PrayerReorder: a hidden prayer shown while choosing is half see-through. */
+    /** RuneLite PrayerReorder: a hidden prayer shown while editing is half see-through. */
     static final int DIMMED = 160;
 
     static void setDimmed(Component c, boolean dim) {
@@ -584,13 +595,15 @@ public final class RspsPrayerFilters {
         return c != null && c.id != -1 && c.slot == ICONS;
     }
 
-    /** InterfaceManager.addMiniMenuOptions: the tab-stone op, the Filters button, the menu rows, Hide / Unhide. */
+    /** InterfaceManager.addMiniMenuOptions: the tab-stone ops, the Filters button, the menu rows, Hide / Unhide. */
     static boolean addOptions(Component component) {
         if (component == null) {
             return false;
         }
         if (component.id == -1 && (component.slot == TAB_FIXED || component.slot == TAB_RESIZABLE)) {
             String verb = enabled() ? "Disable prayer filtering" : "Enable prayer filtering";
+            // N497 (owner 20:5x): the open book's order and hidden prayers back to the cache's; added first = listed under the switch.
+            MiniMenu.addEntryInner(false, -1, 0L, component.id, component.slot, "Reset prayer layout", ACTION_RESET + LOW, true, -1, "", 0L, false);
             MiniMenu.addEntryInner(false, -1, 0L, component.id, component.slot, verb, ACTION_TAB + LOW, true, -1, "", 0L, false);
             return false;
         }
@@ -636,13 +649,11 @@ public final class RspsPrayerFilters {
             clickedRow = line;
             clickedAt = System.currentTimeMillis();
             RspsFilterUi.clickSound(); // OSRS prayer_filtertoggle_op 3157
-            if (line == SHOW_HIDDEN_LINE) {
-                showHidden = !showHidden;
-                save();
-                dirty = true;
-            } else {
-                send(line + 1);
-            }
+            send(line + 1);
+            return true;
+        }
+        if (action == ACTION_RESET) {
+            reset(book());
             return true;
         }
         if (action == ACTION_HIDE) {
@@ -668,6 +679,16 @@ public final class RspsPrayerFilters {
         ClientMessage.addComponentData(ROOT, -1, message, slot);
         ServerConnection.GAME.send(message);
         trace("send 271:4 slot=" + slot);
+    }
+
+    /** N497: [book]'s order and hidden prayers back to the cache's (the other books keep theirs; the five filters stay). */
+    static void reset(int book) {
+        load();
+        order.remove(book);
+        hiddenSlots.remove(book);
+        save();
+        dirty = true;
+        trace("reset " + BOOK_NAMES[book]);
     }
 
     // ------------------------------------------------------------------------------------------------- moving
@@ -715,7 +736,6 @@ public final class RspsPrayerFilters {
         } catch (IOException ignored) {
             return;
         }
-        showHidden = "true".equals(p.getProperty("showHidden"));
         for (int book = 0; book < BOOK_NAMES.length; book++) {
             List<Integer> o = slots(p.getProperty(BOOK_NAMES[book] + ".order"), LEVELS[book].length);
             if (!o.isEmpty()) {
@@ -748,7 +768,6 @@ public final class RspsPrayerFilters {
 
     static void save() {
         Properties p = new Properties();
-        p.setProperty("showHidden", String.valueOf(showHidden));
         for (int book = 0; book < BOOK_NAMES.length; book++) {
             if (order.containsKey(book)) {
                 p.setProperty(BOOK_NAMES[book] + ".order", join(order.get(book)));

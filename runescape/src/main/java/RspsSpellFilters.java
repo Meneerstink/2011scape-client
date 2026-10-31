@@ -23,10 +23,11 @@ import java.util.Set;
  * their own: a spell lacks the level only when both its base and its current level are below it (2619), the runes / staff (2620) and
  * the other requirements (4131) are separate questions.
  *
- * Owner's choices (N72.txt DEFINITIEF): icon resizing everywhere ("Enable icon resizing", no PvP limit); with filtering enabled every
- * spell has right-click "Hide" / "Unhide" and Shift + drag moves it (RuneLite SpellbookPlugin, kept per book on this machine by
- * {@link RspsSpellbookEdit}); an eighth row "Show spells you have hidden" shows them dimmed to unhide. Filtering disabled = the 667 book
- * exactly as it was (the choices are kept for the next time).
+ * Owner's choices (N72.txt DEFINITIEF; N494 / N495 / N497 owner 2026-10-31 20:5x "Ja, zo"): icon resizing everywhere ("Enable icon
+ * resizing", no PvP limit); the Filters button and its seven lines ALWAYS work (the OSRS grid always); "Enable spell filtering" = EDITING:
+ * every spell the filters let through shows, the ones the player hid half see-through, right-click "Hide" / "Unhide" and Shift + drag
+ * moves (RuneLite SpellbookPlugin, kept per book on this machine by {@link RspsSpellbookEdit}); "Disable spell filtering" = DONE: the
+ * hidden spells leave the book, the order stays. "Reset spellbook layout" on the magic tab stone puts the open book back.
  *
  * The state is the server's (SpellFilters.kt, varp 1376, saved with the account): bits 9-17 are the 667 category filters the cache's own
  * layout script 2059 applies (a projection of the OSRS Combat / Teleport / Utility choice); bits 18-25 the OSRS state read here. This
@@ -102,7 +103,7 @@ public final class RspsSpellFilters {
         {430, 66, 17, 5, 11, 20, 63},
     };
 
-    /** OSRS script 2603 texts, menu slot 1-7 (slot 0 = enable/disable), then the owner's own line. */
+    /** OSRS script 2603 texts, menu slot 1-7 (slot 0 = enable/disable). "Show spells you have hidden" went with N495. */
     static final String[] OPTIONS = {
         "Show <col=ffffff>Combat</col> spells",
         "Show <col=ffffff>Teleport</col> spells",
@@ -111,14 +112,12 @@ public final class RspsSpellFilters {
         "Show spells you lack the runes to cast",
         "Show spells you lack the requirements to cast",
         "Enable icon resizing",
-        "Show spells you have hidden",
     };
-    static final int SHOW_HIDDEN_LINE = 7;
     static final int[] OPTION_BITS = {BIT_HIDE_COMBAT, BIT_HIDE_TELEPORT, BIT_HIDE_UTILITY, BIT_HIDE_LEVEL, BIT_HIDE_RUNES, BIT_HIDE_REQUIREMENTS, BIT_ICON_RESIZING_OFF};
 
-    /** Menu line [i] shows the tick while its bit is clear (every bit is an "off" / "hide" bit); the last line is local. */
+    /** Menu line [i] shows the tick while its bit is clear (every bit is an "off" / "hide" bit). */
     static boolean optionTicked(int i) {
-        return i == SHOW_HIDDEN_LINE ? RspsSpellbookEdit.showHidden() : !bit(OPTION_BITS[i]);
+        return !bit(OPTION_BITS[i]);
     }
 
     /** Script 21 args per spell component hash (the last real run). */
@@ -166,6 +165,7 @@ public final class RspsSpellFilters {
         return (varp() & (1 << b)) != 0;
     }
 
+    /** "Enable spell filtering" = the editing mode (N495): hidden spells shown half see-through, Hide / Unhide, moving. */
     static boolean enabled() {
         return bit(BIT_ENABLED);
     }
@@ -195,16 +195,13 @@ public final class RspsSpellFilters {
         return s == LACKS_RUNES || s == LACKS_REQUIREMENTS && Boolean.FALSE.equals(runesOk.get(hash));
     }
 
-    /** True when the OSRS filters hide spell [hash]; the panel being open hides the whole grid. */
+    /** True when the OSRS filters hide spell [hash] (N494: enabled or not); the panel being open hides the whole grid. */
     static boolean hidden(int hash) {
-        if (!enabled()) {
-            return false;
-        }
         if (panelOpen) {
             return true;
         }
-        // The player's own Hide (owner 2026-10-31), unless "Show spells you have hidden" is ticked.
-        if (RspsSpellbookEdit.isHidden(hash) && !RspsSpellbookEdit.showHidden()) {
+        // The player's own Hide (owner 2026-10-31): gone once filtering is disabled, shown dimmed while editing (N495).
+        if (RspsSpellbookEdit.isHidden(hash) && !enabled()) {
             return true;
         }
         int[] a = args.get(hash);
@@ -305,7 +302,7 @@ public final class RspsSpellFilters {
         // A hidden spell's own redraw (script 21 on its inventory / stat triggers) does not run while it is hidden, so it could never come
         // back when the runes arrive or the level goes up: every such change re-asks every spell of the open book.
         int changes = ClientInventory.updateCount * 31 + Static366.statUpdateCount;
-        if (changes != lastChanges && enabled()) {
+        if (changes != lastChanges) {
             lastChanges = changes;
             for (Integer hash : args.keySet()) {
                 if ((hash >>> 16) == bookNow) {
@@ -313,7 +310,7 @@ public final class RspsSpellFilters {
                 }
             }
         }
-        if (!dirty.isEmpty() && enabled()) {
+        if (!dirty.isEmpty()) {
             boolean changed = false;
             for (Integer hash : dirty.toArray(new Integer[0])) {
                 probe(hash);
@@ -469,7 +466,6 @@ public final class RspsSpellFilters {
         if (b == null) {
             return;
         }
-        boolean on = enabled();
         for (int i = 3; i <= 5; i++) {
             Component button = InterfaceList.list((iface << 16) | b[i]);
             if (button != null && button.layer != -1) {
@@ -488,9 +484,10 @@ public final class RspsSpellFilters {
                 InterfaceManager.redraw(frame);
             }
         }
-        // With filtering enabled the book is OSRS's: no 667 bar art, no scrollbar (the OSRS grid always fits), the 240 px spell area.
-        setHidden(InterfaceList.list((iface << 16) | b[2]), on);
-        setHidden(InterfaceList.list((iface << 16) | b[6]), on);
+        // N494: the book is always OSRS's (enabled() is only the editing mode, N495): no 667 bar art, no scrollbar (the OSRS grid
+        // always fits), the 240 px spell area, the Filters button.
+        setHidden(InterfaceList.list((iface << 16) | b[2]), true);
+        setHidden(InterfaceList.list((iface << 16) | b[6]), true);
         Component bar = InterfaceList.list((iface << 16) | (b[2]));
         if (bar == null || bar.layer == -1) {
             return;
@@ -506,15 +503,9 @@ public final class RspsSpellFilters {
             optionRows[i] = null;
             optionHighlights[i] = null;
         }
-        RspsSpellbookEdit.apply(iface); // the player's own order (filtering enabled), hidden spells dimmed while shown
+        RspsSpellbookEdit.apply(iface); // the player's own order, hidden spells dimmed while editing
         Component area = spellArea(iface);
-        osrsGrid(iface, area, on && !panelOpen, !bit(BIT_ICON_RESIZING_OFF));
-        if (!on) {
-            panelOpen = false;
-            InterfaceManager.redraw(layer);
-            trace("decorate book=" + iface + " varp=0x" + Integer.toHexString(varp()) + " filtering off");
-            return;
-        }
+        osrsGrid(iface, area, !panelOpen, !bit(BIT_ICON_RESIZING_OFF));
         // The Filters button, bottom centre (OSRS 218:207 / 209: 17 high, bottom-aligned, the label's width + 14).
         int w = RspsFilterUi.buttonWidth("Filters");
         int bx = (WIDTH - w) / 2;
@@ -539,7 +530,7 @@ public final class RspsSpellFilters {
             RspsFilterUi.text(layer, null, "No spells match your selected filters.", 5, 0, WIDTH - 10, OSRS_TOP_HEIGHT, 1, RspsFilterUi.FONT_P12, RspsFilterUi.ORANGE);
         }
         InterfaceManager.redraw(layer);
-        trace("decorate book=" + iface + " varp=0x" + Integer.toHexString(varp()) + " panel=" + panelOpen + " layer=" + (layer.slot >>> 16) + ":"
+        trace("decorate book=" + iface + " varp=0x" + Integer.toHexString(varp()) + " editing=" + enabled() + " panel=" + panelOpen + " layer=" + (layer.slot >>> 16) + ":"
             + (layer.slot & 0xFFFF) + " children=" + (layer.staticComponents == null ? 0 : layer.staticComponents.length) + " spells=" + layoutSpells.size());
     }
 
@@ -601,7 +592,7 @@ public final class RspsSpellFilters {
             native0 = new int[] {area.originalY, area.originalHeight};
             normalArea.put(area.slot, native0);
         }
-        int wantHeight = enabled() ? OSRS_TOP_HEIGHT : native0[1];
+        int wantHeight = OSRS_TOP_HEIGHT;
         if (area.originalHeight != wantHeight) {
             area.originalHeight = wantHeight;
             InterfaceManager.resizeAndReposition(area);
@@ -709,11 +700,11 @@ public final class RspsSpellFilters {
         }
         if (component.id == -1 && (component.slot == TAB_FIXED || component.slot == TAB_RESIZABLE)) {
             String verb = enabled() ? "Disable spell filtering" : "Enable spell filtering";
+            RspsSpellbookEdit.addResetOption(component); // N497: added first = listed under the switch
             MiniMenu.addEntryInner(false, -1, 0L, component.id, component.slot, verb, ACTION_TAB + LOW, true, -1, "", 0L, false);
             return;
         }
         if (filtersButton != null && component == filtersButton) {
-            RspsSpellbookEdit.addResetOption(component);
             MiniMenu.addEntryInner(false, -1, 0L, component.id, component.slot, "Spell Filters", ACTION_FILTERS, true, -1, "", 0L, false);
             return;
         }
@@ -749,12 +740,7 @@ public final class RspsSpellFilters {
             clickedRow = line;
             clickedAt = System.currentTimeMillis();
             RspsFilterUi.clickSound(); // OSRS 2607
-            if (line == SHOW_HIDDEN_LINE) {
-                RspsSpellbookEdit.toggleShowHidden();
-                relayout();
-            } else {
-                send(line + 1);
-            }
+            send(line + 1);
             return true;
         }
         return false;

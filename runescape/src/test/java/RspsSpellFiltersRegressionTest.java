@@ -12,6 +12,8 @@ public final class RspsSpellFiltersRegressionTest {
     private static final int VENGEANCE = (430 << 16) | 37;
 
     public static void main(String[] args) {
+        // Never the player's own prayer.properties / spellbook.properties: a fresh folder per run.
+        System.setProperty("rsps.preferencesDir", new java.io.File(System.getProperty("java.io.tmpdir"), "rsps-filters-test-" + System.nanoTime()).getPath());
         // N72 (2026-10-31): OSRS script 2611's grid in the 184 x 240 top - the native thresholds (research report section 2).
         int[][] want = { // count -> columns, size (resizing on)
             {1, 3, 40}, {15, 3, 40}, {16, 4, 40}, {20, 4, 40}, {21, 4, 24}, {36, 4, 24}, {37, 5, 24}, {45, 5, 24}, {46, 6, 24}, {54, 6, 24}, {55, 7, 24}, {70, 7, 24},
@@ -39,11 +41,25 @@ public final class RspsSpellFiltersRegressionTest {
         RspsSpellFilters.enter(21, new int[] {VENGEANCE, 1, 2, 94, 0, 557, 10, 9075, 4, 560, 2, -1, 0});
         check(RspsSpellFilters.args.size() == 3 && RspsSpellFilters.dirty.size() == 3, "every real spell redraw is remembered and marked for a probe");
 
-        // Filtering off: nothing is hidden, whatever the menu says (OSRS: filters apply only once enabled).
+        // N494 (owner 2026-10-31 20:5x): the filters work with filtering disabled too ("Enable" is only the editing mode).
         Static581.statLevels[6] = 1;
         Static498.statBaseLevels[6] = 1;
         RspsSpellFilters.forcedVarp = bits(RspsSpellFilters.BIT_HIDE_LEVEL, RspsSpellFilters.BIT_HIDE_RUNES);
-        check(!RspsSpellFilters.hidden(FIRE_SURGE), "filtering disabled hides nothing");
+        check(RspsSpellFilters.hidden(FIRE_SURGE), "filtering disabled: lacks level crossed still hides Fire Surge at Magic 1");
+        RspsSpellFilters.forcedVarp = 0;
+        check(!RspsSpellFilters.hidden(FIRE_SURGE), "filtering disabled, every line ticked: nothing hidden");
+
+        // N495: a spell the player hid stays (dimmed) while editing and leaves the book once filtering is disabled.
+        RspsSpellbookEdit.isHidden(FIRE_SURGE); // loads the saved file first, so the test's own choice is not overwritten
+        java.util.Map<Integer, java.util.Set<Integer>> savedHidden = new java.util.HashMap<>(RspsSpellbookEdit.hiddenSpells);
+        RspsSpellbookEdit.hiddenSpells.clear();
+        RspsSpellbookEdit.hiddenSpells.put(FIRE_SURGE >>> 16, new java.util.LinkedHashSet<>(java.util.Collections.singleton(FIRE_SURGE)));
+        RspsSpellFilters.forcedVarp = bits(RspsSpellFilters.BIT_ENABLED);
+        check(!RspsSpellFilters.hidden(FIRE_SURGE), "editing (enabled): the hidden Fire Surge still shows");
+        RspsSpellFilters.forcedVarp = 0;
+        check(RspsSpellFilters.hidden(FIRE_SURGE) && !RspsSpellFilters.hidden(ICE_BARRAGE), "done (disabled): the hidden Fire Surge is gone, the rest stays");
+        RspsSpellbookEdit.hiddenSpells.clear();
+        RspsSpellbookEdit.hiddenSpells.putAll(savedHidden);
 
         // Lacks the Magic level (boosted level, base level when the spell's flag says so) - every book.
         RspsSpellFilters.forcedVarp = bits(RspsSpellFilters.BIT_ENABLED, RspsSpellFilters.BIT_HIDE_LEVEL);
@@ -118,7 +134,7 @@ public final class RspsSpellFiltersRegressionTest {
 
         // OSRS menu texts (cache 2686 script 2603) and bits line up 1:1 with the server's SpellFilters actions 1-6.
         // N72 (owner 2026-10-22) added OSRS line 7, "Enable icon resizing (outside PvP areas)" (varbit 6548 -> bit 25).
-        check(RspsSpellFilters.OPTIONS.length == 8 && RspsSpellFilters.OPTION_BITS.length == 7, "seven OSRS filter lines + the owner's 'Show spells you have hidden'");
+        check(RspsSpellFilters.OPTIONS.length == 7 && RspsSpellFilters.OPTION_BITS.length == 7, "seven OSRS filter lines; 'Show spells you have hidden' went with N495");
         check(RspsSpellFilters.OPTIONS[6].equals("Enable icon resizing"), "owner 2026-10-31: resizing everywhere, no '(outside PvP areas)'");
         check(RspsSpellFilters.layoutCategory(2059, 727, (430 << 16) | 27, 2) == 0 && RspsSpellFilters.layoutCategory(2059, 727, (430 << 16) | 31, 2) == 0
             && RspsSpellFilters.layoutCategory(2059, 727, (430 << 16) | 32, 2) == 0, "OSRS: Energy Transfer, Stat Spy and Dream are Combat spells");

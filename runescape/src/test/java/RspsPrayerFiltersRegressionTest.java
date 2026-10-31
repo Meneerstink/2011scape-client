@@ -12,6 +12,8 @@ public final class RspsPrayerFiltersRegressionTest {
     private static int assertions;
 
     public static void main(String[] args) {
+        // Never the player's own prayer.properties / spellbook.properties: a fresh folder per run.
+        System.setProperty("rsps.preferencesDir", new java.io.File(System.getProperty("java.io.tmpdir"), "rsps-filters-test-" + System.nanoTime()).getPath());
         Map<Integer, Integer> unlocked = new HashMap<>();
         unlocked.put(RspsPrayerFilters.KNIGHT_WAVES_VARBIT, 8);
         unlocked.put(RspsPrayerFilters.RIGOUR_VARBIT, 1);
@@ -75,6 +77,32 @@ public final class RspsPrayerFiltersRegressionTest {
         levels(84, 99);
         set(RspsPrayerFilters.BIT_BLOCK_LOWER);
         check(shown(R).contains(3) && !shown(R).contains(1) && !shown(R).contains(2), "Ruinous 84: Vaporise (86) not usable, Ancient Will stays");
+
+        // N494 / N495 (owner 2026-10-31 20:5x): the five lines work with filtering disabled; a hidden prayer shows while editing
+        // (enabled) and is gone once filtering is disabled, the order stays.
+        levels(99, 99);
+        RspsPrayerFilters.load(); // the saved file first, so the test's own choices are not overwritten
+        Map<Integer, List<Integer>> savedOrder = new HashMap<>(RspsPrayerFilters.order);
+        Map<Integer, java.util.Set<Integer>> savedHidden = new HashMap<>(RspsPrayerFilters.hiddenSlots);
+        RspsPrayerFilters.order.clear();
+        RspsPrayerFilters.hiddenSlots.clear();
+        RspsPrayerFilters.forcedVarp = 1 << RspsPrayerFilters.BIT_BLOCK_HEALING;
+        check(!RspsPrayerFilters.shownSlots(N, 30, false).contains(9), "disabled: Rapid Healing crossed still hides Rapid Heal");
+        RspsPrayerFilters.forcedVarp = 0;
+        RspsPrayerFilters.hiddenSlots.put(N, new java.util.LinkedHashSet<>(list(0, 5)));
+        RspsPrayerFilters.order.put(N, list(29, 28));
+        List<Integer> editing = RspsPrayerFilters.shownSlots(N, 30, true);
+        List<Integer> done = RspsPrayerFilters.shownSlots(N, 30, false);
+        check(editing.size() == 30 && editing.get(0) == 29 && editing.get(1) == 28 && editing.contains(0), "editing: all 30, Augury / Rigour first, hidden Thick Skin still there");
+        check(done.size() == 28 && done.get(0) == 29 && !done.contains(0) && !done.contains(5), "done: Thick Skin and Rock Skin gone, the order stays");
+        check(RspsPrayerFilters.shownSlots(C, 20, false).size() == 20, "the other books keep their own layout");
+        RspsPrayerFilters.reset(N);
+        check(RspsPrayerFilters.shownSlots(N, 30, false).equals(shown(N)) && RspsPrayerFilters.shownSlots(N, 30, false).get(0) == 0, "N497 reset: the cache order, nothing hidden");
+        RspsPrayerFilters.order.clear();
+        RspsPrayerFilters.hiddenSlots.clear();
+        RspsPrayerFilters.order.putAll(savedOrder);
+        RspsPrayerFilters.hiddenSlots.putAll(savedHidden);
+        RspsPrayerFilters.save();
 
         System.out.println("RspsPrayerFiltersRegressionTest: " + assertions + " assertions OK");
     }
