@@ -1069,10 +1069,6 @@ public final class client extends GameShell {
                 if (MainLogicStep.isAtGameScreen(MainLogicManager.step) && RspsOverlayLayout.mousePress(log)) {
                     continue;
                 }
-                // N189: while the spellbook is being edited a press on a spell starts a drag instead of a cast.
-                if (MainLogicStep.isAtGameScreen(MainLogicManager.step) && RspsSpellbookEdit.mousePress(log)) {
-                    continue;
-                }
                 // N482 / N72: Shift + drag moves a prayer or spell while filtering is enabled (a plain click stays a click).
                 if (MainLogicStep.isAtGameScreen(MainLogicManager.step) && RspsIconDrag.mousePress(log)) {
                     continue;
@@ -1086,7 +1082,6 @@ public final class client extends GameShell {
         }
 
         RspsOverlayLayout.tick();
-        RspsSpellbookEdit.tick();
         RspsIconDrag.tick();
         RspsDeferredOnLoad.tick();
         RspsUi.tick();

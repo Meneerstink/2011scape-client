@@ -263,7 +263,6 @@ public final class RspsPrayerFilters {
     /** Our own components (CC children appended to 271:4). */
     static final List<Component> ours = new ArrayList<>();
     static Component filtersButton;
-    static Component filtersLabel;
     static final Component[] optionRows = new Component[OPTIONS.length];
     static final Component[] optionHighlights = new Component[OPTIONS.length];
     static long clickedAt;
@@ -466,16 +465,11 @@ public final class RspsPrayerFilters {
 
     // ------------------------------------------------------------------------------------------------------------- UI
 
-    static final int ORANGE = 0xff981f;
-    static final int GREY = 0x9f9f9f;
-    static final int FONT = 494;
-    static final int TITLE_FONT = 496;
     static final int WIDTH = 190;
-    static final int MENU_WIDTH = 180;
-    static final int BUTTON_HEIGHT = 18;
-    /** The bottom row (271:0): y 239, 22 high. */
+    /** The bottom row (271:0): y 239, 22 high; OSRS 3154: the Filters button 18 high. */
     static final int ROW_Y = 239;
     static final int ROW_HEIGHT = 22;
+    static final int BUTTON_HEIGHT = 18;
     /** The area above the stat-adjustments bar (271:9 at y 219). */
     static final int MENU_AREA = 219;
 
@@ -496,7 +490,6 @@ public final class RspsPrayerFilters {
         }
         ours.clear();
         filtersButton = null;
-        filtersLabel = null;
         for (int i = 0; i < OPTIONS.length; i++) {
             optionRows[i] = null;
             optionHighlights[i] = null;
@@ -510,7 +503,8 @@ public final class RspsPrayerFilters {
         }
         clearOurs(root);
         setStaticHidden(GRID, false);
-        setStaticHidden(SCROLLBAR, false);
+        // The menu replaces the grid: its scrollbar and the stat-adjustments bar go while it is open (no overlap).
+        setStaticHidden(SCROLLBAR, on && panelOpen);
         setStaticHidden(STATS, on && panelOpen);
         Component levelIcon = InterfaceList.list(LEVEL_ICON);
         Component levelText = InterfaceList.list(LEVEL_TEXT);
@@ -523,23 +517,19 @@ public final class RspsPrayerFilters {
             return;
         }
         // OSRS script 3154: Filters = parawidth("Filters") + 14 wide, the level box 24 + parawidth("99 / 99"); three equal gaps.
-        FontMetrics metrics = Toolkit.active == null ? null : Fonts.metrics(FONT, Toolkit.active);
-        int buttonWidth = (metrics == null ? 32 : metrics.stringWidth("Filters")) + 14;
+        int buttonWidth = RspsFilterUi.buttonWidth("Filters");
         int levelWidth = levelText == null || levelIcon == null ? 69 : nativeX(levelText) + levelText.originalWidth - nativeX(levelIcon);
         int gap = Math.max(2, (WIDTH - buttonWidth - levelWidth) / 3);
         if (levelIcon != null && levelText != null) {
             int shift = gap - nativeX(levelIcon);
-            place(levelIcon, nativeX(levelIcon) + shift, levelIcon.originalY, levelIcon.originalWidth, levelIcon.originalHeight);
-            place(levelText, nativeX(levelText) + shift, levelText.originalY, levelText.originalWidth, levelText.originalHeight);
+            RspsFilterUi.place(levelIcon, nativeX(levelIcon) + shift, levelIcon.originalY, levelIcon.originalWidth, levelIcon.originalHeight);
+            RspsFilterUi.place(levelText, nativeX(levelText) + shift, levelText.originalY, levelText.originalWidth, levelText.originalHeight);
             InterfaceManager.redraw(levelIcon);
             InterfaceManager.redraw(levelText);
         }
         int bx = WIDTH - gap - buttonWidth;
         int by = ROW_Y + (ROW_HEIGHT - BUTTON_HEIGHT) / 2;
-        nineSlice(root, panelOpen ? "btn-on" : "btn-off", bx, by, buttonWidth, BUTTON_HEIGHT);
-        filtersLabel = text(root, "Filters", bx, by, buttonWidth, BUTTON_HEIGHT, 1, FONT, ORANGE);
-        filtersButton = filtersLabel;
-        filtersButton.hasHook = true;
+        filtersButton = RspsFilterUi.button(root, ours, "Filters", bx, by, buttonWidth, panelOpen);
         if (panelOpen) {
             menu(root);
         }
@@ -552,148 +542,39 @@ public final class RspsPrayerFilters {
     }
 
     /**
-     * OSRS 3156 / 3158 / 6067: a 180 wide stone panel (v2_borders_slim around the dark tile), the title "Prayer Filters" (b12, orange)
-     * in its 28 px top, one row per line: max(25, lines * 11 + 3) high, a full-width white highlight, the 17 x 17 indicator at x 5,
-     * the text from x 25 to 5 from the right (p11, orange, shadow; grey for a line without effect).
+     * OSRS 3156 / 3158 / 6067: a 180 wide stone panel, the title "Prayer Filters" in its 28 px top, one row per line: max(25, lines * 11
+     * + 3) high (the second OSRS line wraps over three lines), grey with the pale tick while it has no effect (OSRS 2758).
      */
     static void menu(Component root) {
-        FontMetrics metrics = Toolkit.active == null ? null : Fonts.metrics(FONT, Toolkit.active);
+        FontMetrics metrics = Toolkit.active == null ? null : Fonts.metrics(RspsFilterUi.FONT, Toolkit.active);
         int[] rowHeights = new int[OPTIONS.length];
         int body = 0;
         for (int i = 0; i < OPTIONS.length; i++) {
-            int lines = metrics == null ? 1 : Math.max(1, metrics.paraHeight(OPTIONS[i], Sprites.nameIcons, MENU_WIDTH - 30));
+            int lines = metrics == null ? 1 : Math.max(1, metrics.paraHeight(OPTIONS[i], Sprites.nameIcons, RspsFilterUi.MENU_WIDTH - 30));
             rowHeights[i] = Math.max(25, lines * 11 + 3);
             body += rowHeights[i];
         }
-        int height = 28 + body;
-        int x = (WIDTH - MENU_WIDTH) / 2;
+        int height = RspsFilterUi.TITLE_HEIGHT + body;
+        int x = (WIDTH - RspsFilterUi.MENU_WIDTH) / 2;
         int y = Math.max(0, (MENU_AREA - height) / 2);
-        Component back = create(root, Component.TYPE_GRAPHIC);
-        place(back, x, y, MENU_WIDTH, height);
-        back.graphic = RspsSprites.osrs("tradebacking-dark");
-        back.tiling = true;
-        back.hasHook = true; // the panel takes the mouse: nothing under it reacts
-        stonePanel(root, x, y, MENU_WIDTH, height);
-        text(root, "Prayer Filters", x, y, MENU_WIDTH, 28, 1, TITLE_FONT, ORANGE);
+        RspsFilterUi.panel(root, ours, "Prayer Filters", x, y, RspsFilterUi.MENU_WIDTH, height);
         int rowY = y + 26;
         for (int i = 0; i < OPTIONS.length; i++) {
             boolean grey = optionGrey(i);
-            Component highlight = create(root, Component.TYPE_RECTANGLE);
-            place(highlight, x + 3, rowY, MENU_WIDTH - 6, rowHeights[i]);
-            highlight.colour = 0xffffff;
-            highlight.filled = true;
-            highlight.transparency = 255;
-            optionHighlights[i] = highlight;
-            Component tick = create(root, Component.TYPE_GRAPHIC);
-            place(tick, x + 5, rowY + (rowHeights[i] - 17) / 2, 17, 17);
-            tick.graphic = RspsSprites.osrs(grey ? "radio-neutral" : optionTicked(i) ? "radio-tick" : "radio-cross");
-            Component label = text(root, OPTIONS[i], x + 25, rowY, MENU_WIDTH - 30, rowHeights[i], 0, FONT, grey ? GREY : ORANGE);
-            label.textAlignY = 1;
-            // The whole row is one click (OSRS: a full-width rectangle with op "Change").
-            Component hit = create(root, Component.TYPE_RECTANGLE);
-            place(hit, x + 3, rowY, MENU_WIDTH - 6, rowHeights[i]);
-            hit.transparency = 255;
-            hit.hasHook = true;
-            optionRows[i] = hit;
+            Component[] row = RspsFilterUi.row(root, ours, OPTIONS[i], x, rowY, RspsFilterUi.MENU_WIDTH, rowHeights[i],
+                grey ? "radio-neutral" : optionTicked(i) ? "radio-tick" : "radio-cross", grey ? RspsFilterUi.GREY : RspsFilterUi.ORANGE);
+            optionHighlights[i] = row[0];
+            optionRows[i] = row[1];
             rowY += rowHeights[i];
         }
     }
 
-    /** OSRS stonepanel_resizable (6067): the v2_borders_slim edges / corners on 32 x 32 canvases. */
-    static void stonePanel(Component root, int x, int y, int w, int h) {
-        graphic(root, "border-0", x + 16, y - 13, w - 32, 32, true);
-        graphic(root, "border-2", x + 16, y + h - 32 + 12, w - 32, 32, true);
-        graphic(root, "border-1", x - 13, y + 16, 32, h - 32, true);
-        graphic(root, "border-3", x + w - 32 + 12, y + 16, 32, h - 32, true);
-        graphic(root, "border-4", x, y, 32, 32, false);
-        graphic(root, "border-5", x + w - 32, y, 32, 32, false);
-        graphic(root, "border-6", x, y + h - 32, 32, 32, false);
-        graphic(root, "border-7", x + w - 32, y + h - 32, 32, 32, false);
-        // The line under the title (argument 26: y - 20 / y - 18 on the 32 px canvases).
-        graphic(root, "border-8", x, y + 26 - 20, w, 32, true);
-        graphic(root, "border-9", x, y + 26 - 18, 32, 32, false);
-        graphic(root, "border-10", x + w - 32, y + 26 - 18, 32, 32, false);
-    }
-
-    /** OSRS options_button_off / _on (835 / 836): nine tiles, 6 px corners. */
-    static void nineSlice(Component root, String prefix, int x, int y, int w, int h) {
-        graphic(root, prefix + "-4", x + 6, y + 6, w - 12, h - 12, true);
-        graphic(root, prefix + "-1", x + 6, y, w - 12, 6, true);
-        graphic(root, prefix + "-7", x + 6, y + h - 6, w - 12, 6, true);
-        graphic(root, prefix + "-3", x, y + 6, 6, h - 12, true);
-        graphic(root, prefix + "-5", x + w - 6, y + 6, 6, h - 12, true);
-        graphic(root, prefix + "-0", x, y, 6, 6, false);
-        graphic(root, prefix + "-2", x + w - 6, y, 6, 6, false);
-        graphic(root, prefix + "-6", x, y + h - 6, 6, 6, false);
-        graphic(root, prefix + "-8", x + w - 6, y + h - 6, 6, 6, false);
-    }
-
-    static Component graphic(Component root, String name, int x, int y, int w, int h, boolean tiled) {
-        Component g = create(root, Component.TYPE_GRAPHIC);
-        place(g, x, y, Math.max(0, w), Math.max(0, h));
-        g.graphic = RspsSprites.osrs(name);
-        g.tiling = tiled;
-        return g;
-    }
-
-    static Component text(Component root, String s, int x, int y, int w, int h, int alignX, int font, int colour) {
-        Component t = create(root, Component.TYPE_TEXT);
-        place(t, x, y, w, h);
-        t.text = s;
-        t.fontGraphic = font;
-        t.colour = colour;
-        t.textShadow = true;
-        t.textAlignX = alignX;
-        t.textAlignY = 1;
-        return t;
-    }
-
-    /** CC_CREATE in Java: appended to 271:4's own (otherwise empty) CC list. */
-    static Component create(Component parent, int type) {
-        int id = parent.staticComponents == null ? 0 : parent.staticComponents.length;
-        Component[] grown = new Component[id + 1];
-        if (parent.staticComponents != null) {
-            System.arraycopy(parent.staticComponents, 0, grown, 0, id);
-        }
-        Component cc = new Component();
-        cc.type = type;
-        cc.layer = cc.slot = parent.slot;
-        cc.id = id;
-        grown[id] = cc;
-        parent.staticComponents = parent.dynamicComponents = grown;
-        ours.add(cc);
-        return cc;
-    }
-
-    static void place(Component c, int x, int y, int w, int h) {
-        c.originalX = x;
-        c.originalY = y;
-        c.originalWidth = w;
-        c.originalHeight = h;
-        InterfaceManager.resizeAndReposition(c);
-    }
-
-    /** OSRS 3652 / 3653 / 3654: rows light up under the mouse (225, a click 210 for 40 client cycles), the button text turns white. */
+    /** OSRS 3652 / 3653 / 835: rows light up under the mouse (not a grey row), a click 210 for 800 ms, the button label white. */
     static void hover() {
-        if (filtersLabel != null) {
-            int colour = filtersLabel.hovered || filtersButton.hovered ? 0xffffff : ORANGE;
-            if (filtersLabel.colour != colour) {
-                filtersLabel.colour = colour;
-                InterfaceManager.redraw(filtersLabel);
-            }
-        }
+        RspsFilterUi.hoverLabel(filtersButton);
         long now = System.currentTimeMillis();
         for (int i = 0; i < OPTIONS.length; i++) {
-            Component row = optionRows[i];
-            Component light = optionHighlights[i];
-            if (row == null || light == null) {
-                continue;
-            }
-            int trans = clickedRow == i && now - clickedAt < 800 ? 210 : row.hovered && !optionGrey(i) ? 225 : 255;
-            if (light.transparency != trans) {
-                light.transparency = trans;
-                InterfaceManager.redraw(light);
-            }
+            RspsFilterUi.light(optionHighlights[i], optionRows[i], !optionGrey(i), clickedRow == i && now - clickedAt < 800);
         }
     }
 
@@ -754,7 +635,7 @@ public final class RspsPrayerFilters {
             }
             clickedRow = line;
             clickedAt = System.currentTimeMillis();
-            SoundManager.playSynthSound(2266, 1, 0, 255, 256); // OSRS prayer_filtertoggle_op 3157
+            RspsFilterUi.clickSound(); // OSRS prayer_filtertoggle_op 3157
             if (line == SHOW_HIDDEN_LINE) {
                 showHidden = !showHidden;
                 save();

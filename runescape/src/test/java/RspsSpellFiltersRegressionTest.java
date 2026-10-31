@@ -12,11 +12,25 @@ public final class RspsSpellFiltersRegressionTest {
     private static final int VENGEANCE = (430 << 16) | 37;
 
     public static void main(String[] args) {
-        // N237: resized icons stay left of the 16 px scrollbar of the 190 px spell area, whatever the count.
+        // N72 (2026-10-31): OSRS script 2611's grid in the 184 x 240 top - the native thresholds (research report section 2).
+        int[][] want = { // count -> columns, size (resizing on)
+            {1, 3, 40}, {15, 3, 40}, {16, 4, 40}, {20, 4, 40}, {21, 4, 24}, {36, 4, 24}, {37, 5, 24}, {45, 5, 24}, {46, 6, 24}, {54, 6, 24}, {55, 7, 24}, {70, 7, 24},
+        };
+        for (int[] w : want) {
+            int[] g = RspsSpellFilters.grid(w[0], 184, 240, true);
+            check(g[0] == w[1] && g[2] == w[2], w[0] + " spells: " + g[0] + " columns of " + g[2] + " px, OSRS " + w[1] + " of " + w[2]);
+            check(g[3] <= 5 * g[2] / 7 && g[4] <= g[3], w[0] + " spells: gaps " + g[3] + "," + g[4] + " within 5/7 of the icon and gapY <= gapX");
+        }
+        check(RspsSpellFilters.grid(28, 184, 240, false)[0] == 4 && RspsSpellFilters.grid(29, 184, 240, false)[0] == 4
+            && RspsSpellFilters.grid(45, 184, 240, false)[0] == 5 && RspsSpellFilters.grid(70, 184, 240, false)[0] == 7, "resizing off: 4 columns up to 28, then (n + 8) / 9 within 4..7");
+        // No overlap and nothing outside the book: every count of every 667 book (Standard 68, Lunar 52, Ancient 29) fits 184 x 240.
         for (int count = 1; count <= 70; count++) {
-            int[] grid = RspsSpellFilters.iconGrid(count, 190 - RspsSpellFilters.SCROLLBAR_SPACE, 229);
-            int right = (grid[0] - 1) * grid[2] + (grid[2] - grid[1]) / 2 + grid[1];
-            check(right <= 190 - RspsSpellFilters.SCROLLBAR_SPACE, count + " spells: rightmost icon ends at " + right);
+            for (boolean resize : new boolean[] {true, false}) {
+                int[] g = RspsSpellFilters.grid(count, 184, 240, resize);
+                int rowsUsed = g[1] * g[2] + (g[1] - 1) * g[4];
+                check(g[5] <= 184 && rowsUsed <= 240, count + " spells (resize " + resize + "): grid " + g[5] + " x " + rowsUsed + " outside the 184 x 240 top");
+                check(g[0] * g[1] >= count, count + " spells: " + g[0] + " x " + g[1] + " cells");
+            }
         }
         reset();
         // Script 21 args: component, lit, dark, level, base-level flag, 4x rune + amount.
@@ -39,8 +53,14 @@ public final class RspsSpellFiltersRegressionTest {
         Static498.statBaseLevels[6] = 99;
         check(!RspsSpellFilters.hidden(FIRE_SURGE), "99 Magic: Fire Surge shows");
         Static581.statLevels[6] = 90;
-        check(RspsSpellFilters.hidden(FIRE_SURGE), "a drained (boosted 90) level hides Fire Surge like the cache script's STAT check");
+        check(!RspsSpellFilters.hidden(FIRE_SURGE), "OSRS 2619: a drained 99 (current 90) still shows Fire Surge - base AND current must be below");
         Static581.statLevels[6] = 99;
+        Static498.statBaseLevels[6] = 90;
+        check(!RspsSpellFilters.hidden(FIRE_SURGE), "a boosted 90 -> 99 shows Fire Surge");
+        Static581.statLevels[6] = 90;
+        check(RspsSpellFilters.hidden(FIRE_SURGE), "base and current 90: Fire Surge (95) hidden");
+        Static581.statLevels[6] = 99;
+        Static498.statBaseLevels[6] = 99;
 
         // Probe outcomes: lit marker = castable, dark after the rune counter = runes, dark without it = requirements.
         RspsSpellFilters.probing = true;
@@ -71,6 +91,13 @@ public final class RspsSpellFiltersRegressionTest {
             "lacks-runes off hides only the spells the rune counter fails");
         RspsSpellFilters.forcedVarp = bits(RspsSpellFilters.BIT_ENABLED, RspsSpellFilters.BIT_HIDE_REQUIREMENTS);
         check(!RspsSpellFilters.hidden(FIRE_SURGE) && RspsSpellFilters.hidden(VENGEANCE), "lacks-requirements off hides only those");
+        // The two filters on their own (OSRS 2620 / 4131): a spell failing its requirements is asked about its runes separately.
+        RspsSpellFilters.forcedVarp = bits(RspsSpellFilters.BIT_ENABLED, RspsSpellFilters.BIT_HIDE_RUNES);
+        RspsSpellFilters.runesOk.put(VENGEANCE, false);
+        check(RspsSpellFilters.hidden(VENGEANCE), "requirements failed AND no runes: hidden by lacks-runes alone");
+        RspsSpellFilters.runesOk.put(VENGEANCE, true);
+        check(!RspsSpellFilters.hidden(VENGEANCE), "requirements failed but runes in hand: lacks-runes does not hide it");
+        RspsSpellFilters.runesOk.clear();
         RspsSpellFilters.forcedVarp = bits(RspsSpellFilters.BIT_ENABLED);
         check(!RspsSpellFilters.hidden(FIRE_SURGE) && !RspsSpellFilters.hidden(VENGEANCE), "all shown: nothing hidden");
         RspsSpellFilters.panelOpen = true;
@@ -91,7 +118,10 @@ public final class RspsSpellFiltersRegressionTest {
 
         // OSRS menu texts (cache 2686 script 2603) and bits line up 1:1 with the server's SpellFilters actions 1-6.
         // N72 (owner 2026-10-22) added OSRS line 7, "Enable icon resizing (outside PvP areas)" (varbit 6548 -> bit 25).
-        check(RspsSpellFilters.OPTIONS.length == 7 && RspsSpellFilters.OPTION_BITS.length == 7, "seven filter lines");
+        check(RspsSpellFilters.OPTIONS.length == 8 && RspsSpellFilters.OPTION_BITS.length == 7, "seven OSRS filter lines + the owner's 'Show spells you have hidden'");
+        check(RspsSpellFilters.OPTIONS[6].equals("Enable icon resizing"), "owner 2026-10-31: resizing everywhere, no '(outside PvP areas)'");
+        check(RspsSpellFilters.layoutCategory(2059, 727, (430 << 16) | 27, 2) == 0 && RspsSpellFilters.layoutCategory(2059, 727, (430 << 16) | 31, 2) == 0
+            && RspsSpellFilters.layoutCategory(2059, 727, (430 << 16) | 32, 2) == 0, "OSRS: Energy Transfer, Stat Spy and Dream are Combat spells");
         check(RspsSpellFilters.OPTION_BITS[6] == RspsSpellFilters.BIT_ICON_RESIZING_OFF, "line 7 = icon resizing");
         check(RspsSpellFilters.OPTIONS[3].equals("Show spells you lack the Magic level to cast"), "OSRS text of the level filter");
         for (int i = 0; i < 6; i++) {
@@ -115,6 +145,7 @@ public final class RspsSpellFiltersRegressionTest {
     private static void reset() {
         RspsSpellFilters.args.clear();
         RspsSpellFilters.status.clear();
+        RspsSpellFilters.runesOk.clear();
         RspsSpellFilters.laidOut.clear();
         RspsSpellFilters.dirty.clear();
         RspsSpellFilters.layoutSpells.clear();

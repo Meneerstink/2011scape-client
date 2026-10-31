@@ -591,7 +591,6 @@ public final class InterfaceManager {
                     rectangles[rectangle].setBounds(offsetX, offsetY, child.width, child.height);
                 }
             }
-            RspsSpellbookEdit.drawn(child, offsetX, offsetY); // N189: where each spell is, for dragging
             RspsIconDrag.drawn(child, offsetX, offsetY); // N482 / N72: where each prayer / spell is, for Shift + drag
             if (child.slot == RspsPkHotkeys.PRAYER_HASH) RspsPkHud.prayerCell(child.id, offsetX, offsetY, child.width, child.height); // 78Legacy v5 PK HUD
 

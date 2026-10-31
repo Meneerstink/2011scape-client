@@ -1,6 +1,3 @@
-import rs2.client.event.mouse.MouseLog;
-import rs2.client.event.mouse.MouseMonitor;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -14,38 +11,33 @@ import java.util.Properties;
 import java.util.Set;
 
 /**
- * N189 (owner 2026-10-22: "spells verbergen en verslepen/herordenen zoals de RuneLite Spellbook-plugin ... volgorde wordt onthouden,
- * per boek, samen met spell filtering"): RuneLite's Spellbook plugin on the three 667 books.
+ * N189 / N72 (owner 2026-10-22 "spells verbergen en verslepen/herordenen zoals de RuneLite Spellbook-plugin ... volgorde wordt onthouden,
+ * per boek"; 2026-10-31 18:2x DEFINITIEF: "met enable spellfiltering kun je vervolgens rechtermuisknop op spell doen hide unhide en je
+ * kunt em ook verslepen"): RuneLite's Spellbook plugin inside the OSRS spell filtering of the three 667 books.
  * <ul>
- *   <li>The magic tab stone gets "Edit spellbook" (and "Finish editing" / "Reset spellbook" while editing), like the plugin's
- *       unlock on the tab.</li>
- *   <li>While editing every spell is shown, hidden ones dimmed; drag a spell onto another to put it there; right-click a spell for
- *       "Hide" / "Unhide".</li>
- *   <li>Outside editing hidden spells leave the book and the others close up (the same layout route as the OSRS filters,
- *       {@link RspsSpellFilters#hidden}), in the player's own order.</li>
+ *   <li>With spell filtering enabled every spell of the open book has right-click "Hide" / "Unhide"; a hidden spell leaves the book
+ *       (the same layout route as the OSRS filters, {@link RspsSpellFilters#hidden}) unless "Show spells you have hidden" is ticked,
+ *       then it shows dimmed so it can be unhidden.</li>
+ *   <li>Shift + drag puts a spell in another spell's place ({@link RspsIconDrag}); the order is the player's own from then on.</li>
+ *   <li>Right-click on the Filters button: "Reset spell order" (every spell back, the cache's order) for the open book.</li>
+ *   <li>Filtering disabled: the 667 book as it was; the choices stay for the next time.</li>
  * </ul>
- * Kept per book on the player's machine ({@code spellbook.properties} beside RuneLite-style {@code overlays.properties}), as
- * RuneLite keeps its plugin config.
+ * Kept per book on the player's machine ({@code spellbook.properties} beside RuneLite-style {@code overlays.properties}), as RuneLite
+ * keeps its plugin config.
  */
 final class RspsSpellbookEdit {
 
-    static final int ACTION_EDIT = 1973;
     static final int ACTION_RESET = 1974;
     static final int ACTION_HIDE = 1975;
     private static final int LOW = 2000;
-    /** Transparency of a hidden spell while editing (0 opaque .. 255 invisible). */
+    /** Transparency of a hidden spell while shown (0 opaque .. 255 invisible). */
     static final int DIMMED = 170;
-
-    static boolean editing;
 
     /** Per book: the player's order (component hashes) and hidden spells. */
     static final Map<Integer, List<Integer>> order = new HashMap<>();
     static final Map<Integer, Set<Integer>> hiddenSpells = new HashMap<>();
+    private static boolean showHidden;
     private static boolean loaded;
-
-    /** Screen bounds of every spell drawn this frame: hash -> {x, y, w, h}. */
-    static final Map<Integer, int[]> drawn = new HashMap<>();
-    static int dragging = -1;
 
     private RspsSpellbookEdit() {
     }
@@ -56,20 +48,21 @@ final class RspsSpellbookEdit {
         return RspsSpellFilters.layoutSpells.contains(hash);
     }
 
-    /** Outside editing: the player hid this spell. */
-    static boolean userHidden(int hash) {
-        load();
-        if (editing) {
-            return false;
-        }
-        Set<Integer> set = hiddenSpells.get(hash >>> 16);
-        return set != null && set.contains(hash);
-    }
-
     static boolean isHidden(int hash) {
         load();
         Set<Integer> set = hiddenSpells.get(hash >>> 16);
         return set != null && set.contains(hash);
+    }
+
+    static boolean showHidden() {
+        load();
+        return showHidden;
+    }
+
+    static void toggleShowHidden() {
+        load();
+        showHidden = !showHidden;
+        save();
     }
 
     static void toggleHidden(int hash) {
@@ -79,6 +72,11 @@ final class RspsSpellbookEdit {
             set.add(hash);
         }
         save();
+    }
+
+    /** Moving / hiding is on: filtering enabled, no filter menu open, the book on screen. */
+    static boolean editable(int iface) {
+        return RspsSpellFilters.enabled() && !RspsSpellFilters.panelOpen && iface == RspsSpellFilters.currentBook() && RspsSpellFilters.bookShown(iface);
     }
 
     /**
@@ -117,11 +115,12 @@ final class RspsSpellbookEdit {
     // ------------------------------------------------------------------------------------- after every cache layout
 
     /**
-     * RspsSpellFilters.decorate, before the icon resizing: the shown spells take the cache's places in the player's order, and while
-     * editing the hidden ones are dimmed.
+     * RspsSpellFilters.decorate, before the OSRS grid: with filtering enabled the shown spells take the cache's places in the player's
+     * order and the hidden ones shown are dimmed; filtering disabled leaves the cache's book alone.
      */
     static void apply(int iface) {
         load();
+        boolean on = RspsSpellFilters.enabled();
         List<Component> shown = new ArrayList<>();
         for (Integer hash : RspsSpellFilters.layoutSpells) {
             if ((hash >>> 16) != iface) {
@@ -131,7 +130,7 @@ final class RspsSpellbookEdit {
             if (spell == null) {
                 continue;
             }
-            int wanted = editing && isHidden(hash) ? DIMMED : 0;
+            int wanted = on && showHidden && isHidden(hash) ? DIMMED : 0;
             if (spell.transparency != wanted) {
                 spell.transparency = wanted;
                 InterfaceManager.redraw(spell);
@@ -140,7 +139,7 @@ final class RspsSpellbookEdit {
                 shown.add(spell);
             }
         }
-        if (shown.size() < 2) {
+        if (!on || shown.size() < 2) {
             return;
         }
         shown.sort((a, b) -> a.originalY != b.originalY ? Integer.compare(a.originalY, b.originalY) : Integer.compare(a.originalX, b.originalX));
@@ -165,65 +164,19 @@ final class RspsSpellbookEdit {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------- input
+    // ------------------------------------------------------------------------------------------------- moving
 
     /** RspsIconDrag: [c] is a spell of the open book that may be moved now. */
     static boolean movable(Component c) {
-        return editing && isSpellOfBook(c.slot) && (c.slot >>> 16) == RspsSpellFilters.currentBook() && RspsSpellFilters.bookShown(RspsSpellFilters.currentBook());
+        return c != null && c.id == -1 && isSpellOfBook(c.slot) && editable(c.slot >>> 16);
     }
 
-    /** RspsIconDrag: spell [moved] dropped on spell [target]. */
+    /** RspsIconDrag: spell [moved] dropped on spell [target] - it takes the target's place in the order on screen. */
     static void drop(int moved, int target) {
-        dragging = moved;
-        dropOn(target);
-    }
-
-    /** InterfaceManager.draw: a spell of the open book was drawn at [x], [y]. */
-    static void drawn(Component child, int x, int y) {
-        if (editing && isSpellOfBook(child.slot)) {
-            drawn.put(child.slot, new int[] {x, y, child.width, child.height});
-        }
-    }
-
-    private static int spellAt(int x, int y) {
-        for (Map.Entry<Integer, int[]> e : drawn.entrySet()) {
-            int[] r = e.getValue();
-            if ((e.getKey() >>> 16) == RspsSpellFilters.currentBook() && x >= r[0] && y >= r[1] && x < r[0] + r[2] && y < r[1] + r[3]) {
-                return e.getKey();
-            }
-        }
-        return -1;
-    }
-
-    /** client.java input loop: a left press on a spell while editing starts a drag (the game never sees it). */
-    static boolean mousePress(MouseLog log) {
-        if (!editing || log.getType() != MouseLog.TYPE_PRESS_LEFT || !RspsSpellFilters.bookShown(RspsSpellFilters.currentBook())) {
-            return false;
-        }
-        int hash = spellAt(log.getX(), log.getY());
-        if (hash == -1) {
-            return false;
-        }
-        dragging = hash;
-        return true;
-    }
-
-    /** Once per client loop: a drag ends when the button is released, over the spell it lands on. */
-    static void tick() {
-        if (dragging == -1 || MouseMonitor.instance == null || MouseMonitor.instance.isLeftDown()) {
-            return;
-        }
-        dropOn(spellAt(MouseMonitor.instance.getRecordedX(), MouseMonitor.instance.getRecordedY()));
-    }
-
-    static void dropOn(int target) {
-        int moved = dragging;
-        dragging = -1;
-        if (moved == -1 || target == -1 || target == moved || (target >>> 16) != (moved >>> 16)) {
+        if (moved == target || (target >>> 16) != (moved >>> 16)) {
             return;
         }
         int iface = moved >>> 16;
-        // The order on screen (every spell is shown while editing), top to bottom, left to right: move within that and keep it.
         List<Component> spells = new ArrayList<>();
         for (Integer hash : RspsSpellFilters.layoutSpells) {
             Component spell = (hash >>> 16) == iface ? InterfaceList.getComponent(hash, -1) : null;
@@ -248,37 +201,28 @@ final class RspsSpellbookEdit {
         }
         order.put(iface, next);
         save();
+        RspsSpellFilters.trace("moved " + (moved >>> 16) + ":" + (moved & 0xFFFF) + " to the place of " + (target & 0xFFFF));
         RspsSpellFilters.relayout();
     }
 
     // ------------------------------------------------------------------------------------------------- menu
 
-    /** InterfaceManager.addMiniMenuOptions (through RspsSpellFilters.addOptions). True when it added the component's entries. */
-    static boolean addOptions(Component component) {
-        if (component.id == -1 && (component.slot == RspsSpellFilters.TAB_FIXED || component.slot == RspsSpellFilters.TAB_RESIZABLE)) {
-            MiniMenu.addEntryInner(false, -1, 0L, component.id, component.slot, editing ? "Finish editing" : "Edit spellbook", ACTION_EDIT + LOW, true, -1, "", 0L, false);
-            if (editing) {
-                MiniMenu.addEntryInner(false, -1, 0L, component.id, component.slot, "Reset spellbook", ACTION_RESET + LOW, true, -1, "", 0L, false);
-            }
-            return false;
+    /** InterfaceManager.addMiniMenuOptions (through RspsSpellFilters.addOptions): Hide / Unhide under the spell's own options. */
+    static void addOptions(Component component) {
+        if (component.id == -1 && isSpellOfBook(component.slot) && editable(component.slot >>> 16)) {
+            MiniMenu.addEntryInner(false, -1, component.slot, component.id, component.slot, isHidden(component.slot) ? "Unhide" : "Hide", ACTION_HIDE + LOW, true, -1, "", 0L, false);
         }
-        if (editing && isSpellOfBook(component.slot)) {
-            MiniMenu.addEntryInner(false, -1, component.slot, component.id, component.slot, isHidden(component.slot) ? "Unhide" : "Hide", ACTION_HIDE, true, -1, "", 0L, false);
-            return true;
-        }
-        return false;
+    }
+
+    /** The Filters button's right-click: every spell back, in the cache's order. */
+    static void addResetOption(Component component) {
+        MiniMenu.addEntryInner(false, -1, 0L, component.id, component.slot, "Reset spell order", ACTION_RESET + LOW, true, -1, "", 0L, false);
     }
 
     static boolean handle(int action, long v1) {
-        if (action == ACTION_EDIT) {
-            editing = !editing;
-            dragging = -1;
-            drawn.clear();
-            RspsSpellFilters.relayout();
-            return true;
-        }
         if (action == ACTION_RESET) {
             int iface = RspsSpellFilters.currentBook();
+            load();
             order.remove(iface);
             hiddenSpells.remove(iface);
             save();
@@ -314,6 +258,7 @@ final class RspsSpellbookEdit {
         } catch (IOException ignored) {
             return;
         }
+        showHidden = "true".equals(p.getProperty("showHidden"));
         for (String key : p.stringPropertyNames()) {
             String[] parts = key.split("\\.");
             if (parts.length != 2) {
@@ -340,6 +285,7 @@ final class RspsSpellbookEdit {
 
     static void save() {
         Properties p = new Properties();
+        p.setProperty("showHidden", String.valueOf(showHidden));
         for (Map.Entry<Integer, List<Integer>> e : order.entrySet()) {
             p.setProperty(e.getKey() + ".order", components(e.getValue()));
         }

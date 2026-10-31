@@ -3,35 +3,46 @@ import com.jagex.core.datastruct.key.HashTableIterator;
 import com.jagex.game.runetek6.config.iftype.SubInterface;
 import com.jagex.game.runetek6.config.vartype.TimedVarDomain;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * N72 (owner 2026-10-16 19:43: "magic spellbook needs to exact same as osrs style layout options"): the OSRS spellbook filters on
- * the three 667 books (Standard 192, Ancient 193, Lunar 430).
+ * N72 (owner 2026-10-16 "magic spellbook needs to exact same as osrs style layout options"; 2026-10-31 "werkt nog niet precies als
+ * osrs"): the OSRS spellbook filters on the three 667 books (Standard 192, Ancient 193, Lunar 430).
  *
- * OSRS (Wiki "Spellbook"; cache 2686 scripts 907 / 2603 / 2611, interface 218): the magic tab stone's right-click "Enable spell
- * filtering" / "Disable spell filtering"; while enabled a "Filters" button at the bottom of the book opens the filter menu
- * ("Show Combat spells", "Show Teleport spells", "Show Utility spells", "Show spells you lack the Magic level to cast", "Show spells
- * you lack the runes to cast", "Show spells you lack the requirements to cast"); the remaining spells close up; "No spells match
- * your selected filters." when none is left.
+ * OSRS (Wiki "Spellbook"; cache 2686 / rev241 scripts 907 / 2603 / 2604 / 2606 / 2607 / 2611 / 2619 / 2620, interface 218; research
+ * team\dossiers\N72-ONDERZOEK-SPELLFILTER.txt): the magic tab stone's right-click "Enable spell filtering" / "Disable spell filtering";
+ * while enabled a "Filters" button at the bottom centre of the book (nine-tile grey button, red while open, white label under the mouse)
+ * opens the "Spell Filters" menu in place of the spells: seven rows (full-row click "Change", hover / click light, sound 2266), green tick
+ * = shown, red cross = hidden; the spells that pass close up in level order in the OSRS grid of script 2611 (icon resizing: 40 px for up
+ * to 20 spells, then 24 px, 3-7 columns by count); "No spells match your selected filters." when none is left. The three filters work on
+ * their own: a spell lacks the level only when both its base and its current level are below it (2619), the runes / staff (2620) and
+ * the other requirements (4131) are separate questions.
  *
- * The state is the server's (SpellFilters.kt, varp 1376, saved with the account): bits 9-17 are the 667 category filters the
- * cache's own layout script 2059 already applies; bits 18-25 are the OSRS state read here. This class adds what 667 never had:
+ * Owner's choices (N72.txt DEFINITIEF): icon resizing everywhere ("Enable icon resizing", no PvP limit); with filtering enabled every
+ * spell has right-click "Hide" / "Unhide" and Shift + drag moves it (RuneLite SpellbookPlugin, kept per book on this machine by
+ * {@link RspsSpellbookEdit}); an eighth row "Show spells you have hidden" shows them dimmed to unhide. Filtering disabled = the 667 book
+ * exactly as it was (the choices are kept for the next time).
+ *
+ * The state is the server's (SpellFilters.kt, varp 1376, saved with the account): bits 9-17 are the 667 category filters the cache's own
+ * layout script 2059 applies (a projection of the OSRS Combat / Teleport / Utility choice); bits 18-25 the OSRS state read here. This
+ * class adds what 667 never had:
  * <ul>
  * <li>lacks level / runes / requirements: the cache's per-spell redraw script 21 (args: component, lit sprite, dark sprite, level,
  * base-level flag, 4x rune + amount) decides "castable". A probe run of script 21 with level 0 and marker sprites (graphic not
- * applied) tells runes (it failed after calling the rune counter, script 19 - pouch and staffs included) from requirements;
- * the level test is script 21's own first check. Spells are re-probed whenever the client re-runs their script 21 (stat, inv,
- * var changes);</li>
- * <li>layout: inside script 2059 the category lookup (enum 727) of a spell this class hides is answered with a category whose
- * array entry reads "hidden", so the cache script itself closes the gaps and sizes the scroll area;</li>
+ * applied) tells runes (it failed after calling the rune counter, script 19 - pouch and staffs included) from requirements; for a spell
+ * that fails its requirements the rune counter is asked per rune on its own, so the two filters stay independent;</li>
+ * <li>layout: inside script 2059 the category lookup (enum 727) of a spell this class hides is answered with a category whose array entry
+ * reads "hidden", so the cache script closes the gaps; Energy Transfer, Stat Spy and Dream are Combat as in OSRS; then the OSRS grid;</li>
  * <li>the tab-stone op (548:136 fixed, 746:46 resizable, "Magic Spellbook"), the Filters button and the menu, drawn as dynamic
- * components in the book's bottom-bar layer. The 667 Filter / Sort / Defensive Casting row is hidden (OSRS has none).</li>
+ * components in the book's full-size layer. The 667 Filter / Sort / Defensive Casting row and the bottom bar art go while filtering is
+ * enabled (OSRS has none); the spell area then takes the OSRS 240 px.</li>
  * </ul>
- * Every click goes to the server as IF_BUTTON1 on the book's full-size layer (param 688) with the action as slot.
+ * Every OSRS action goes to the server as IF_BUTTON1 on the book's full-size layer (param 688) with the action as slot.
  */
 public final class RspsSpellFilters {
 
@@ -43,8 +54,7 @@ public final class RspsSpellFilters {
     static final int BIT_HIDE_LEVEL = 22;
     static final int BIT_HIDE_RUNES = 23;
     static final int BIT_HIDE_REQUIREMENTS = 24;
-    /** OSRS line 7 (varbit 6548): bigger icons for the spells that are left, outside PvP areas. Set = OFF (server SpellFilters:
-     *  0 is the OSRS default, resizing on), like every "hide" bit above. */
+    /** OSRS line 7 (varbit 6548): bigger icons for the spells that are left. Set = OFF, like every "hide" bit above. */
     static final int BIT_ICON_RESIZING_OFF = 25;
 
     static final int SPELL_SCRIPT = 21;
@@ -53,6 +63,11 @@ public final class RspsSpellFilters {
     static final int CATEGORY_ENUM = 727;
     static final int CLIENT_SPELLBOOK_VARBIT = 357;
     static final int MAGIC = 6;
+
+    /** Enum 727 categories: 0 combat, 1 skill, 2 misc, 3 teleport. */
+    static final int COMBAT_CATEGORY = 0;
+    /** OSRS spell_type 0 (Combat) where the 667 enum says misc: Lunar Energy Transfer, Stat Spy, Dream (research report 9a). */
+    static final Set<Integer> OSRS_COMBAT = new LinkedHashSet<>(java.util.Arrays.asList((430 << 16) | 27, (430 << 16) | 31, (430 << 16) | 32));
 
     static final int TAB_FIXED = (548 << 16) | 136;
     static final int TAB_RESIZABLE = (746 << 16) | 46;
@@ -72,15 +87,13 @@ public final class RspsSpellFilters {
     static final int PROBE_DARK = -7202;
 
     static final int LEGACY_FRAME_SPRITE = 852;
-    static final int MENU_WIDTH = 180;
-    static final int MENU_PAD = 28;
+    static final int WIDTH = 190;
+    /** OSRS 218: the spell area ("top") is 184 x 240 while filtering is enabled; the bottom strip is 17 high. */
+    static final int OSRS_TOP_WIDTH = 184;
+    static final int OSRS_TOP_HEIGHT = 240;
+    static final int OSRS_BUTTON_HEIGHT = 17;
+    static final int BOOK_HEIGHT = 261;
     static final int LINE = 25;
-    /** Height of the spell area (layer 0 of every book). */
-    static final int SPELL_AREA = 229;
-    static final int ORANGE = 0xff981f;
-    static final int FONT = 494;
-    /** Filters button top: centred on the old 667 bottom row (layer 190x261, row 231-261), owner 2026-10-22 'iets te hoog' at 224. */
-    static final int FILTERS_Y = 237;
 
     /** {interface, menu layer (struct param 688), bottom-bar sprite, first Filter, first Sort, Defensive Casting, scrollbar layer}. */
     static final int[][] BOOKS = {
@@ -89,7 +102,7 @@ public final class RspsSpellFilters {
         {430, 66, 17, 5, 11, 20, 63},
     };
 
-    /** OSRS script 2603 texts, menu slot 1-6 (slot 0 = enable/disable). */
+    /** OSRS script 2603 texts, menu slot 1-7 (slot 0 = enable/disable), then the owner's own line. */
     static final String[] OPTIONS = {
         "Show <col=ffffff>Combat</col> spells",
         "Show <col=ffffff>Teleport</col> spells",
@@ -97,18 +110,22 @@ public final class RspsSpellFilters {
         "Show spells you lack the Magic level to cast",
         "Show spells you lack the runes to cast",
         "Show spells you lack the requirements to cast",
-        "Enable icon resizing (outside PvP areas)",
+        "Enable icon resizing",
+        "Show spells you have hidden",
     };
+    static final int SHOW_HIDDEN_LINE = 7;
     static final int[] OPTION_BITS = {BIT_HIDE_COMBAT, BIT_HIDE_TELEPORT, BIT_HIDE_UTILITY, BIT_HIDE_LEVEL, BIT_HIDE_RUNES, BIT_HIDE_REQUIREMENTS, BIT_ICON_RESIZING_OFF};
 
-    /** Menu line [i] shows the tick while its bit is clear (every bit is an "off" / "hide" bit). */
+    /** Menu line [i] shows the tick while its bit is clear (every bit is an "off" / "hide" bit); the last line is local. */
     static boolean optionTicked(int i) {
-        return !bit(OPTION_BITS[i]);
+        return i == SHOW_HIDDEN_LINE ? RspsSpellbookEdit.showHidden() : !bit(OPTION_BITS[i]);
     }
 
     /** Script 21 args per spell component hash (the last real run). */
     static final Map<Integer, int[]> args = new HashMap<>();
     static final Map<Integer, Integer> status = new HashMap<>();
+    /** For a spell that fails its requirements: whether the rune counter finds its runes (null = not known). */
+    static final Map<Integer, Boolean> runesOk = new HashMap<>();
     /** What the last layout decided per spell (to know when a re-layout is due). */
     static final Map<Integer, Boolean> laidOut = new HashMap<>();
     static final Set<Integer> dirty = new LinkedHashSet<>();
@@ -123,10 +140,14 @@ public final class RspsSpellFilters {
     static boolean panelOpen;
     static int forcedVarp = Integer.MIN_VALUE;
     static int lastVarp;
+    static int lastBook = -1;
+    static int lastChanges;
 
     static Component filtersButton;
-    static final Component[] optionLines = new Component[OPTIONS.length];
-    static final Component[] optionBoxes = new Component[OPTIONS.length];
+    static final Component[] optionRows = new Component[OPTIONS.length];
+    static final Component[] optionHighlights = new Component[OPTIONS.length];
+    static long clickedAt;
+    static int clickedRow = -1;
 
     private RspsSpellFilters() {
     }
@@ -163,21 +184,27 @@ public final class RspsSpellFilters {
         return null;
     }
 
+    /** OSRS 2619: hidden for the level only when both the base and the current (boosted / drained) Magic level are below it. */
     static boolean lacksLevel(int[] a, int boosted, int base) {
         int level = a[3];
-        return boosted < level && !(a[4] != 0 && base >= level);
+        return boosted < level && base < level;
+    }
+
+    /** OSRS 2620 on its own: the rune counter failed in the probe, or (a spell failing its requirements) asked rune by rune. */
+    static boolean lacksRunes(int hash, int s) {
+        return s == LACKS_RUNES || s == LACKS_REQUIREMENTS && Boolean.FALSE.equals(runesOk.get(hash));
     }
 
     /** True when the OSRS filters hide spell [hash]; the panel being open hides the whole grid. */
     static boolean hidden(int hash) {
-        // N189: a spell the player hid (Spellbook editing) leaves the book whether or not the filters are on.
-        if (RspsSpellbookEdit.userHidden(hash)) {
-            return true;
-        }
         if (!enabled()) {
             return false;
         }
         if (panelOpen) {
+            return true;
+        }
+        // The player's own Hide (owner 2026-10-31), unless "Show spells you have hidden" is ticked.
+        if (RspsSpellbookEdit.isHidden(hash) && !RspsSpellbookEdit.showHidden()) {
             return true;
         }
         int[] a = args.get(hash);
@@ -191,7 +218,7 @@ public final class RspsSpellFilters {
         if (s == null) {
             return false;
         }
-        return s == LACKS_RUNES && bit(BIT_HIDE_RUNES) || s == LACKS_REQUIREMENTS && bit(BIT_HIDE_REQUIREMENTS);
+        return bit(BIT_HIDE_REQUIREMENTS) && s == LACKS_REQUIREMENTS || bit(BIT_HIDE_RUNES) && lacksRunes(hash, s);
     }
 
     // ------------------------------------------------------------------------------------------- ScriptRunner hooks
@@ -229,19 +256,23 @@ public final class RspsSpellFilters {
         return true;
     }
 
-    /** ENUM in script 2059: the category of spell [key]; a spell this class hides gets a category whose array entry is read as hidden. */
+    /**
+     * ENUM in script 2059: the category of spell [key] (Energy Transfer / Stat Spy / Dream are Combat as in OSRS); a spell this class
+     * hides gets a category whose array entry is read as hidden.
+     */
     static int layoutCategory(int scriptId, int enumId, int key, int value) {
         if (scriptId != LAYOUT_SCRIPT || enumId != CATEGORY_ENUM) {
             return value;
         }
         layoutSpells.add(key);
+        int category = OSRS_COMBAT.contains(key) ? COMBAT_CATEGORY : value;
         boolean hide = hidden(key);
         laidOut.put(key, hide);
         if (!hide) {
-            return value;
+            return category;
         }
         forceHide = true;
-        return value < 0 ? 0 : value;
+        return category < 0 ? 0 : category;
     }
 
     /** PUSH_ARRAY_INT in script 2059 right after a forced category: read as "hidden". */
@@ -255,18 +286,32 @@ public final class RspsSpellFilters {
 
     /** Main loop, after the hook queue ran (top level, no script running). */
     static void afterHooks() {
-        // Owner 2026-10-22: the filter menu stayed open after a tab switch. OSRS closes it when the book leaves the screen.
-        if (panelOpen && !bookShown(currentBook())) {
+        // Owner 2026-10-22: the filter menu stayed open after a tab switch. OSRS closes it when the book leaves the screen; a new book
+        // (altar / Spellbook Swap) starts closed as well.
+        int bookNow = currentBook();
+        if (panelOpen && (!bookShown(bookNow) || lastBook != -1 && bookNow != lastBook)) {
             panelOpen = false;
             trace("menu closed: the book left the screen");
             relayout();
         }
+        lastBook = bookNow;
         // The book's own var trigger does not re-run the layout for every bit of varp 1376 (the OSRS bits 18-25 are new):
         // a changed varp re-lays the open book out here.
         int now = varp();
         if (now != lastVarp) {
             lastVarp = now;
             relayout();
+        }
+        // A hidden spell's own redraw (script 21 on its inventory / stat triggers) does not run while it is hidden, so it could never come
+        // back when the runes arrive or the level goes up: every such change re-asks every spell of the open book.
+        int changes = ClientInventory.updateCount * 31 + Static366.statUpdateCount;
+        if (changes != lastChanges && enabled()) {
+            lastChanges = changes;
+            for (Integer hash : args.keySet()) {
+                if ((hash >>> 16) == bookNow) {
+                    dirty.add(hash);
+                }
+            }
         }
         if (!dirty.isEmpty() && enabled()) {
             boolean changed = false;
@@ -286,12 +331,9 @@ public final class RspsSpellFilters {
             layoutRan = false;
             decorate(currentBook());
         }
+        hover();
     }
 
-    /**
-     * The book [iface] is on screen: it is mounted and no component from its mount up to the top level is hidden (a tab switch
-     * hides the tab's slot in the gameframe).
-     */
     static boolean bookShown(int iface) {
         return shown(iface, 0);
     }
@@ -332,17 +374,6 @@ public final class RspsSpellFilters {
         return false;
     }
 
-    /** The parent component hash [iface] is mounted in (-1: not mounted, e.g. the top level). */
-    static int mountOf(int iface) {
-        HashTableIterator iterator = new HashTableIterator(InterfaceManager.subInterfaces);
-        for (SubInterface sub = (SubInterface) iterator.first(); sub != null; sub = (SubInterface) iterator.next()) {
-            if (sub.id == iface) {
-                return (int) sub.key;
-            }
-        }
-        return -1;
-    }
-
     /** One probe run of script 21 for [hash]: level 0, marker sprites; the outcome is recorded, nothing is drawn. */
     static void probe(int hash) {
         int[] a = args.get(hash);
@@ -373,6 +404,42 @@ public final class RspsSpellFilters {
         if (probeOutcome != -1) {
             status.put(hash, probeOutcome);
         }
+        if (probeOutcome == LACKS_REQUIREMENTS) {
+            runesOk.put(hash, runesInHand(a));
+        } else {
+            runesOk.remove(hash);
+        }
+    }
+
+    /** Every rune of script 21's args [a] (4 x rune + amount at 5..12) as far as the cache's rune counter (script 19) finds it. */
+    static Boolean runesInHand(int[] a) {
+        for (int i = 5; i + 1 < 13; i += 2) {
+            int rune = a[i];
+            int amount = a[i + 1];
+            if (rune <= 0 || amount <= 0) {
+                continue;
+            }
+            int have = runeCount(rune, a[0]);
+            if (have < 0) {
+                return null;
+            }
+            if (have < amount) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Script 19 (rune, spell) on its own: the count it returns (-1 when it gave none). */
+    static int runeCount(int rune, int hash) {
+        HookRequest hook = new HookRequest();
+        hook.arguments = new Object[] {RUNE_SCRIPT, rune, hash};
+        try {
+            ScriptRunner.executeHookInner(hook);
+        } catch (RuntimeException e) {
+            return -1;
+        }
+        return ScriptRunner.intStackPointer > 0 ? ScriptRunner.intStack[0] : -1;
     }
 
     /** Runs the cache layout of the open book again (script 2059, sort unchanged). */
@@ -390,12 +457,19 @@ public final class RspsSpellFilters {
 
     // ------------------------------------------------------------------------------------------------------------- UI
 
-    /** After every layout: the 667 bottom row away, the Filters button / menu / "No spells match" text in the bar layer. */
+    /** The cache size of every spell icon and the spell area, kept the first time this class sees them. */
+    static final Map<Integer, int[]> normalSize = new HashMap<>();
+    static final Map<Integer, int[]> normalArea = new HashMap<>();
+    /** Width the spellbook scrollbar takes at the right of the spell area: 16 px wide, 1 px from the edge, 1 px gap to the icons. */
+    static final int SCROLLBAR_SPACE = 18;
+
+    /** After every layout: the 667 bottom row away, the OSRS grid, the Filters button / menu / "No spells match" text. */
     static void decorate(int iface) {
         int[] b = book(iface);
         if (b == null) {
             return;
         }
+        boolean on = enabled();
         for (int i = 3; i <= 5; i++) {
             Component button = InterfaceList.list((iface << 16) | b[i]);
             if (button != null && button.layer != -1) {
@@ -414,12 +488,9 @@ public final class RspsSpellFilters {
                 InterfaceManager.redraw(frame);
             }
         }
-        // Owner 2026-10-22 ("overlapt"): the spell list's scrollbar showed through the right edge of the open filter menu.
-        Component scrollbar = InterfaceList.list((iface << 16) | b[6]);
-        if (scrollbar != null && scrollbar.hidden != panelOpen) {
-            scrollbar.hidden = panelOpen;
-            InterfaceManager.redraw(scrollbar);
-        }
+        // With filtering enabled the book is OSRS's: no 667 bar art, no scrollbar (the OSRS grid always fits), the 240 px spell area.
+        setHidden(InterfaceList.list((iface << 16) | b[2]), on);
+        setHidden(InterfaceList.list((iface << 16) | b[6]), on);
         Component bar = InterfaceList.list((iface << 16) | (b[2]));
         if (bar == null || bar.layer == -1) {
             return;
@@ -432,75 +503,73 @@ public final class RspsSpellFilters {
         layer.dynamicComponents = null;
         filtersButton = null;
         for (int i = 0; i < OPTIONS.length; i++) {
-            optionLines[i] = null;
-            optionBoxes[i] = null;
+            optionRows[i] = null;
+            optionHighlights[i] = null;
         }
-        RspsSpellbookEdit.apply(iface); // N189: the player's own order, hidden spells dimmed while editing
-        resizeIcons(iface, enabled() && !panelOpen && !bit(BIT_ICON_RESIZING_OFF) && !DeadmanSkullHud.inPvpArea());
-        if (!enabled()) {
+        RspsSpellbookEdit.apply(iface); // the player's own order (filtering enabled), hidden spells dimmed while shown
+        Component area = spellArea(iface);
+        osrsGrid(iface, area, on && !panelOpen, !bit(BIT_ICON_RESIZING_OFF));
+        if (!on) {
             panelOpen = false;
             InterfaceManager.redraw(layer);
             trace("decorate book=" + iface + " varp=0x" + Integer.toHexString(varp()) + " filtering off");
             return;
         }
-        // The Filters button, bottom centre (wiki image "Spellbook_filtering.png").
-        Component frame = create(layer, Component.TYPE_RECTANGLE);
-        place(frame, 63, FILTERS_Y, 64, 18);
-        frame.colour = 0x0e0e0c;
-        frame.filled = true;
-        frame.transparency = 80;
-        Component border = create(layer, Component.TYPE_RECTANGLE);
-        place(border, 63, FILTERS_Y, 64, 18);
-        border.colour = panelOpen ? 0xffffff : 0x726451;
-        filtersButton = text(layer, "Filters", 63, FILTERS_Y, 64, 18, 1);
-        // InterfaceManager.logicComponentList only hit-tests (hover, menu entries) components with hasHook / events / layers.
+        // The Filters button, bottom centre (OSRS 218:207 / 209: 17 high, bottom-aligned, the label's width + 14).
+        int w = RspsFilterUi.buttonWidth("Filters");
+        int bx = (WIDTH - w) / 2;
+        int by = BOOK_HEIGHT - OSRS_BUTTON_HEIGHT;
+        RspsFilterUi.nineSlice(layer, null, panelOpen ? "btn-on" : "btn-off", bx, by, w, OSRS_BUTTON_HEIGHT);
+        filtersButton = RspsFilterUi.text(layer, null, "Filters", bx, by, w, OSRS_BUTTON_HEIGHT, 1, RspsFilterUi.FONT, RspsFilterUi.ORANGE);
         filtersButton.hasHook = true;
         if (panelOpen) {
-            // OSRS script 2603: a 180 wide box, 28 + 25 per line high; script 2604 per line: the 17x17 tick / cross at (5, y + 4),
-            // the text (font 494, 0xff981f, shadow, left / centre) from x 25 to 5 from the right, 25 high.
-            int boxHeight = MENU_PAD + LINE * OPTIONS.length;
-            int boxX = (190 - MENU_WIDTH) / 2;
-            int boxY = Math.max(0, (SPELL_AREA - boxHeight) / 2);
-            Component back = create(layer, Component.TYPE_RECTANGLE);
-            place(back, boxX, boxY, MENU_WIDTH, boxHeight);
-            back.colour = 0x3e3529;
-            back.filled = true;
-            Component edge = create(layer, Component.TYPE_RECTANGLE);
-            place(edge, boxX, boxY, MENU_WIDTH, boxHeight);
-            edge.colour = 0x726451;
+            // OSRS 2603 / 2604: 180 wide, 28 + 25 per row, centred in the 184 x 240 top; the indicator 17 x 17 at (5, row + 4).
+            int height = RspsFilterUi.TITLE_HEIGHT + LINE * OPTIONS.length;
+            int x = (WIDTH - RspsFilterUi.MENU_WIDTH) / 2;
+            int y = Math.max(0, (OSRS_TOP_HEIGHT - height) / 2);
+            RspsFilterUi.panel(layer, null, "Spell Filters", x, y, RspsFilterUi.MENU_WIDTH, height);
             for (int i = 0; i < OPTIONS.length; i++) {
-                int y = boxY + MENU_PAD / 2 + i * LINE;
-                boolean shown = optionTicked(i);
-                Component tick = create(layer, Component.TYPE_GRAPHIC);
-                place(tick, boxX + 5, y + 4, 17, 17);
-                tick.graphic = shown ? RspsSprites.RES_FILTER_ON : RspsSprites.RES_FILTER_OFF;
-                tick.hasHook = true;
-                optionBoxes[i] = tick;
-                optionLines[i] = text(layer, OPTIONS[i], boxX + 25, y, MENU_WIDTH - 30, LINE, 0);
-                optionLines[i].hasHook = true;
+                Component[] row = RspsFilterUi.row(layer, null, OPTIONS[i], x, y + 26 + i * LINE, RspsFilterUi.MENU_WIDTH, LINE,
+                    optionTicked(i) ? "radio-tick" : "radio-cross", RspsFilterUi.ORANGE);
+                optionHighlights[i] = row[0];
+                optionRows[i] = row[1];
             }
         } else if (!layoutSpells.isEmpty() && noneShown(iface)) {
-            text(layer, "No spells match your selected filters.", 10, 90, 170, 40, 1);
+            // OSRS 2611: p12, orange, shadow, centred both ways over the whole spell layer.
+            RspsFilterUi.text(layer, null, "No spells match your selected filters.", 5, 0, WIDTH - 10, OSRS_TOP_HEIGHT, 1, RspsFilterUi.FONT_P12, RspsFilterUi.ORANGE);
         }
         InterfaceManager.redraw(layer);
         trace("decorate book=" + iface + " varp=0x" + Integer.toHexString(varp()) + " panel=" + panelOpen + " layer=" + (layer.slot >>> 16) + ":"
             + (layer.slot & 0xFFFF) + " children=" + (layer.staticComponents == null ? 0 : layer.staticComponents.length) + " spells=" + layoutSpells.size());
     }
 
-    /** Width the spellbook scrollbar takes at the right of the spell area: 16 px wide, 1 px from the edge, 1 px gap to the icons. */
-    static final int SCROLLBAR_SPACE = 18;
+    static void setHidden(Component c, boolean hide) {
+        if (c != null && c.hidden != hide) {
+            c.hidden = hide;
+            InterfaceManager.redraw(c);
+        }
+    }
 
-    /** The cache size of every spell icon, kept the first time this class sees it (icon resizing changes the live size). */
-    static final Map<Integer, int[]> normalSize = new HashMap<>();
+    /** The scroll layer the spells of [iface] sit in. */
+    static Component spellArea(int iface) {
+        for (Integer hash : layoutSpells) {
+            if ((hash >>> 16) == iface) {
+                Component spell = InterfaceList.getComponent(hash, -1);
+                if (spell != null && spell.layer != -1) {
+                    return InterfaceList.list(spell.layer);
+                }
+            }
+        }
+        return null;
+    }
 
     /**
-     * N72 line 7, "Enable icon resizing (outside PvP areas)" (OSRS script 2611 after varbit 6548 and the PvP check): the spells left
-     * after the filters are laid out again in a grid of 4 columns under 28 spells, else (count + 8) / 9 columns kept within 4..7, each
-     * icon square and as big as its cell allows, in the order the cache layout put them. Off (or in a PvP area, or with the menu open)
-     * every icon gets its cache size back; the cache layout script 2059 places them again.
+     * OSRS script 2611 while filtering is enabled ([on]): the spells left, in the order the cache layout put them (level order, or the
+     * player's own), take the OSRS grid in the 184 x 240 top - [resize] = "Enable icon resizing" ticked. Off (or with the menu open)
+     * every icon and the spell area get their cache size back; the cache layout script 2059 places them again.
      */
-    static void resizeIcons(int iface, boolean on) {
-        java.util.List<Component> shown = new java.util.ArrayList<>();
+    static void osrsGrid(int iface, Component area, boolean on, boolean resize) {
+        List<Component> shown = new ArrayList<>();
         for (Integer hash : layoutSpells) {
             if ((hash >>> 16) != iface) {
                 continue;
@@ -524,45 +593,87 @@ public final class RspsSpellFilters {
                 shown.add(spell);
             }
         }
-        if (!on || shown.isEmpty()) {
-            return;
-        }
-        Component area = InterfaceList.list(shown.get(0).layer);
         if (area == null) {
             return;
         }
+        int[] native0 = normalArea.get(area.slot);
+        if (native0 == null) {
+            native0 = new int[] {area.originalY, area.originalHeight};
+            normalArea.put(area.slot, native0);
+        }
+        int wantHeight = enabled() ? OSRS_TOP_HEIGHT : native0[1];
+        if (area.originalHeight != wantHeight) {
+            area.originalHeight = wantHeight;
+            InterfaceManager.resizeAndReposition(area);
+            InterfaceManager.redraw(area);
+        }
+        if (!on || shown.isEmpty()) {
+            return;
+        }
+        area.scrollY = 0;
+        area.scrollHeight = 0;
         shown.sort((a, b) -> a.originalY != b.originalY ? Integer.compare(a.originalY, b.originalY) : Integer.compare(a.originalX, b.originalX));
-        // N237 (owner 2026-10-23: "iconen steken buiten de scrollbar"): the book's scrollbar (16 px, right-aligned 1 px from the
-        // edge: 192:94 / 193:51 / 430:63) lies over the right of the spell area, so the grid uses only the width left of it.
-        int[] grid = iconGrid(shown.size(), area.width - SCROLLBAR_SPACE, area.height);
-        int columns = grid[0];
-        int size = grid[1];
-        int cellWidth = grid[2];
-        int cellHeight = grid[3];
-        int[] normal = normalSize.get(shown.get(0).slot);
-        if (normal != null && size <= Math.max(normal[0], normal[1])) {
-            return; // resizing only ever makes icons bigger; a full book keeps the cache layout
-        }
+        int[] g = grid(shown.size(), OSRS_TOP_WIDTH, OSRS_TOP_HEIGHT, resize);
+        int columns = g[0];
+        int size = g[2];
+        int gapX = g[3];
+        int gapY = g[4];
+        int left = (area.width - g[5]) / 2;
+        int top = (OSRS_TOP_HEIGHT - g[6]) / 2;
         for (int i = 0; i < shown.size(); i++) {
-            int x = (i % columns) * cellWidth + (cellWidth - size) / 2;
-            int y = (i / columns) * cellHeight + (cellHeight - size) / 2;
-            place(shown.get(i), x, y, size, size);
-            InterfaceManager.redraw(shown.get(i));
+            Component spell = shown.get(i);
+            int x = left + (i % columns) * (size + gapX);
+            int y = top + (i / columns) * (size + gapY);
+            if (spell.originalX != x || spell.originalY != y || spell.originalWidth != size || spell.originalHeight != size) {
+                spell.originalX = x;
+                spell.originalY = y;
+                spell.originalWidth = size;
+                spell.originalHeight = size;
+                InterfaceManager.resizeAndReposition(spell);
+                InterfaceManager.redraw(spell);
+            }
         }
-        trace("icon resizing book=" + iface + " spells=" + shown.size() + " columns=" + columns + " size=" + size);
+        InterfaceManager.redraw(area);
+        trace("osrs grid book=" + iface + " spells=" + shown.size() + " columns=" + columns + " rows=" + g[1] + " size=" + size + " gaps=" + gapX + "," + gapY + " resize=" + resize);
     }
 
-    /** {columns, icon size, cell width, cell height} for [count] icons in a [width] x [height] area (OSRS 2611 column rule). */
-    static int[] iconGrid(int count, int width, int height) {
-        int columns = count < 28 ? 4 : Math.max(4, Math.min(7, (count + 8) / 9));
+    /**
+     * OSRS script 2611 for [count] spells in a [w] x [h] top: {columns, rows, icon size, gap x, gap y, grid width, grid height}.
+     * Resizing: 1-15 spells 40 px in 3 columns, 16-20 40 px in 4, 21-36 24 px in 4, 37-45 in 5, 46-54 in 6, more in 7; gaps at most
+     * 5/7 of the icon. Resizing off: 24 px, 4 columns up to 28 spells, else (count + 8) / 9 kept within 4..7; gaps at most 24, the grid
+     * at least the top minus 30 high.
+     */
+    static int[] grid(int count, int w, int h, boolean resize) {
+        int columns;
+        int size;
+        if (resize) {
+            if (count <= 15) {
+                size = 40;
+                columns = 3;
+            } else if (count <= 20) {
+                size = 40;
+                columns = 4;
+            } else {
+                size = 24;
+                columns = count <= 36 ? 4 : count <= 45 ? 5 : count <= 54 ? 6 : 7;
+            }
+        } else {
+            size = 24;
+            columns = count <= 28 ? 4 : Math.max(4, Math.min(7, (count + 8) / 9));
+        }
         int rows = Math.max(1, (count + columns - 1) / columns);
-        int cellWidth = width / columns;
-        int cellHeight = height / rows;
-        int size = Math.max(1, Math.min(cellWidth, cellHeight) - 2);
-        return new int[] {columns, size, cellWidth, cellHeight};
+        int maxGap = resize ? 5 * size / 7 : 24;
+        int gapX = columns > 1 ? Math.max(0, Math.min(maxGap, (w - size * columns) / (columns - 1))) : 0;
+        int gapY = rows > 1 ? Math.max(0, Math.min(gapX, (h - size * rows) / (rows - 1))) : 0;
+        int gridWidth = columns * size + (columns - 1) * gapX;
+        int gridHeight = rows * size + (rows - 1) * gapY;
+        if (!resize) {
+            gridHeight = Math.max(gridHeight, h - 30);
+        }
+        return new int[] {columns, rows, size, gapX, gapY, gridWidth, gridHeight};
     }
 
-    /** One client-log line per menu draw / click (the evidence the Keurmeester greps: "[spellfilters]"). */
+    /** One client-log line per menu draw / click (the evidence: "[spellfilters]"). */
     static void trace(String line) {
         System.out.println("[spellfilters] " + line);
     }
@@ -580,50 +691,20 @@ public final class RspsSpellFilters {
         return true;
     }
 
-    static Component text(Component layer, String s, int x, int y, int w, int h, int alignX) {
-        Component t = create(layer, Component.TYPE_TEXT);
-        place(t, x, y, w, h);
-        t.text = s;
-        t.fontGraphic = FONT;
-        t.colour = ORANGE;
-        t.textShadow = true;
-        t.textAlignX = alignX;
-        t.textAlignY = 1;
-        return t;
-    }
-
-    /** CC_CREATE in Java (ScriptRunner.handleSmallOp CC_CREATE), next free index. */
-    static Component create(Component parent, int type) {
-        int id = parent.staticComponents == null ? 0 : parent.staticComponents.length;
-        Component[] grown = new Component[id + 1];
-        if (parent.staticComponents != null) {
-            System.arraycopy(parent.staticComponents, 0, grown, 0, id);
+    /** OSRS 2608 / 2609 / 835: row light under the mouse / after a click, the button label white under the mouse. */
+    static void hover() {
+        RspsFilterUi.hoverLabel(filtersButton);
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < OPTIONS.length; i++) {
+            RspsFilterUi.light(optionHighlights[i], optionRows[i], true, clickedRow == i && now - clickedAt < 800);
         }
-        Component cc = new Component();
-        cc.type = type;
-        cc.layer = cc.slot = parent.slot;
-        cc.id = id;
-        grown[id] = cc;
-        parent.staticComponents = parent.dynamicComponents = grown;
-        return cc;
-    }
-
-    static void place(Component c, int x, int y, int w, int h) {
-        c.originalX = x;
-        c.originalY = y;
-        c.originalWidth = w;
-        c.originalHeight = h;
-        InterfaceManager.resizeAndReposition(c);
     }
 
     // ---------------------------------------------------------------------------------------------------- menu + clicks
 
-    /** InterfaceManager.addMiniMenuOptions: the tab-stone op and the Filters button / menu lines. */
+    /** InterfaceManager.addMiniMenuOptions: the tab-stone op, the Filters button / menu rows, Hide / Unhide on the spells. */
     static void addOptions(Component component) {
         if (component == null) {
-            return;
-        }
-        if (RspsSpellbookEdit.addOptions(component)) {
             return;
         }
         if (component.id == -1 && (component.slot == TAB_FIXED || component.slot == TAB_RESIZABLE)) {
@@ -631,16 +712,18 @@ public final class RspsSpellFilters {
             MiniMenu.addEntryInner(false, -1, 0L, component.id, component.slot, verb, ACTION_TAB + LOW, true, -1, "", 0L, false);
             return;
         }
-        if (component == filtersButton) {
+        if (filtersButton != null && component == filtersButton) {
+            RspsSpellbookEdit.addResetOption(component);
             MiniMenu.addEntryInner(false, -1, 0L, component.id, component.slot, "Spell Filters", ACTION_FILTERS, true, -1, "", 0L, false);
             return;
         }
-        for (int i = 0; i < optionLines.length; i++) {
-            if (component == optionLines[i] || component == optionBoxes[i]) {
-                MiniMenu.addEntryInner(false, -1, i + 1, component.id, component.slot, "Toggle", ACTION_OPTION, true, -1, "", 0L, false);
+        for (int i = 0; i < optionRows.length; i++) {
+            if (optionRows[i] != null && component == optionRows[i]) {
+                MiniMenu.addEntryInner(false, -1, i + 1, component.id, component.slot, "Change", ACTION_OPTION, true, -1, "", 0L, false);
                 return;
             }
         }
+        RspsSpellbookEdit.addOptions(component);
     }
 
     /** MiniMenu action dispatch (action already without the low-priority offset). */
@@ -654,11 +737,24 @@ public final class RspsSpellFilters {
         }
         if (action == ACTION_FILTERS) {
             panelOpen = !panelOpen;
+            RspsFilterUi.clickSound(); // OSRS 2602: opening and closing the menu click too
             relayout();
             return true;
         }
         if (action == ACTION_OPTION) {
-            send((int) v1);
+            int line = (int) v1 - 1;
+            if (line < 0 || line >= OPTIONS.length) {
+                return true;
+            }
+            clickedRow = line;
+            clickedAt = System.currentTimeMillis();
+            RspsFilterUi.clickSound(); // OSRS 2607
+            if (line == SHOW_HIDDEN_LINE) {
+                RspsSpellbookEdit.toggleShowHidden();
+                relayout();
+            } else {
+                send(line + 1);
+            }
             return true;
         }
         return false;
