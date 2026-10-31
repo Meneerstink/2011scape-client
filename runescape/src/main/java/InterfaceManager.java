@@ -592,6 +592,7 @@ public final class InterfaceManager {
                 }
             }
             RspsSpellbookEdit.drawn(child, offsetX, offsetY); // N189: where each spell is, for dragging
+            RspsIconDrag.drawn(child, offsetX, offsetY); // N482 / N72: where each prayer / spell is, for Shift + drag
             if (child.slot == RspsPkHotkeys.PRAYER_HASH) RspsPkHud.prayerCell(child.id, offsetX, offsetY, child.width, child.height); // 78Legacy v5 PK HUD
 
             // RSPS Deadman: both layers of the PvP overlay (381:0 zone state, 381:3 skull timer) are
@@ -3237,6 +3238,8 @@ public final class InterfaceManager {
         RspsScriptMenu.addComponentOptions(component);
         // N72: OSRS spell filters - "Enable/Disable spell filtering" on the magic tab stone, the Filters button, the filter menu.
         RspsSpellFilters.addOptions(component);
+        // N482: OSRS prayer filters + Hide / Unhide on the prayer tab.
+        RspsPrayerFilters.addOptions(component);
 
         if (targetMode) {
             @Pc(16) ParamType param = targetParam == -1 ? null : ParamTypeList.instance.list(targetParam);

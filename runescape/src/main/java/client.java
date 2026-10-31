@@ -1073,6 +1073,10 @@ public final class client extends GameShell {
                 if (MainLogicStep.isAtGameScreen(MainLogicManager.step) && RspsSpellbookEdit.mousePress(log)) {
                     continue;
                 }
+                // N482 / N72: Shift + drag moves a prayer or spell while filtering is enabled (a plain click stays a click).
+                if (MainLogicStep.isAtGameScreen(MainLogicManager.step) && RspsIconDrag.mousePress(log)) {
+                    continue;
+                }
                 Static226.mouseLogs.addLast(log);
 
                 if (Static226.mouseLogs.size() > 10) {
@@ -1083,6 +1087,7 @@ public final class client extends GameShell {
 
         RspsOverlayLayout.tick();
         RspsSpellbookEdit.tick();
+        RspsIconDrag.tick();
         RspsDeferredOnLoad.tick();
         RspsUi.tick();
         // The 78 Plugins sidebar's changes go to the server on this (the game) thread.

@@ -682,6 +682,7 @@ public final class MainLogicManager {
                                         if (local2006 == null) {
                                             // N72: re-probe spells whose redraw ran, re-layout when a filter result changed, draw the menu.
                                             RspsSpellFilters.afterHooks();
+                                            RspsPrayerFilters.afterHooks();
                                             if (WorldMap.component == null) {
                                                 MiniMenu.anInt6964 = 0;
                                             }

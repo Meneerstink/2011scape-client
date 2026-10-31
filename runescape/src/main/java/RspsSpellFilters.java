@@ -293,21 +293,43 @@ public final class RspsSpellFilters {
      * hides the tab's slot in the gameframe).
      */
     static boolean bookShown(int iface) {
-        int hash = mountOf(iface);
-        if (hash == -1) {
+        return shown(iface, 0);
+    }
+
+    /**
+     * [iface] is drawn: some mount of it (N482: after a fixed / resizable switch the old gameframe can still hold a mount of the same
+     * interface) leads, through components that are not hidden, up to the top-level interface on screen.
+     */
+    static boolean shown(int iface, int depth) {
+        if (iface == InterfaceManager.topLevelInterface) {
+            return true;
+        }
+        if (depth > 16) {
             return false;
         }
-        for (int guard = 0; guard < 64 && hash != -1; guard++) {
-            Component c = InterfaceList.list(hash);
-            if (c == null) {
-                return false;
+        HashTableIterator iterator = new HashTableIterator(InterfaceManager.subInterfaces);
+        for (SubInterface sub = (SubInterface) iterator.first(); sub != null; sub = (SubInterface) iterator.next()) {
+            if (sub.id != iface) {
+                continue;
             }
-            if (c.hidden) {
-                return false;
+            int hash = (int) sub.key;
+            boolean visible = true;
+            for (int guard = 0; guard < 64; guard++) {
+                Component c = InterfaceList.list(hash);
+                if (c == null || c.hidden) {
+                    visible = false;
+                    break;
+                }
+                if (c.layer == -1) {
+                    break;
+                }
+                hash = c.layer;
             }
-            hash = c.layer != -1 ? c.layer : mountOf(c.slot >>> 16);
+            if (visible && shown(hash >>> 16, depth + 1)) {
+                return true;
+            }
         }
-        return true;
+        return false;
     }
 
     /** The parent component hash [iface] is mounted in (-1: not mounted, e.g. the top level). */

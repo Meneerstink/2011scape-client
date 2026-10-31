@@ -614,7 +614,7 @@ public final class Component {
     public Sprite sprite(@OriginalArg(1) Toolkit toolkit) {
         redrawAll = false;
         // N72: the spell-filter menu's tick / cross are client resources (RspsSprites), not cache sprites.
-        if (this.graphic == RspsSprites.RES_FILTER_ON || this.graphic == RspsSprites.RES_FILTER_OFF) {
+        if (RspsSprites.isResource(this.graphic)) {
             return RspsSprites.sprite(this.graphic);
         }
 

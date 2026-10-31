@@ -167,6 +167,17 @@ final class RspsSpellbookEdit {
 
     // ------------------------------------------------------------------------------------------------- input
 
+    /** RspsIconDrag: [c] is a spell of the open book that may be moved now. */
+    static boolean movable(Component c) {
+        return editing && isSpellOfBook(c.slot) && (c.slot >>> 16) == RspsSpellFilters.currentBook() && RspsSpellFilters.bookShown(RspsSpellFilters.currentBook());
+    }
+
+    /** RspsIconDrag: spell [moved] dropped on spell [target]. */
+    static void drop(int moved, int target) {
+        dragging = moved;
+        dropOn(target);
+    }
+
     /** InterfaceManager.draw: a spell of the open book was drawn at [x], [y]. */
     static void drawn(Component child, int x, int y) {
         if (editing && isSpellOfBook(child.slot)) {
@@ -202,10 +213,13 @@ final class RspsSpellbookEdit {
         if (dragging == -1 || MouseMonitor.instance == null || MouseMonitor.instance.isLeftDown()) {
             return;
         }
+        dropOn(spellAt(MouseMonitor.instance.getRecordedX(), MouseMonitor.instance.getRecordedY()));
+    }
+
+    static void dropOn(int target) {
         int moved = dragging;
         dragging = -1;
-        int target = spellAt(MouseMonitor.instance.getRecordedX(), MouseMonitor.instance.getRecordedY());
-        if (target == -1 || target == moved || (target >>> 16) != (moved >>> 16)) {
+        if (moved == -1 || target == -1 || target == moved || (target >>> 16) != (moved >>> 16)) {
             return;
         }
         int iface = moved >>> 16;

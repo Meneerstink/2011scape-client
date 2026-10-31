@@ -1327,6 +1327,10 @@ public final class MiniMenu {
         if (RspsSpellFilters.handle(action, v1Long)) {
             return;
         }
+        // N482: OSRS prayer filters (tab-stone op, Filters button, filter menu, Hide / Unhide).
+        if (RspsPrayerFilters.handle(action, v1Long)) {
+            return;
+        }
 
         // RuneLite Minimap: "Reset Zoom" (client only).
         if (action == RspsMinimapZoom.ACTION_RESET) {

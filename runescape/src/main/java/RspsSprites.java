@@ -46,6 +46,34 @@ final class RspsSprites {
     /** N72: the OSRS spell-filter menu tick / cross (OSRS cache 2686 sprites 8384 / 8383, script 2606). */
     static final int RES_FILTER_ON = -1005;
     static final int RES_FILTER_OFF = -1006;
+    /**
+     * N482 / N72 / N491: OSRS interface art (OSRS cache 2686 sprite archive, exported read-only with the canvas offsets kept) in
+     * /osrs: the Filters button tiles (1141-1149 grey "options_button_off", 1150-1158 red "options_button_on"), the filter menu's
+     * stone frame (v2_borders_slim 987-997) and dark tile (tradebacking_dark 897), the radio tick / cross / neutral (8384 / 8383 /
+     * 8380) and the Ruinous Powers prayer tab icon (sideicons_interface,56 = 4834, OSRS script 907). {@link #osrs} names one.
+     */
+    static final String[] OSRS_RESOURCES = {
+        "btn-off-0", "btn-off-1", "btn-off-2", "btn-off-3", "btn-off-4", "btn-off-5", "btn-off-6", "btn-off-7", "btn-off-8",
+        "btn-on-0", "btn-on-1", "btn-on-2", "btn-on-3", "btn-on-4", "btn-on-5", "btn-on-6", "btn-on-7", "btn-on-8",
+        "border-0", "border-1", "border-2", "border-3", "border-4", "border-5", "border-6", "border-7", "border-8", "border-9", "border-10",
+        "tradebacking-dark", "radio-tick", "radio-cross", "radio-neutral", "ruinous-tab",
+    };
+    static final int OSRS_BASE = -1100;
+
+    /** The resource id of /osrs/[name].png (see {@link #OSRS_RESOURCES}). */
+    static int osrs(String name) {
+        for (int i = 0; i < OSRS_RESOURCES.length; i++) {
+            if (OSRS_RESOURCES[i].equals(name)) {
+                return OSRS_BASE - i;
+            }
+        }
+        throw new IllegalArgumentException(name);
+    }
+
+    /** True for a graphic id this class draws from a resource (Component.sprite asks). */
+    static boolean isResource(int graphic) {
+        return graphic == RES_FILTER_ON || graphic == RES_FILTER_OFF || (graphic <= OSRS_BASE && graphic > OSRS_BASE - OSRS_RESOURCES.length);
+    }
 
     /**
      * The OSRS hitsplat sprites RuneLite's infoboxes use, as OsrsHitsplatImportTool put them in this cache (tx-20261009-035259):
@@ -102,7 +130,8 @@ final class RspsSprites {
     private static Sprite resource(Toolkit toolkit, int id) {
         String name = id == RES_VENOM ? "hitsplats/venom" : id == RES_BURN ? "hitsplats/burn"
             : id == RES_DEBUFFED ? "boosts/debuffed" : id == RES_BUFFED ? "boosts/buffed"
-            : id == RES_FILTER_ON ? "spellbook/filter-on" : id == RES_FILTER_OFF ? "spellbook/filter-off" : null;
+            : id == RES_FILTER_ON ? "spellbook/filter-on" : id == RES_FILTER_OFF ? "spellbook/filter-off"
+            : id <= OSRS_BASE && id > OSRS_BASE - OSRS_RESOURCES.length ? "osrs/" + OSRS_RESOURCES[OSRS_BASE - id] : null;
         if (name == null) {
             return null;
         }

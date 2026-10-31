@@ -274,6 +274,16 @@ val spellFiltersRegression by tasks.registering(JavaExec::class) {
 
 tasks.check { dependsOn(spellFiltersRegression) }
 
+val prayerFiltersRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "N482: the OSRS prayer filters on the three prayer books (truth table of the research report)."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("RspsPrayerFiltersRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+}
+tasks.check { dependsOn(prayerFiltersRegression) }
+
 val debugOverlayRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Checks debug overlay startup defaults and explicit toggle behavior"

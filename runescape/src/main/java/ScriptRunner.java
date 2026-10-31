@@ -4742,6 +4742,7 @@ public final class ScriptRunner {
         currentScript = script;
         // N72: OSRS spell filters (spell redraw args, rune-counter probe, layout script).
         RspsSpellFilters.enter(script.id, intVars);
+        RspsPrayerFilters.enter(script.id); // N482: a prayer grid build
         chatBackgroundTouched = RspsChatbox.touchesBackground(script.id);
         windowModeChosenThisRun = false;
         intStackPointer = 0;
@@ -4915,6 +4916,7 @@ public final class ScriptRunner {
                     stringVars = stringArgs;
                     longVars = longArgs;
                     RspsSpellFilters.enter(callee.id, intArgs);
+                    RspsPrayerFilters.enter(callee.id);
                 } else if (op == PUSH_VARC) {
                     intStack[intStackPointer++] = Static511.varcs[operands[pc]];
                 } else if (op == POP_VARC) {
