@@ -271,6 +271,8 @@ public final class RspsPrayerFilters {
     static Component filtersButton;
     static final Component[] optionRows = new Component[OPTIONS.length];
     static final Component[] optionHighlights = new Component[OPTIONS.length];
+    /** N504: whether the prayer book was on screen last frame (the menu is laid out again when it comes back). */
+    static boolean lastShown;
     static long clickedAt;
     static int clickedRow = -1;
 
@@ -460,10 +462,14 @@ public final class RspsPrayerFilters {
             lastStatsTop = statsTop;
             dirty = true;
         }
-        if (panelOpen && !RspsSpellFilters.bookShown(IFACE)) {
-            panelOpen = false; // the tab left the screen (owner 2026-10-22 for the spell menu)
-            dirty = true;
+        // N504 (owner 2026-11-01, bug 20261101-000111): the open Prayer Filters menu stays open while another tab is shown - it is part
+        // of the prayer tab, so it is hidden with the tab and is there again when the tab comes back (10-22 the problem was the menu
+        // over another tab, which cannot happen this way). Only a new book or the quick-prayer selection closes it (above).
+        boolean shown = RspsSpellFilters.bookShown(IFACE);
+        if (panelOpen && shown && !lastShown) {
+            dirty = true; // back on screen: lay the menu out again
         }
+        lastShown = shown;
         if (dirty) {
             dirty = false;
             layout();

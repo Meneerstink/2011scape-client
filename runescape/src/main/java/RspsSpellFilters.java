@@ -140,6 +140,8 @@ public final class RspsSpellFilters {
     static int forcedVarp = Integer.MIN_VALUE;
     static int lastVarp;
     static int lastBook = -1;
+    /** N504: whether the open book was on screen last frame. */
+    static boolean lastShown;
     static int lastChanges;
 
     static Component filtersButton;
@@ -286,11 +288,17 @@ public final class RspsSpellFilters {
         // Owner 2026-10-22: the filter menu stayed open after a tab switch. OSRS closes it when the book leaves the screen; a new book
         // (altar / Spellbook Swap) starts closed as well.
         int bookNow = currentBook();
-        if (panelOpen && (!bookShown(bookNow) || lastBook != -1 && bookNow != lastBook)) {
+        // N504 (owner 2026-11-01, bug 20261101-000111): the menu stays open while another tab is shown (it is hidden with the book and
+        // there again when the book comes back); a new book (altar / Spellbook Swap) still starts closed.
+        boolean shown = bookShown(bookNow);
+        if (panelOpen && lastBook != -1 && bookNow != lastBook) {
             panelOpen = false;
-            trace("menu closed: the book left the screen");
+            trace("menu closed: another spellbook");
             relayout();
+        } else if (panelOpen && shown && !lastShown) {
+            relayout(); // back on screen
         }
+        lastShown = shown;
         lastBook = bookNow;
         // The book's own var trigger does not re-run the layout for every bit of varp 1376 (the OSRS bits 18-25 are new):
         // a changed varp re-lays the open book out here.
