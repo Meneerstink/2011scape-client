@@ -106,7 +106,17 @@ final class DungeoneeringRemoved {
         clip(x + FRAME_EDGE, y, x + width - FRAME_EDGE, y + height, clipX1, clipY1, clipX2, clipY2);
         sprite.render(x + FRAME_EDGE - FRAME_EDGE * span / inner, y, stretched, height);
         com.jagex.graphics.Toolkit.active.KA(clipX1, clipY1, clipX2, clipY2);
+        // N356 (owner 2026-10-31 23:2x: "zwarte achtergrond zoals OSRS, nu grijs"): the frame's grey inside becomes black, its 1 px
+        // border and rounded corners stay - a plus of two fills keeps 3 px off each corner (sprite 3030: border row 0 / column 0,
+        // the corner curve within 3 px, the bottom border on the last 2 rows).
+        if (width > 8 && height > 8) {
+            com.jagex.graphics.Toolkit.active.aa(x + 4, y + 1, width - 8, height - 3, TOTAL_BACKGROUND, 0);
+            com.jagex.graphics.Toolkit.active.aa(x + 1, y + 4, width - 2, height - 8, TOTAL_BACKGROUND, 0);
+        }
     }
+
+    /** N356: the total level box's background (OSRS: black). */
+    static final int TOTAL_BACKGROUND = 0x000000;
 
     private static void clip(int x1, int y1, int x2, int y2, int clipX1, int clipY1, int clipX2, int clipY2) {
         com.jagex.graphics.Toolkit.active.KA(Math.max(x1, clipX1), Math.max(y1, clipY1), Math.min(x2, clipX2), Math.min(y2, clipY2));
