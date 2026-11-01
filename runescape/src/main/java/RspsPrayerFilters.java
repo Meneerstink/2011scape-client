@@ -737,6 +737,24 @@ public final class RspsPrayerFilters {
         return c != null && c.id != -1 && c.slot == ICONS;
     }
 
+    /**
+     * N519: cache script 1388 gives only the 15x15 checkboxes on 271:42 Select/Deselect + onOp 2290. Script 1237
+     * draws separate 30x30 icons on 271:8 and deliberately gives them no ops in quick mode. The icon's centre lies
+     * outside its checkbox, so clicking the prayer yielded only Cancel, also before N482. Use the original checkbox
+     * as the menu target: its own label, hook, child index and server events remain authoritative.
+     */
+    static Component quickMenuComponent(Component c) {
+        if (!quickSelect() || !isPrayer(c)) {
+            return c;
+        }
+        Component quick = InterfaceList.list(QUICK);
+        if (quick == null || quick.hidden || quick.staticComponents == null || c.id >= quick.staticComponents.length) {
+            return null;
+        }
+        Component cell = quick.staticComponents[c.id];
+        return cell == null || cell.hidden ? null : cell;
+    }
+
     /** InterfaceManager.addMiniMenuOptions: the tab-stone ops, the Filters button, the menu rows, Hide / Unhide. */
     static boolean addOptions(Component component) {
         if (component == null) {

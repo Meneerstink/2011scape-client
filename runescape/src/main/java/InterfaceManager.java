@@ -3231,6 +3231,20 @@ public final class InterfaceManager {
 
     @OriginalMember(owner = "client!nea", name = "a", descriptor = "(ILclient!hda;II)V")
     public static void addMiniMenuOptions(@OriginalArg(1) Component component, @OriginalArg(2) int arg1, @OriginalArg(3) int arg2) {
+        // N519: script 1237's quick-mode icons have no ops. Select through the matching 1388 checkbox instead.
+        component = RspsPrayerFilters.quickMenuComponent(component);
+        if (component == null) {
+            return;
+        }
+        if (RspsPrayerFilters.quickSelect() && component.slot == RspsPrayerFilters.QUICK && component.id >= 0) {
+            // The 15px checkbox overlaps its 30px icon: both hit tests can reach this same operation in one frame.
+            for (MiniMenuEntryInner entry = (MiniMenuEntryInner) MiniMenu.innerEntryQueue.first(); entry != null;
+                 entry = (MiniMenuEntryInner) MiniMenu.innerEntryQueue.next()) {
+                if (entry.v3 == component.slot && entry.v2 == component.id) {
+                    return;
+                }
+            }
+        }
         // Diagnostic logging for gear switcher - log component data when menu opens
         RspsGearSwitcher.observeMenuComponent(component);
         // 78Legacy v4: right-click setup "Add Wear / Prayer ... to Script N" (RspsScriptMenu; client only).
