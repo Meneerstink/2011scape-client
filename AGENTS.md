@@ -1,0 +1,8 @@
+# 78legacy - EERSTE STAP: lees C:\RSPS\HOOFDLIJST.txt HELEMAAL (het enige startbestand). Werk alleen aan de klussen in sectie 1.
+
+GOUDEN REGEL 2 (eigenaar 2026-11-02, WENSEN en BUGS): correcte werking volgens OSRS - DE HELE KETEN: zelf testen, kapot proberen te krijgen,
+alle gerelateerde subsystemen meenemen en fixen, NIETS verzinnen (OSRS/wiki/donors; geen bron = vragen). Af = werkt in-game zoals OSRS.
+GOUDEN REGEL (eigenaar 2026-11-02, alle BUGS): een melding is een VOORBEELD (na ~10 s testen) - test en fix ALLES rond die bug: alle
+varianten en gerelateerde items/systemen (OSRS-items: examine, Inspect/Check, opties, bonussen, model, dood/broken/Perdu/repair, GE, winkel,
+Drop Viewer/Collection Log, geluid), alle routes en randgevallen. Volledige tekst: C:\RSPS\CLAUDE.md / HOOFDLIJST sectie 2.
+Detail per bug: C:\RSPS\BUGLIJST.txt. Begin je eerste antwoord met "Huidige opdracht: <sectie 1 in een regel>".
