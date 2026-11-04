@@ -61,6 +61,11 @@ public final class Static723 {
         if (local109 < 262144) {
             local109 = 262144;
         }
+        // N522: areas whose walls are taller than the camera (the Escape Caves) keep the camera up.
+        int areaMin = RspsCamera.areaMinPitch(local59 + WorldMap.areaBaseX, local63 + WorldMap.areaBaseZ);
+        if (local109 < areaMin) {
+            local109 = areaMin;
+        }
         if (Static188.anInt3103 < local109) {
             Static188.anInt3103 += (local109 - Static188.anInt3103) / 24;
         } else if (Static188.anInt3103 > local109) {

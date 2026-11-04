@@ -41,6 +41,19 @@ public final class RspsCamera {
         return setting("relaxCameraPitch") ? RELAXED_PITCH_MAX : PITCH_MAX;
     }
 
+    /**
+     * N522 (owner 2026-11-04 'camera auto omhoog'): the OSRS Escape Caves (map square 13472, x 3328-3391, z 10240-10303) are
+     * narrow passages walled by 4-tile-high black void blocks (OSRS locs 42251/42256-42260, 507 units). A low camera hangs behind
+     * those walls and the screen goes black; there the camera's minimum pitch is the top one, raised through the same eased
+     * terrain minimum the 2011 client already has (Static723, OSRS's camera follow height). In {@code << 8} units like that value.
+     */
+    static int areaMinPitch(int tileX, int tileZ) {
+        if (tileX >= 3328 && tileX <= 3391 && tileZ >= 10240 && tileZ <= 10303) {
+            return PITCH_MAX << 8;
+        }
+        return 0;
+    }
+
     /** "Disable camera shake" (setCameraShakeDisabled): whether a shake (CAM_SHAKE) in [direction] moves the camera. */
     static boolean shake(int direction) {
         return Shake.enabled[direction] && !setting("disableCameraShake");
