@@ -2353,7 +2353,9 @@ public final class MiniMenu {
         @Pc(23) int entryHeight = (entry.size * ENTRY_HEIGHT) + 21;
         openedEntryHeight = (useSprites ? 26 : 22) + (entry.size * ENTRY_HEIGHT);
 
-        @Pc(71) int entryX = entryWidth + x;
+        // N555 (owner 2026-11-02, a large ground pile: the Take/Examine submenu opened on top of the main menu): the submenu starts at
+        // the main menu's right edge (its own width was used, so a menu wider than the submenu was overlapped); else left of the menu.
+        @Pc(71) int entryX = width + x;
         if (entryX + entryWidth > GameShell.canvasWid) {
             entryX = x - entryWidth;
         }
