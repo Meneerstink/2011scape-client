@@ -1,4 +1,5 @@
 # 78legacy - EERSTE STAP: lees C:\RSPS\HOOFDLIJST.txt HELEMAAL (het enige startbestand). Werk alleen aan de klussen in sectie 1.
+SCOPE (eigenaar 2026-11-05 15:5x, BOVEN ALLES): FIXEN, NIET IMPORTEREN - geen nieuwe OSRS-content (bosses, npc's, gebieden, items, interfaces) tenzij de eigenaar het zelf in de chat vraagt; importeren alleen als middel om een bestaande bug te fixen (ontbrekend geluid/model/seq). Eerst het bestaande VOLLEDIG OSRS-correct (KETENS K-BOSS + K-FIX). Detail: HOOFDLIJST sectie 2.
 
 KETENS (eigenaar 2026-11-02, VERPLICHT): bij ELKE bug en wens de passende keten(s) uit C:\RSPS\KETENS.txt kiezen, in de BUGLIJST-regel zetten ('KETEN: ...'), per punt afvinken met BEWIJS in het dossier (kopje KETEN-BEWIJS) incl. A9 LIVE-bewijs; punt zonder bewijs = niet af.
 GOUDEN REGEL 2 (eigenaar 2026-11-02, WENSEN en BUGS): correcte werking volgens OSRS - DE HELE KETEN: zelf testen, kapot proberen te krijgen,
