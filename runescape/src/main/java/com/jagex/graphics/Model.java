@@ -155,6 +155,69 @@ public abstract class Model {
     }
 
     /**
+     * N462 skeletal route A: this model's vertex position arrays {x, y, z} (indexed like the mesh), valid between {@link #NA()} and
+     * {@link #wa()}; null when this renderer cannot be skinned (yet).
+     */
+    protected int[][] skeletalVertexArrays() {
+        return null;
+    }
+
+    /** N462: vertex count of {@link #skeletalVertexArrays()}. */
+    protected int skeletalVertexCount() {
+        return -1;
+    }
+
+    /**
+     * N462: called after the skinned positions (client units << 4) are written, before {@link #wa()}; renderers that shift lazily
+     * (JavaModel) mark their arrays as shifted here so wa() shifts them back.
+     */
+    protected void skeletalWritten() {
+    }
+
+    /** N462: the factor the bind positions in {@link #skeletalVertexArrays()} carry right after NA() (16 = already shifted). */
+    protected int skeletalReadShift() {
+        return 16;
+    }
+
+    /**
+     * N462 skeletal route A: poses this (copied, animatable) model with the real OSRS skeletal clip at [tick], replacing the classic
+     * frame. Same begin/end bracket as a classic frame (method7491/NA ... wa/method7494), so the renderer re-uploads the vertices.
+     * False (model untouched) when the renderer has no skinning hook or the mesh does not match the skin.
+     */
+    public final boolean applySkeletal(com.jagex.graphics.skeletal.SkeletalAnimation animation, double[][] matrices, int tick) {
+        if (this.skeletalVertexArrays() == null) {
+            return false;
+        }
+        this.method7491();
+        if (!this.NA()) {
+            this.method7494();
+            return false;
+        }
+        int[][] v = this.skeletalVertexArrays();
+        boolean ok = v != null && animation.skinInto(matrices, v[0], v[1], v[2], this.skeletalVertexCount(), this.skeletalReadShift(), 16);
+        if (ok) {
+            this.skeletalWritten();
+            // OSRS Model.method4260: alpha curves add value * 255 to the original alpha of the faces in the rig transform's label
+            // groups; here through the classic type-5 transform (alpha += dx * 8, clamped) on this copy's own alpha array (the
+            // animator asks for function mask 0x100 when the clip has alpha). No alpha array = a model without transparency: skipped.
+            if (animation.hasAlpha() && this.getFaceAlphas() != null) {
+                for (int t : animation.alphaTransforms()) {
+                    int delta = animation.alphaDelta(t, tick);
+                    if (delta != 0) {
+                        this.method7499(5, animation.rig.labels[t], delta, 0, 0, 0, false);
+                    }
+                }
+            }
+        }
+        this.wa();
+        this.method7494();
+        if (!ok) {
+            com.jagex.graphics.skeletal.SkeletalTrace.mismatch(animation, this.skeletalVertexCount());
+        }
+        return ok;
+    }
+
+    /**
      * updateShadow
      */
     @OriginalMember(owner = "client!ka", name = "ba", descriptor = "(Lclient!r;)Lclient!r;")

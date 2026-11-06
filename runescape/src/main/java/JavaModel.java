@@ -1618,6 +1618,32 @@ public final class JavaModel extends Model {
         return this.method7514(local25, local18, functionMask, local4, arg2);
     }
 
+    /** N462 skeletal route A (Software Java): the per-vertex position arrays the classic transforms (I) also write. */
+    @Override
+    protected int[][] skeletalVertexArrays() {
+        if (this.vertexX == null || this.vertexY == null || this.vertexZ == null) {
+            return null;
+        }
+        return new int[][] { this.vertexX, this.vertexY, this.vertexZ };
+    }
+
+    @Override
+    protected int skeletalVertexCount() {
+        return this.vertexCount;
+    }
+
+    /** The skinned positions are written in units << 4: mark them shifted so wa() shifts them back (as I does lazily). */
+    @Override
+    protected void skeletalWritten() {
+        this.aBoolean648 = true;
+    }
+
+    /** JavaModel shifts lazily (I sets aBoolean648 on the first transform): right after NA the arrays are unshifted. */
+    @Override
+    protected int skeletalReadShift() {
+        return this.aBoolean648 ? 16 : 1;
+    }
+
     @OriginalMember(owner = "client!rs", name = "g", descriptor = "()V")
     @Override
     protected void method7491() {

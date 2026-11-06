@@ -31,7 +31,18 @@ final class RspsTestDetail {
             for (VolumeOption v : new VolumeOption[] {o.soundVolume, o.backgroundSoundVolume, o.speechVolume, o.musicVolume, o.loginVolume}) {
                 o.update(v.getDefaultValue(), v);
             }
-            if ("min".equals(level)) {
+            if ("gl".equals(level) || "java".equals(level) || "dx".equals(level) || "sse".equals(level)) {
+                // N462 skeletal proof: switch the renderer like the dev console tk0/tk1/tk2/tk3 (OpenGL = the owner's renderer).
+                final int tk = "gl".equals(level) ? com.jagex.graphics.ToolkitType.GL : "dx".equals(level) ? com.jagex.graphics.ToolkitType.D3D
+                    : "sse".equals(level) ? com.jagex.graphics.ToolkitType.SSE : com.jagex.graphics.ToolkitType.JAVA;
+                Static32.setToolkit(tk, false);
+                if (ClientOptions.instance.toolkit.getValue() != tk) {
+                    TestHook.detailDone("err detail " + level + ": toolkit stayed " + ClientOptions.instance.toolkit.getValue());
+                    return;
+                }
+                // Session only: the saved renderer (toolkitDefault) stays as it was - saving Java there made every later start
+                // show "Available graphics options have changed" (2026-11-06).
+            } else if ("min".equals(level)) {
                 Static468.method7643();
                 ClientOptions.instance.update(0, ClientOptions.instance.cpuUsage);
                 MainLogicManager.mapBuild();

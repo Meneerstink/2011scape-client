@@ -29,6 +29,11 @@ public class Animator {
             @Pc(12) SeqType thisAnimation = animator.animation;
             @Pc(15) SeqType otherAnimation = other.animation;
             com.jagex.core.util.ModelTrace.setFrame(thisAnimation.id, animator.currentFrame);
+            // N462 skeletal: a skeletal action plays on the bones outside its OSRS bone mask, a skeletal movement on the same rig on
+            // the bones inside it (OSRS SequenceDefinition.applyTransformations); without a mask the action takes the whole body.
+            if (animator.animateSkeletal(model, other)) {
+                return;
+            }
             model.method7477(other.frameOffset, animator.primarySequences.anInt6448, animator.primarySequences.aClass2_Sub2_Sub18_2, other.primarySequences.anInt6450, animator.primarySequences.anInt6450, other.primarySequences.aClass2_Sub2_Sub18_2, animator.primarySequences.aClass2_Sub2_Sub18_1, animator.frameOffset, thisAnimation.rotateNormals | otherAnimation.rotateNormals, otherAnimation.frameDurations[other.currentFrame], other.primarySequences.aClass2_Sub2_Sub18_1, thisAnimation.blendFlags, thisAnimation.frameDurations[animator.currentFrame], other.primarySequences.anInt6448);
         }
     }
@@ -94,11 +99,51 @@ public class Animator {
         }
 
         com.jagex.core.util.ModelTrace.setFrame(this.animation.id, this.currentFrame);
+        if (this.animateSkeletal(model)) {
+            return;
+        }
         model.method7487(this.primarySequences.aClass2_Sub2_Sub18_1, this.frameOffset, this.animation.frameDurations[this.currentFrame], this.primarySequences.aClass2_Sub2_Sub18_2, this.primarySequences.anInt6448, this.primarySequences.anInt6450, arg1, this.animation.rotateNormals);
 
         if (this.runSecondary && this.animation.secondaryFrames != null && this.secondarySequences.aBoolean481) {
             model.method7487(this.secondarySequences.aClass2_Sub2_Sub18_1, this.frameOffset, this.animation.frameDurations[this.currentFrame], this.secondarySequences.aClass2_Sub2_Sub18_2, this.secondarySequences.anInt6448, this.secondarySequences.anInt6450, arg1, this.animation.rotateNormals);
         }
+    }
+
+    /**
+     * N462 skeletal route A: plays this sequence with the real OSRS skeletal clip when one is registered for it. The clip tick is the
+     * number of client cycles since the sequence's first frame (frame durations are client cycles, like OSRS skeletal ticks).
+     */
+    private boolean animateSkeletal(Model model) {
+        return this.animateSkeletal(model, null);
+    }
+
+    private boolean animateSkeletal(Model model, Animator movement) {
+        com.jagex.graphics.skeletal.SkeletalAnimation skeletal = com.jagex.graphics.skeletal.SkeletalAnimation.forSeq(this.animation.id);
+        if (skeletal == null) {
+            return false;
+        }
+        int tick = this.skeletalTick(skeletal);
+        double[][] matrices;
+        com.jagex.graphics.skeletal.SkeletalAnimation moving = null;
+        if (movement != null && skeletal.mask != null && movement.animation != null) {
+            moving = com.jagex.graphics.skeletal.SkeletalAnimation.forSeq(movement.animation.id);
+        }
+        matrices = moving != null ? skeletal.blended(tick, moving, movement.skeletalTick(moving)) : skeletal.matrices(tick);
+        if (!model.applySkeletal(skeletal, matrices, tick)) {
+            return false;
+        }
+        com.jagex.graphics.skeletal.SkeletalTrace.first(skeletal, model.getClass().getSimpleName() + (moving != null ? " blended with " + moving.seqId : ""));
+        return true;
+    }
+
+    /** Client cycles since this sequence's first frame, from the clip's first tick (frame durations are client cycles). */
+    private int skeletalTick(com.jagex.graphics.skeletal.SkeletalAnimation skeletal) {
+        int elapsed = this.frameOffset;
+        int[] durations = this.animation.frameDurations;
+        for (int i = 0; i < this.currentFrame && i < durations.length; i++) {
+            elapsed += durations[i];
+        }
+        return skeletal.start + elapsed;
     }
 
     @OriginalMember(owner = "client!gu", name = "a", descriptor = "(BI)Z")
@@ -208,6 +253,11 @@ public class Animator {
         @Pc(18) int mask = 0;
         if (this.method9111()) {
             mask = this.primarySequences.anInt6452 | 0x0;
+            // N462: a skeletal clip with alpha curves changes face alpha on the copy - it must own its alpha array (0x100 = type 5).
+            com.jagex.graphics.skeletal.SkeletalAnimation skeletal = com.jagex.graphics.skeletal.SkeletalAnimation.forSeq(this.animation.id);
+            if (skeletal != null && skeletal.hasAlpha()) {
+                mask |= 0x100;
+            }
             if (this.runSecondary && this.animation.secondaryFrames != null) {
                 mask |= this.secondarySequences.anInt6452;
             }

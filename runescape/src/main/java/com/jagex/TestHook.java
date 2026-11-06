@@ -168,8 +168,9 @@ public final class TestHook {
                 // Owner 2026-10-14 ("trage laptop"): the test client plays on Min (the Graphics Options "Min" button, CPU
                 // usage lowest) unless an item is about what players see; "mid" = the 78 default profile every player starts on.
                 final String level = rest.trim().toLowerCase();
-                if (!level.equals("min") && !level.equals("mid")) {
-                    return "err detail min|mid";
+                if (!level.equals("min") && !level.equals("mid") && !level.equals("gl") && !level.equals("java")
+                    && !level.equals("dx") && !level.equals("sse")) {
+                    return "err detail min|mid|gl|java|dx|sse";
                 }
                 final CompletableFuture<String> done = new CompletableFuture<>();
                 detailWanted = level;
@@ -178,6 +179,17 @@ public final class TestHook {
             }
             case "shot":
                 return shot(rest.trim());
+            case "fps":
+                // N462 skeletal performance check: the client's own frame counter (the same number 'displayfps' shows).
+                return "ok fps " + com.jagex.game.runetek6.client.GameShell.currentFps;
+            case "skeletal": {
+                // N462 skeletal proof: switch the real skeletal player on/off to compare it with the baked classic frames.
+                final String v = rest.trim().toLowerCase();
+                if (v.equals("on") || v.equals("off")) {
+                    com.jagex.graphics.skeletal.SkeletalAnimation.enabled = v.equals("on");
+                }
+                return "ok skeletal " + (com.jagex.graphics.skeletal.SkeletalAnimation.enabled ? "on" : "off");
+            }
             default:
                 return "err unknown command " + cmd;
         }

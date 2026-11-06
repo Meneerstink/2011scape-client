@@ -36,6 +36,8 @@ tasks.named<JavaExec>("run") {
     // instead of the owner's real mouse and screen. Only tools\live\RestartClient.ps1 passes it.
     providers.gradleProperty("rsps.testHook").orNull?.let { systemProperty("rsps.testHook", it) }
     providers.gradleProperty("rsps.testSound").orNull?.let { systemProperty("rsps.testSound", it) }
+    // N462 skeletal proof (2026-11-06): sidecar directory with real OSRS rig/clip/skin files; test clients only (RestartClient -Skeletal).
+    providers.gradleProperty("rsps.skeletalDir").orNull?.let { systemProperty("rsps.skeletalDir", it) }
 
     // Owner D3 2026-10-11 (crash "NoClassDefFoundError: Static304", 2026-10-10 21:20:02): the client ran straight from
     // runescape/build/libs/runescape.jar; 75 s after the owner started his client another session ran `gradlew :client:jar`,

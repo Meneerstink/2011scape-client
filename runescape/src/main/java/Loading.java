@@ -544,7 +544,8 @@ public final class Loading {
             js5.MIDI_SONGS.clearNames(true, true);
             js5.SPRITES.clearNames(true, true);
             js5.FONTMETRICS.clearNames(true, true);
-            js5.BINARY.clearNames(true, true);
+            // N462 skeletal (2026-11-06): index 10 keeps its names - the skeletal player finds 'skel_index' / 'skel_<name>' by name
+            // after loading (clearing them made js5.groupExists throw a NullPointerException). A handful of groups, no memory cost.
             js5.CONFIG.discardunpacked = 2;
             Client.cleanCaches = true;
             js5.CONFIG_ENUM.discardunpacked = 2;

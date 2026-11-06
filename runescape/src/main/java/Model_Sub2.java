@@ -3931,6 +3931,20 @@ public final class Model_Sub2 extends Model {
     protected void method7491() {
     }
 
+    /** N462 skeletal route A (OpenGL): the per-vertex position arrays the classic transforms (I) also write. */
+    @Override
+    protected int[][] skeletalVertexArrays() {
+        if (this.anIntArray410 == null || this.anIntArray409 == null || this.anIntArray412 == null) {
+            return null;
+        }
+        return new int[][] { this.anIntArray410, this.anIntArray409, this.anIntArray412 };
+    }
+
+    @Override
+    protected int skeletalVertexCount() {
+        return this.anInt5523;
+    }
+
     @OriginalMember(owner = "client!kla", name = "EA", descriptor = "()I")
     @Override
     public int EA() {

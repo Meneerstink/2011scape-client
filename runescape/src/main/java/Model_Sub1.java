@@ -2643,6 +2643,20 @@ public final class Model_Sub1 extends Model {
     protected void method7491() {
     }
 
+    /** N462 skeletal route A (DirectX/GLX native toolkit): the per-vertex position arrays the classic transforms (I) also write. */
+    @Override
+    protected int[][] skeletalVertexArrays() {
+        if (this.anIntArray240 == null || this.anIntArray242 == null || this.anIntArray244 == null) {
+            return null;
+        }
+        return new int[][] { this.anIntArray240, this.anIntArray242, this.anIntArray244 };
+    }
+
+    @Override
+    protected int skeletalVertexCount() {
+        return this.anInt2767;
+    }
+
     @OriginalMember(owner = "client!eu", name = "V", descriptor = "()I")
     @Override
     public int V() {
