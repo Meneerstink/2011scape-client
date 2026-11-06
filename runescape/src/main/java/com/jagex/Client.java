@@ -21,10 +21,10 @@ public final class Client {
     public static final int BUILD = 667;
 
     @OriginalMember(owner = "client!gha", name = "t", descriptor = "[Lclient!mj;")
-    public static final BufferedFile[] cacheIndexFiles = new BufferedFile[37];
+    public static final BufferedFile[] cacheIndexFiles = new BufferedFile[com.jagex.js5.Js5Archive.ID_LIMIT];
 
     @OriginalMember(owner = "client!ha", name = "l", descriptor = "[Lclient!pm;")
-    public static final Js5ResourceProvider[] js5ResourceProviders = new Js5ResourceProvider[37];
+    public static final Js5ResourceProvider[] js5ResourceProviders = new Js5ResourceProvider[com.jagex.js5.Js5Archive.ID_LIMIT];
 
     @OriginalMember(owner = "client!kla", name = "kb", descriptor = "[Ljava/awt/Color;")
     public static final Color[] OUTLINE_COLOURS = {

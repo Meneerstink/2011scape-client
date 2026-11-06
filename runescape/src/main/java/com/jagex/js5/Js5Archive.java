@@ -37,10 +37,18 @@ public final class Js5Archive {
 	public static final int LOADING_SPRITES_RAW = 34;
 	public static final int LOADING_SCREENS = 33;
 	public static final int CUTSCENES = 35;
+	public static final int VIDEOS = 36;
+	/**
+	 * 78legacy (N462, 2026-11-06): model ids 65536..131071. Archive 7 is full (one group per id, 65536 groups; the disk
+	 * sector header and the JS5 request carry a 16-bit group), so a model id M >= 65536 lives in this archive as group
+	 * M - 65536. {@link js5#overflow} routes every MODELS lookup of such an id here, so callers keep passing the plain id.
+	 */
+	public static final int MODELS_EXT = 37;
+	public static final int MODELS_EXT_BASE = 65536;
 
 	public static final int ARCHIVESET = 255;
 
-	public static final int ID_LIMIT = 37;
+	public static final int ID_LIMIT = 38;
 
 	private Js5Archive() {
 		/* empty */

@@ -530,6 +530,19 @@ public final class LocType {
             this.aBoolean91 = true;
         } else if (code == 178) {
             this.soundSize = packet.g1();
+        } else if (code == 241) {
+            // 78legacy N462 wide model ids (> 65535, archive MODELS_EXT): same field as the 16-bit opcode, ids as g4.
+            @Pc(37) int shapeCount = packet.g1();
+            this.modelShapes = new byte[shapeCount];
+            this.models = new int[shapeCount][];
+            for (int i = 0; i < shapeCount; i++) {
+                this.modelShapes[i] = packet.g1b();
+                int modelCount = packet.g1();
+                this.models[i] = new int[modelCount];
+                for (int j = 0; j < modelCount; j++) {
+                    this.models[i][j] = packet.g4();
+                }
+            }
         } else if (code == 249) {
             @Pc(37) int count = packet.g1();
             if (this.params == null) {
@@ -1011,7 +1024,7 @@ public final class LocType {
                     for (@Pc(281) int i = 0; i < modelCount; i++) {
                         @Pc(286) js5 local286 = this.typeList.meshes;
                         synchronized (this.typeList.meshes) {
-                            mesh = Mesh.load(models[i] & 0xFFFF, this.typeList.meshes);
+                            mesh = Mesh.load(models[i], this.typeList.meshes);
                         }
 
                         if (mesh == null) {

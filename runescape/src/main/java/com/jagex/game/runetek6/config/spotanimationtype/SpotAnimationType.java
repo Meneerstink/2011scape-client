@@ -176,6 +176,9 @@ public final class SpotAnimationType {
     public void decode(@OriginalArg(0) int code, @OriginalArg(1) Packet packet) {
         if (code == 1) {
             this.model = packet.g2();
+        } else if (code == 241) {
+            // 78legacy N462 wide model ids (> 65535, archive MODELS_EXT): same field as the 16-bit opcode, ids as g4.
+            this.model = packet.g4();
         } else if (code == 2) {
             this.seq = packet.g2();
         } else if (code == 4) {

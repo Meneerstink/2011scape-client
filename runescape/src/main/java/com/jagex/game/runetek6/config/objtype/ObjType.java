@@ -496,6 +496,24 @@ public final class ObjType {
             this.boughtlink = packet.g2();
         } else if (code == 140) {
             this.boughttemplate = packet.g2();
+        } else if (code == 240) {
+            // 78legacy N462 wide model ids (> 65535, archive MODELS_EXT): g1 = the 16-bit opcode whose model field it sets, then g4.
+            int target = packet.g1();
+            int model = packet.g4();
+            switch (target) {
+                case 1: this.mesh = model; break;
+                case 23: this.manwear = model; break;
+                case 24: this.manwear2 = model; break;
+                case 25: this.womanwear = model; break;
+                case 26: this.womanwear2 = model; break;
+                case 78: this.manwear3 = model; break;
+                case 79: this.womanwear3 = model; break;
+                case 90: this.manhead = model; break;
+                case 91: this.womanhead = model; break;
+                case 92: this.manhead2 = model; break;
+                case 93: this.womanhead2 = model; break;
+                default: throw new RuntimeException("obj wide model: unknown target opcode " + target);
+            }
         } else if (code == 249) {
             @Pc(202) int count = packet.g1();
 

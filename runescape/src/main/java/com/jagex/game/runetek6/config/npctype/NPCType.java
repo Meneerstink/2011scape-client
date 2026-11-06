@@ -501,6 +501,19 @@ public final class NPCType {
             this.pickSizeShift = packet.g1();
         } else if (code == 168) {
             this.soundRangeMin = packet.g1();
+        } else if (code == 241) {
+            // 78legacy N462 wide model ids (> 65535, archive MODELS_EXT): same field as the 16-bit opcode, ids as g4.
+            int count = packet.g1();
+            this.models = new int[count];
+            for (int i = 0; i < count; i++) {
+                this.models[i] = packet.g4();
+            }
+        } else if (code == 242) {
+            int count = packet.g1();
+            this.headModels = new int[count];
+            for (int i = 0; i < count; i++) {
+                this.headModels[i] = packet.g4();
+            }
         } else if (code == 249) {
             @Pc(12) int count = packet.g1();
 

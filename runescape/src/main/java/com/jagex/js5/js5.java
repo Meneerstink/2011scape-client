@@ -127,6 +127,9 @@ public final class js5 {
     @OriginalMember(owner = "client!wh", name = "K", descriptor = "Lclient!sb;")
     public static js5 VIDEOS; // 36
 
+    /** 78legacy N462: model ids 65536..131071 (Js5Archive.MODELS_EXT), null when the server cache has no archive 37. */
+    public static js5 MODELS_EXT; // 37
+
     @OriginalMember(owner = "client!dj", name = "o", descriptor = "I")
     public static final int maxsize = 0;
 
@@ -200,6 +203,12 @@ public final class js5 {
     public int discardunpacked;
 
     @OriginalMember(owner = "client!sb", name = "<init>", descriptor = "(Lclient!bm;ZI)V")
+    /**
+     * 78legacy N462: the archive that holds this archive's groups from Js5Archive.MODELS_EXT_BASE up (set on MODELS only, to
+     * MODELS_EXT). Every group-id entry point routes such an id there minus the base, so a caller keeps using the plain model id.
+     */
+    public js5 overflow;
+
     public js5(@OriginalArg(0) ResourceProvider provider, @OriginalArg(1) boolean discardpacked, @OriginalArg(2) int discardunpacked) {
         if (discardunpacked < 0 || discardunpacked > 2) {
             throw new IllegalArgumentException("js5: Invalid value " + discardunpacked + " supplied for discardunpacked");
@@ -259,6 +268,7 @@ public final class js5 {
 
     @OriginalMember(owner = "client!sb", name = "e", descriptor = "(II)V")
     public void fetchGroup(@OriginalArg(0) int groupId) {
+        if (this.overflow != null && groupId >= Js5Archive.MODELS_EXT_BASE) { this.overflow.fetchGroup(groupId - Js5Archive.MODELS_EXT_BASE); return; }
         if (this.discardpacked) {
             this.packed[groupId] = this.provider.fetchgroup(groupId);
         } else {
@@ -268,6 +278,7 @@ public final class js5 {
 
     @OriginalMember(owner = "client!sb", name = "a", descriptor = "(ZI)I")
     public int completePercentage(@OriginalArg(1) int groupId) {
+        if (this.overflow != null && groupId >= Js5Archive.MODELS_EXT_BASE) return this.overflow.completePercentage(groupId - Js5Archive.MODELS_EXT_BASE);
         if (this.isValidGroup(groupId)) {
             return this.packed[groupId] == null ? this.provider.completePercentage(groupId) : 100;
         } else {
@@ -277,6 +288,7 @@ public final class js5 {
 
     @OriginalMember(owner = "client!sb", name = "a", descriptor = "(IB)Z")
     public boolean fileready(@OriginalArg(0) int id) {
+        if (this.overflow != null && id >= Js5Archive.MODELS_EXT_BASE) return this.overflow.fileready(id - Js5Archive.MODELS_EXT_BASE);
         if (!this.indexReady()) {
             return false;
         } else if (this.index.fileLimits.length == 1) {
@@ -315,6 +327,7 @@ public final class js5 {
 
     @OriginalMember(owner = "client!sb", name = "a", descriptor = "([IIII)[B")
     public byte[] getfile(@OriginalArg(0) int[] key, @OriginalArg(1) int fileId, @OriginalArg(3) int groupId) {
+        if (this.overflow != null && groupId >= Js5Archive.MODELS_EXT_BASE) return this.overflow.getfile(key, fileId, groupId - Js5Archive.MODELS_EXT_BASE);
         if (!this.isValidFile(fileId, groupId)) {
             return null;
         }
@@ -362,6 +375,7 @@ public final class js5 {
 
     @OriginalMember(owner = "client!sb", name = "a", descriptor = "(IIB)Z")
     public boolean isValidFile(@OriginalArg(0) int fileId, @OriginalArg(1) int groupId) {
+        if (this.overflow != null && groupId >= Js5Archive.MODELS_EXT_BASE) return this.overflow.isValidFile(fileId, groupId - Js5Archive.MODELS_EXT_BASE);
         if (!this.indexReady()) {
             return false;
         } else if (groupId >= 0 && fileId >= 0 && groupId < this.index.fileLimits.length && fileId < this.index.fileLimits[groupId]) {
@@ -375,6 +389,7 @@ public final class js5 {
 
     @OriginalMember(owner = "client!sb", name = "a", descriptor = "(I[III)Z")
     public boolean unpackFile(@OriginalArg(1) int[] key, @OriginalArg(2) int fileId, @OriginalArg(3) int groupId) {
+        if (this.overflow != null && groupId >= Js5Archive.MODELS_EXT_BASE) return this.overflow.unpackFile(key, fileId, groupId - Js5Archive.MODELS_EXT_BASE);
         if (!this.isValidGroup(groupId)) {
             return false;
         } else if (this.packed[groupId] == null) {
@@ -558,6 +573,7 @@ public final class js5 {
 
     @OriginalMember(owner = "client!sb", name = "a", descriptor = "(III)Z")
     public boolean requestdownload(@OriginalArg(0) int fileId, @OriginalArg(1) int groupId) {
+        if (this.overflow != null && groupId >= Js5Archive.MODELS_EXT_BASE) return this.overflow.requestdownload(fileId, groupId - Js5Archive.MODELS_EXT_BASE);
         if (!this.isValidFile(fileId, groupId)) {
             return false;
         } else if (this.unpacked[groupId] != null && this.unpacked[groupId][fileId] != null) {
@@ -583,11 +599,13 @@ public final class js5 {
 
     @OriginalMember(owner = "client!sb", name = "c", descriptor = "(II)V")
     public void requestGroup(@OriginalArg(1) int groupId) {
+        if (this.overflow != null && groupId >= Js5Archive.MODELS_EXT_BASE) { this.overflow.requestGroup(groupId - Js5Archive.MODELS_EXT_BASE); return; }
         this.provider.requestGroup(groupId);
     }
 
     @OriginalMember(owner = "client!sb", name = "b", descriptor = "(BI)[B")
     public byte[] getfile(@OriginalArg(1) int id) {
+        if (this.overflow != null && id >= Js5Archive.MODELS_EXT_BASE) return this.overflow.getfile(id - Js5Archive.MODELS_EXT_BASE);
         if (!this.indexReady()) {
             return null;
         } else if (this.index.fileLimits.length == 1) {
@@ -671,6 +689,7 @@ public final class js5 {
 
     @OriginalMember(owner = "client!sb", name = "d", descriptor = "(BI)Z")
     public boolean isValidGroup(@OriginalArg(1) int groupId) {
+        if (this.overflow != null && groupId >= Js5Archive.MODELS_EXT_BASE) return this.overflow.isValidGroup(groupId - Js5Archive.MODELS_EXT_BASE);
         if (!this.indexReady()) {
             return false;
         } else if (groupId >= 0 && groupId < this.index.fileLimits.length && this.index.fileLimits[groupId] != 0) {
@@ -749,6 +768,7 @@ public final class js5 {
 
     @OriginalMember(owner = "client!sb", name = "d", descriptor = "(II)[I")
     public int[] fileIds(@OriginalArg(0) int groupId) {
+        if (this.overflow != null && groupId >= Js5Archive.MODELS_EXT_BASE) return this.overflow.fileIds(groupId - Js5Archive.MODELS_EXT_BASE);
         if (!this.isValidGroup(groupId)) {
             return null;
         }
@@ -785,6 +805,7 @@ public final class js5 {
 
     @OriginalMember(owner = "client!sb", name = "c", descriptor = "(BI)V")
     public void discardUnpacked(@OriginalArg(1) int groupId) {
+        if (this.overflow != null && groupId >= Js5Archive.MODELS_EXT_BASE) { this.overflow.discardUnpacked(groupId - Js5Archive.MODELS_EXT_BASE); return; }
         if (this.isValidGroup(groupId) && this.unpacked != null) {
             this.unpacked[groupId] = null;
         }
@@ -792,6 +813,7 @@ public final class js5 {
 
     @OriginalMember(owner = "client!sb", name = "b", descriptor = "(II)Z")
     public boolean requestgroupdownload(@OriginalArg(1) int groupId) {
+        if (this.overflow != null && groupId >= Js5Archive.MODELS_EXT_BASE) return this.overflow.requestgroupdownload(groupId - Js5Archive.MODELS_EXT_BASE);
         if (!this.isValidGroup(groupId)) {
             return false;
         } else if (this.packed[groupId] == null) {
@@ -804,6 +826,7 @@ public final class js5 {
 
     @OriginalMember(owner = "client!sb", name = "a", descriptor = "(II)I")
     public int fileLimit(@OriginalArg(1) int groupId) {
+        if (this.overflow != null && groupId >= Js5Archive.MODELS_EXT_BASE) return this.overflow.fileLimit(groupId - Js5Archive.MODELS_EXT_BASE);
         return this.isValidGroup(groupId) ? this.index.fileLimits[groupId] : 0;
     }
 }

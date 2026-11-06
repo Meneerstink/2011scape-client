@@ -127,6 +127,11 @@ public final class Js5MasterIndex {
         }
     }
 
+    /** 78legacy N462: number of archives the server's version table lists (37 on an old cache, 38 with MODELS_EXT). */
+    public int archiveCount() {
+        return this.providers == null ? 0 : this.providers.length;
+    }
+
     @OriginalMember(owner = "client!nj", name = "a", descriptor = "(I)V")
     public void process() {
         if (this.providers == null) {

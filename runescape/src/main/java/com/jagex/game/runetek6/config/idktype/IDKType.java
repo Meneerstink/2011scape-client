@@ -65,6 +65,16 @@ public final class IDKType {
             }
         } else if (code >= 60 && code < 70) {
             this.headMeshes[code - 60] = packet.g2();
+        } else if (code == 242) {
+            // 78legacy N462 wide model ids (> 65535, archive MODELS_EXT): same field as the 16-bit opcode, ids as g4.
+            int count = packet.g1();
+            this.meshes = new int[count];
+            for (int i = 0; i < count; i++) {
+                this.meshes[i] = packet.g4();
+            }
+        } else if (code == 240) {
+            int slot = packet.g1();
+            this.headMeshes[slot] = packet.g4();
         }
     }
 

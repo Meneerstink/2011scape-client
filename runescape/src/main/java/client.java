@@ -1215,7 +1215,7 @@ public final class client extends GameShell {
         try {
             if (GameShell.signLink.cacheDat != null) {
                 Client.cacheDat = new BufferedFile(GameShell.signLink.cacheDat, 5200, 0);
-                for (@Pc(205) int i = 0; i < 37; i++) {
+                for (@Pc(205) int i = 0; i < Js5Archive.ID_LIMIT; i++) {
                     Client.cacheIndexFiles[i] = new BufferedFile(GameShell.signLink.cacheIndex[i], 6000, 0);
                 }
                 Client.metaFile = new BufferedFile(GameShell.signLink.masterIndex, 6000, 0);

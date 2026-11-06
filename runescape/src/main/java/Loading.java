@@ -145,6 +145,7 @@ public final class Loading {
         0,
         0,
         1,
+        0,
     };
 
     @OriginalMember(owner = "client!ke", name = "l", descriptor = "I")
@@ -385,6 +386,11 @@ public final class Loading {
             js5.MAPS = client.createJs5(true, Js5Archive.MAPS, 1);
             js5.MIDI_SONGS = client.createJs5(true, Js5Archive.MIDI_SONGS, 1);
             js5.MODELS = client.createJs5(false, Js5Archive.MODELS, 1);
+            // 78legacy N462: second model archive for ids >= 65536 - only when the server cache has it (an older cache keeps the 16-bit limit).
+            if (Static228.js5MasterIndex.archiveCount() > Js5Archive.MODELS_EXT) {
+                js5.MODELS_EXT = client.createJs5(false, Js5Archive.MODELS_EXT, 1);
+                js5.MODELS.overflow = js5.MODELS_EXT;
+            }
             js5.TEXTURES = client.createJs5(false, Js5Archive.TEXTURES, 1);
             js5.BINARY = client.createJs5(false, Js5Archive.BINARY, 1);
             js5.MIDI_JINGLES = client.createJs5(false, Js5Archive.MIDI_JINGLES, 1);
