@@ -93,6 +93,11 @@ final class RspsHudOpponent {
             }
             NPCEntity entity = node.npc;
             name = entity.name != null ? entity.name : entity.type == null ? null : entity.type.name;
+            // N462/N601 (round 9, ToA Wardens core): a transformed npc whose cache name is the literal "null" has no name (RuneLite shows
+            // no opponent panel then) - the kneeling Warden showed "null 1/224".
+            if ("null".equals(name)) {
+                name = null;
+            }
             level = entity.combatLevel;
         } else {
             PlayerEntity entity = index >= 0 && index < PlayerList.highResolutionPlayers.length ? PlayerList.highResolutionPlayers[index] : null;
