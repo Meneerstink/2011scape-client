@@ -47,7 +47,8 @@ public final class Static276 {
         // top-down camera to about y -17500, above that level, whose floor then covers the whole view; the 667 zoom never got
         // that high and those tunnels carry no roof flags (0x4) for the flood below. OSRS with roofs hidden draws nothing above
         // the player's plane; underground that rule is used here: every tile of the levels above is hidden this frame.
-        if (WorldMap.areaBaseZ + (PlayerEntity.self.z >> 9) >= RspsGraphicsProfile.UNDERGROUND_Z) {
+        if (WorldMap.areaBaseZ + (PlayerEntity.self.z >> 9) >= RspsGraphicsProfile.UNDERGROUND_Z
+            || RspsGraphicsProfile.dynamicSourceUnderground()) {
             @Pc(36) byte hidden = (byte) (Static198.anInt3276 & 0xFF);
             for (@Pc(38) int level = Camera.renderingLevel + 1; level < 4; level++) {
                 for (@Pc(40) int x = 0; x < Static720.mapWidth; x++) {

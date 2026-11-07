@@ -63,6 +63,30 @@ public final class RspsGraphicsProfile {
     public static final int UNDERGROUND_Z = 4160;
 
     /**
+     * N462 (07-11 testclient: ToA Kephri antechamber + arena black, player invisible): an instanced (dynamic) map lives at low
+     * coordinates, so the {@link #UNDERGROUND_Z} test on the player's own z never fires there, and the raid rooms' upper levels
+     * (ceilings, upper walls) are drawn right under the camera. In a dynamic area the zone the player stands in carries its source
+     * zone (REBUILD_REGION zone pointer: z in bits 3..13, in zones of 8 tiles); a source zone underground counts as underground.
+     */
+    public static boolean dynamicSourceUnderground() {
+        if (Static117.areaMode == com.jagex.core.constants.AreaMode.STATIC_AREA || Static623.zonePointers == null || PlayerEntity.self == null) {
+            return false;
+        }
+        int zx = (PlayerEntity.self.x >> 9) >> 3;
+        int zz = (PlayerEntity.self.z >> 9) >> 3;
+        int[][][] zones = Static623.zonePointers;
+        int level = PlayerEntity.self.level & 0x3;
+        if (zx < 0 || zz < 0 || zx >= zones[level].length || zz >= zones[level][zx].length) {
+            return false;
+        }
+        int pointer = zones[level][zx][zz];
+        if (pointer == -1) {
+            pointer = zones[0][zx][zz];
+        }
+        return pointer != -1 && ((pointer >> 3) & 0x7FF) * 8 >= UNDERGROUND_Z;
+    }
+
+    /**
      * RSPS map tile flag 0x20 on the level above the player: "part of the building below" (the Royal Hall's balconies and
      * upper doorways, RoyalHallMapTool.BELOW_BUILDING). Owner 2026-09-27: from inside the hall no balcony may show through
      * the upper doorways, yet a player on or under a balcony is outside and keeps the roof. Such a tile has no roof flag of
