@@ -2676,10 +2676,13 @@ public final class ServerConnectionReader {
             @Pc(21) int zoneX = ((coord >> 4) & 0x7) + Static626.updateZoneX;
             @Pc(25) int zoneZ = (coord & 0x7) + Static270.updateZoneZ;
             @Pc(34) int shapeAndRotation = bitPacket.g1();
+            // N462 (07-11): bit 0x80 = loc id + 65536 (ToA locs above 0xFFFF; server WideLocId). Shape (0-22) + rotation use 7 bits.
+            boolean wideId = (shapeAndRotation & 0x80) != 0;
+            shapeAndRotation &= 0x7F;
             @Pc(38) int shape = shapeAndRotation >> 2;
             @Pc(42) int rotation = shapeAndRotation & 0x3;
             @Pc(46) int layer = LOC_LAYERS_BY_SHAPE[shape];
-            @Pc(52) int id = bitPacket.g2_alt2();
+            @Pc(52) int id = bitPacket.g2_alt2() + (wideId ? 0x10000 : 0);
 
             if (AreaMode.isOutOfBounds(Static117.areaMode) || zoneX >= 0 && zoneZ >= 0 && Static720.mapWidth > zoneX && Static501.mapLength > zoneZ) {
                 Static553.changeLocation(zoneX, zoneZ, Static87.updateZoneLevel, shape, rotation, layer, id);

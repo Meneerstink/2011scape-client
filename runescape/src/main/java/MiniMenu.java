@@ -1599,9 +1599,11 @@ public final class MiniMenu {
             Static676.crossX = clickX;
 
             @Pc(949) ClientMessage message = ClientMessage.create(opLoc, ServerConnection.GAME.isaac);
-            message.bitPacket.p1_alt1(KeyboardMonitor.instance.isPressed(SimpleKeyboardMonitor.KEY_CODE_CONTROL) ? 1 : 0);
+            // N462 (07-11): loc ids above 0xFFFF (ToA) - bit 0x02 of the movement byte = id + 65536 (server WideLocId).
+            int locId = (int) (v1Long >>> 32) & Integer.MAX_VALUE;
+            message.bitPacket.p1_alt1((KeyboardMonitor.instance.isPressed(SimpleKeyboardMonitor.KEY_CODE_CONTROL) ? 1 : 0) | (locId > 0xFFFF ? 2 : 0));
             message.bitPacket.p2_alt2(WorldMap.areaBaseX + v2);
-            message.bitPacket.p2_alt3((int) (v1Long >>> 32) & Integer.MAX_VALUE);
+            message.bitPacket.p2_alt3(locId & 0xFFFF);
             message.bitPacket.p2_alt1(v3 + WorldMap.areaBaseZ);
             ServerConnection.GAME.send(message);
 
@@ -1682,13 +1684,15 @@ public final class MiniMenu {
             Static616.crossType = 2;
 
             @Pc(949) ClientMessage message = ClientMessage.create(ClientProt.OPLOCT, ServerConnection.GAME.isaac);
-            message.bitPacket.p1_alt2(KeyboardMonitor.instance.isPressed(SimpleKeyboardMonitor.KEY_CODE_CONTROL) ? 1 : 0);
+            int targetLocId = Integer.MAX_VALUE & (int) (v1Long >>> 32);
+            // N462 (07-11): loc ids above 0xFFFF - bit 0x02 of the movement byte (server WideLocId).
+            message.bitPacket.p1_alt2((KeyboardMonitor.instance.isPressed(SimpleKeyboardMonitor.KEY_CODE_CONTROL) ? 1 : 0) | (targetLocId > 0xFFFF ? 2 : 0));
             message.bitPacket.p2_alt1(WorldMap.areaBaseZ + v3);
             message.bitPacket.p2_alt1(InterfaceManager.targetComponent);
             message.bitPacket.p4_alt1(InterfaceManager.targetSlot);
             message.bitPacket.p2_alt3(InterfaceManager.targetInvObj);
             message.bitPacket.p2_alt1(v2 + WorldMap.areaBaseX);
-            message.bitPacket.p2_alt2(Integer.MAX_VALUE & (int) (v1Long >>> 32));
+            message.bitPacket.p2_alt2(targetLocId & 0xFFFF);
             ServerConnection.GAME.send(message);
 
             Static38.findPathToLoc(v2, v1Long, v3);
