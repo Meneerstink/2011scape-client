@@ -521,7 +521,15 @@ public final class WorldMap {
             // level, so the player's own floor falls back to the ground-floor projection of the same tile.
             @Pc(83) int playerX = (PlayerEntity.self.x >> 9) + areaBaseX;
             @Pc(84) int playerZ = areaBaseZ + (PlayerEntity.self.z >> 9);
-            if (area.projectDisplay(coord, PlayerEntity.self.level, playerX, playerZ) || area.projectDisplay(coord, 0, playerX, playerZ)) {
+            int playerLevel = PlayerEntity.self.level;
+            // N462: in the ToA lobby/raid (no OSRS map area) the player is shown at the Necropolis pyramid (RspsWorldMapAlias).
+            int[] alias = RspsWorldMapAlias.playerCoord();
+            if (alias != null) {
+                playerLevel = alias[0];
+                playerX = alias[1];
+                playerZ = alias[2];
+            }
+            if (area.projectDisplay(coord, playerLevel, playerX, playerZ) || area.projectDisplay(coord, 0, playerX, playerZ)) {
                 relativeX = coord[1] - areaX;
                 relativeY = coord[2] - areaZ;
             }

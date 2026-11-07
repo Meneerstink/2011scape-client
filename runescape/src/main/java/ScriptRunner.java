@@ -5617,7 +5617,7 @@ public final class ScriptRunner {
             }
 
             if (opcode == WORLDMAP_GETMAP) {
-                @Pc(192) int coord = intStack[--intStackPointer];
+                @Pc(192) int coord = RspsWorldMapAlias.packed(intStack[--intStackPointer]);
                 @Pc(1908) WorldMapArea area = WorldMap.getMap((coord >> 14) & 0x3FFF, coord & 0x3FFF);
                 if (area == null) {
                     intStack[intStackPointer++] = -1;
@@ -5702,7 +5702,7 @@ public final class ScriptRunner {
             }
 
             if (opcode == WORLDMAP_JUMPTOSOURCECOORD) {
-                @Pc(192) int id = intStack[--intStackPointer];
+                @Pc(192) int id = RspsWorldMapAlias.packed(intStack[--intStackPointer]);
                 @Pc(1908) WorldMapArea area = WorldMap.getArea();
                 if (area != null) {
                     @Pc(2289) boolean projected = area.projectDisplay(areaCoord, (id >> 28) & 0x3, (id >> 14) & 0x3FFF, id & 0x3FFF);
@@ -5715,7 +5715,7 @@ public final class ScriptRunner {
 
             if (opcode == WORLDMAP_COORDINMAP) {
                 intStackPointer -= 2;
-                @Pc(192) int coord = intStack[intStackPointer];
+                @Pc(192) int coord = RspsWorldMapAlias.packed(intStack[intStackPointer]);
                 @Pc(834) int id = intStack[intStackPointer + 1];
                 @Pc(2329) Queue queue = WorldMap.findAreas((coord >> 14) & 0x3FFF, coord & 0x3FFF);
                 @Pc(2331) boolean contained = false;
@@ -5776,13 +5776,13 @@ public final class ScriptRunner {
             if (opcode == WORLDMAP_SETMAP_COORD) {
                 intStackPointer -= 2;
                 @Pc(192) int id = intStack[intStackPointer];
-                @Pc(834) int coord = intStack[intStackPointer + 1];
+                @Pc(834) int coord = RspsWorldMapAlias.packed(intStack[intStackPointer + 1]);
                 WorldMap.setMap(id, false, coord & 0x3FFF, coord >> 14 & 0x3FFF);
                 return;
             }
 
             if (opcode == WORLDMAP_GETDISPLAYCOORD) {
-                @Pc(192) int coord = intStack[--intStackPointer];
+                @Pc(192) int coord = RspsWorldMapAlias.packed(intStack[--intStackPointer]);
                 @Pc(1908) WorldMapArea area = WorldMap.getArea();
                 if (area != null) {
                     @Pc(2289) boolean projected = area.projectDisplay(areaCoord, coord >> 28 & 0x3, coord >> 14 & 0x3FFF, coord & 0x3FFF);
@@ -5827,7 +5827,7 @@ public final class ScriptRunner {
             if (opcode == WORLDMAP_SETMAP_COORD_OVERRIDE) {
                 intStackPointer -= 2;
                 @Pc(192) int id = intStack[intStackPointer];
-                @Pc(834) int coord = intStack[intStackPointer + 1];
+                @Pc(834) int coord = RspsWorldMapAlias.packed(intStack[intStackPointer + 1]);
                 WorldMap.setMap(id, true, coord & 0x3FFF, (coord >> 14) & 0x3FFF);
                 return;
             }
