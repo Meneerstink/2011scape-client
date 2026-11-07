@@ -22,7 +22,7 @@ public final class StaticWallDecor extends WallDecor implements Location {
     public BoundingCylinder cylinder;
 
     @OriginalMember(owner = "client!im", name = "P", descriptor = "S")
-    public final short id;
+    public final int id; // N462 07-11: loc ids above 0xFFFF (ToA) - was short
 
     @OriginalMember(owner = "client!im", name = "ib", descriptor = "B")
     public byte rotation;
@@ -49,7 +49,7 @@ public final class StaticWallDecor extends WallDecor implements Location {
     public StaticWallDecor(@OriginalArg(0) Toolkit toolkit, @OriginalArg(1) LocType type, @OriginalArg(2) int level, @OriginalArg(3) int virtualLevel, @OriginalArg(4) int x, @OriginalArg(5) int y, @OriginalArg(6) int z, @OriginalArg(7) boolean underwater, @OriginalArg(8) int arg8, @OriginalArg(9) int arg9, @OriginalArg(10) int shape, @OriginalArg(11) int rotation) {
         super(x, y, z, level, virtualLevel, arg8, arg9);
         super.z = z;
-        this.id = (short) type.id;
+        this.id = type.id;
         this.rotation = (byte) rotation;
         super.x = x;
         this.shape = (byte) shape;
@@ -181,7 +181,7 @@ public final class StaticWallDecor extends WallDecor implements Location {
     @OriginalMember(owner = "client!im", name = "a", descriptor = "(I)I")
     @Override
     public int getId() {
-        return this.id & 0xFFFF;
+        return this.id;
     }
 
     @OriginalMember(owner = "client!im", name = "b", descriptor = "(B)Z")
@@ -196,7 +196,7 @@ public final class StaticWallDecor extends WallDecor implements Location {
 
     @OriginalMember(owner = "client!im", name = "a", descriptor = "(BLclient!ha;IZ)Lclient!od;")
     public ModelAndShadow modelAndShadow(@OriginalArg(1) Toolkit toolkit, @OriginalArg(2) int functionMask, @OriginalArg(3) boolean addShadow) {
-        @Pc(17) LocType type = LocTypeList.instance.list(this.id & 0xFFFF);
+        @Pc(17) LocType type = LocTypeList.instance.list(this.id);
         @Pc(29) Ground floor;
         @Pc(24) Ground ceiling;
 

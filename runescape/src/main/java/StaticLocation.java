@@ -42,7 +42,7 @@ public final class StaticLocation extends PositionEntity implements Location {
     public final byte rotation;
 
     @OriginalMember(owner = "client!jda", name = "db", descriptor = "S")
-    public final short id;
+    public final int id; // N462 07-11: loc ids above 0xFFFF (ToA) - was short
 
     @OriginalMember(owner = "client!jda", name = "Y", descriptor = "B")
     public final byte shape;
@@ -65,7 +65,7 @@ public final class StaticLocation extends PositionEntity implements Location {
         this.interactive = type.active != LocInteractivity.NONINTERACTIVE && !underwater;
         this.underwater = underwater;
         this.rotation = (byte) rotation;
-        this.id = (short) type.id;
+        this.id = type.id;
         this.shape = (byte) shape;
         super.virtualLevel = (byte) virtualLevel;
         this.copyNormals = copyNormals;
@@ -158,7 +158,7 @@ public final class StaticLocation extends PositionEntity implements Location {
     @OriginalMember(owner = "client!jda", name = "a", descriptor = "(I)I")
     @Override
     public int getId() {
-        return this.id & 0xFFFF;
+        return this.id;
     }
 
     @OriginalMember(owner = "client!jda", name = "a", descriptor = "(IIZLclient!ha;)Z")
@@ -291,7 +291,7 @@ public final class StaticLocation extends PositionEntity implements Location {
 
     @OriginalMember(owner = "client!jda", name = "a", descriptor = "(Lclient!ha;BZI)Lclient!od;")
     public ModelAndShadow method4223(@OriginalArg(0) Toolkit arg0, @OriginalArg(2) boolean arg1, @OriginalArg(3) int arg2) {
-        @Pc(11) LocType local11 = LocTypeList.instance.list(this.id & 0xFFFF);
+        @Pc(11) LocType local11 = LocTypeList.instance.list(this.id);
         @Pc(27) Ground local27;
         @Pc(33) Ground local33;
         if (this.underwater) {

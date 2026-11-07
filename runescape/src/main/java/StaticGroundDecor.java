@@ -25,7 +25,7 @@ public final class StaticGroundDecor extends GroundDecor implements Location {
     public BoundingCylinder cylinder;
 
     @OriginalMember(owner = "client!cu", name = "W", descriptor = "S")
-    public short id;
+    public int id; // N462 07-11: loc ids above 0xFFFF (ToA) - was short
 
     @OriginalMember(owner = "client!cu", name = "F", descriptor = "B")
     public byte rotation;
@@ -51,7 +51,7 @@ public final class StaticGroundDecor extends GroundDecor implements Location {
     @OriginalMember(owner = "client!cu", name = "<init>", descriptor = "(Lclient!ha;Lclient!c;IIIIIZIZ)V")
     public StaticGroundDecor(@OriginalArg(0) Toolkit toolkit, @OriginalArg(1) LocType type, @OriginalArg(2) int level, @OriginalArg(3) int virtualLevel, @OriginalArg(4) int x, @OriginalArg(5) int y, @OriginalArg(6) int z, @OriginalArg(7) boolean underwater, @OriginalArg(8) int arg8, @OriginalArg(9) boolean arg9) {
         super(x, y, z, level, virtualLevel, type.offsetY);
-        this.id = (short) type.id;
+        this.id = type.id;
         super.z = z;
         this.rotation = (byte) arg8;
         this.interactive = type.active != LocInteractivity.NONINTERACTIVE && !underwater;
@@ -165,7 +165,7 @@ public final class StaticGroundDecor extends GroundDecor implements Location {
 
     @OriginalMember(owner = "client!cu", name = "a", descriptor = "(IILclient!ha;Z)Lclient!od;")
     public ModelAndShadow modelAndShadow(@OriginalArg(0) int functionMask, @OriginalArg(2) Toolkit arg2, @OriginalArg(3) boolean arg3) {
-        @Pc(13) LocType type = LocTypeList.instance.list(this.id & 0xFFFF);
+        @Pc(13) LocType type = LocTypeList.instance.list(this.id);
         @Pc(29) Ground floor;
         @Pc(35) Ground ceiling;
 
@@ -250,7 +250,7 @@ public final class StaticGroundDecor extends GroundDecor implements Location {
     @OriginalMember(owner = "client!cu", name = "a", descriptor = "(I)I")
     @Override
     public int getId() {
-        return this.id & 0xFFFF;
+        return this.id;
     }
 
     @OriginalMember(owner = "client!cu", name = "d", descriptor = "(I)V")

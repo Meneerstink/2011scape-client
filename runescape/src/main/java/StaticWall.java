@@ -43,7 +43,7 @@ public final class StaticWall extends Wall implements Location {
     public final boolean interactive;
 
     @OriginalMember(owner = "client!jn", name = "cb", descriptor = "S")
-    public final short id;
+    public final int id; // N462 07-11: loc ids above 0xFFFF (ToA) - was short
 
     @OriginalMember(owner = "client!jn", name = "U", descriptor = "B")
     public byte shape;
@@ -72,7 +72,7 @@ public final class StaticWall extends Wall implements Location {
         super.x = x;
         super.z = z;
         this.interactive = type.active != LocInteractivity.NONINTERACTIVE && !underwater;
-        this.id = (short) type.id;
+        this.id = type.id;
         this.shape = (byte) shape;
         this.underwater = underwater;
         this.copyNormals = copyNormals;
@@ -244,7 +244,7 @@ public final class StaticWall extends Wall implements Location {
 
     @OriginalMember(owner = "client!jn", name = "a", descriptor = "(Lclient!ha;ZIZ)Lclient!od;")
     public ModelAndShadow modelAndShadow(@OriginalArg(0) Toolkit toolkit, @OriginalArg(2) int functionMask, @OriginalArg(3) boolean addShadow) {
-        @Pc(11) LocType type = LocTypeList.instance.list(this.id & 0xFFFF);
+        @Pc(11) LocType type = LocTypeList.instance.list(this.id);
         @Pc(27) Ground floor;
         @Pc(38) Ground ceiling;
 
@@ -290,7 +290,7 @@ public final class StaticWall extends Wall implements Location {
     @OriginalMember(owner = "client!jn", name = "a", descriptor = "(I)I")
     @Override
     public int getId() {
-        return this.id & 0xFFFF;
+        return this.id;
     }
 
     @OriginalMember(owner = "client!jn", name = "a", descriptor = "(ILclient!ha;)Lclient!pea;")
