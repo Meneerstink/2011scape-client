@@ -2306,7 +2306,11 @@ public final class ServerConnectionReader {
             context.currentProt = null;
             return true;
         } else if (context.currentProt == ServerProt.NPC_INFO) {
-            NPCList.updateNpcs();
+            NPCList.updateNpcs(false);
+            context.currentProt = null;
+            return true;
+        } else if (context.currentProt == ServerProt.NPC_INFO_LARGE) {
+            NPCList.updateNpcs(true);
             context.currentProt = null;
             return true;
         } else if (ServerProt.CAM_MOVETO == context.currentProt) {

@@ -28,6 +28,9 @@ public final class ServerProt {
     @OriginalMember(owner = "client!iha", name = "f", descriptor = "Lclient!lga;")
     public static final ServerProt NPC_INFO = new ServerProt(6, -2);
 
+    /** 78legacy N462: NPC_INFO with 8-bit add deltas (-128..127 tiles) for the big ToA rooms - a 9x9 boss 17 tiles away was never sent. */
+    public static final ServerProt NPC_INFO_LARGE = new ServerProt(145, -2);
+
     @OriginalMember(owner = "client!maa", name = "u", descriptor = "Lclient!lga;")
     public static final ServerProt CLANCHANNEL_FULL = new ServerProt(7, -2);
 
@@ -593,7 +596,8 @@ public final class ServerProt {
             SERVER_PROT_141,
             VORBIS_SPEECH_STOP,
             JAVASCRIPT_RUN,
-            LOYALTY_UPDATE
+            LOYALTY_UPDATE,
+            NPC_INFO_LARGE // 145: must stay last (values()[opcode])
         };
     }
 

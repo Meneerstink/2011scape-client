@@ -48,7 +48,15 @@ public final class NPCList {
     public static int extendedInfo = 0;
 
     @OriginalMember(owner = "client!kt", name = "c", descriptor = "(I)V")
+    /** 78legacy N462: set by NPC_INFO_LARGE - the add deltas are 8 bits instead of 5. */
+    private static boolean largeDeltas = false;
+
     public static void updateNpcs() {
+        updateNpcs(false);
+    }
+
+    public static void updateNpcs(boolean large) {
+        largeDeltas = large;
         removed = 0;
         extendedInfo = 0;
         clock++;
@@ -210,18 +218,18 @@ public final class NPCList {
                 extendedInfoSlots[NPCList.extendedInfo++] = slot;
             }
 
-            @Pc(131) int deltaX = bitPacket.gbit(5);
-            if (deltaX > 15) {
-                deltaX -= 32;
+            @Pc(131) int deltaX = bitPacket.gbit(largeDeltas ? 8 : 5);
+            if (largeDeltas ? deltaX > 127 : deltaX > 15) {
+                deltaX -= largeDeltas ? 256 : 32;
             }
 
             @Pc(144) int level = bitPacket.gbit(2);
 
             npc.setupNewNPCType(NPCTypeList.instance.list(bitPacket.gbit(15)));
 
-            @Pc(159) int deltaZ = bitPacket.gbit(5);
-            if (deltaZ > 15) {
-                deltaZ -= 32;
+            @Pc(159) int deltaZ = bitPacket.gbit(largeDeltas ? 8 : 5);
+            if (largeDeltas ? deltaZ > 127 : deltaZ > 15) {
+                deltaZ -= largeDeltas ? 256 : 32;
             }
 
             @Pc(170) int clearPath = bitPacket.gbit(1);
