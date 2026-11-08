@@ -23,6 +23,9 @@ public abstract class Model {
      */
     public boolean rspsKeep667AlphaOrder;
 
+    /** N601: OSRS spot priority order; translucent runs blend without writing depth. */
+    public boolean rspsOsrsSpotAlphaOrder;
+
     @OriginalMember(owner = "client!ka", name = "<init>", descriptor = "()V")
     protected Model() {
     }

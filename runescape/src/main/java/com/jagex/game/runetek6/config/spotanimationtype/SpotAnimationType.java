@@ -48,6 +48,9 @@ public final class SpotAnimationType {
     @OriginalMember(owner = "client!lia", name = "z", descriptor = "I")
     public int seq = -1;
 
+    /** N601 opcode 242: imported OSRS spot alpha layering, independent of content ids. */
+    public boolean rspsOsrsAlphaOrder;
+
     @OriginalMember(owner = "client!lia", name = "a", descriptor = "I")
     public int contrast = 0;
 
@@ -136,6 +139,7 @@ public final class SpotAnimationType {
             model.s(newFunctionMask);
             // RSPS: spell effects keep the 667 translucent draw order (Model.rspsKeep667AlphaOrder).
             model.rspsKeep667AlphaOrder = true;
+            model.rspsOsrsSpotAlphaOrder = this.rspsOsrsAlphaOrder;
 
             @Pc(232) ReferenceCache local232 = this.myList.modelCache;
             synchronized (this.myList.modelCache) {
@@ -179,6 +183,8 @@ public final class SpotAnimationType {
         } else if (code == 241) {
             // 78legacy N462 wide model ids (> 65535, archive MODELS_EXT): same field as the 16-bit opcode, ids as g4.
             this.model = packet.g4();
+        } else if (code == 242) {
+            this.rspsOsrsAlphaOrder = true;
         } else if (code == 2) {
             this.seq = packet.g2();
         } else if (code == 4) {

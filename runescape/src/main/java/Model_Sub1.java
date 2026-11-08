@@ -2858,6 +2858,7 @@ public final class Model_Sub1 extends Model {
         }
         arg4.rspsFaceAlpha = this.rspsFaceAlpha;
         arg4.rspsKeep667AlphaOrder = this.rspsKeep667AlphaOrder;
+        arg4.rspsOsrsSpotAlphaOrder = this.rspsOsrsSpotAlphaOrder;
         @Pc(71) boolean local71 = Static119.method2175(this.anInt2765, arg0);
         @Pc(77) boolean local77 = Static590.method7746(this.anInt2765, arg0);
         @Pc(83) boolean local83 = Static604.method7904(arg0, this.anInt2765);
@@ -3808,6 +3809,7 @@ public final class Model_Sub1 extends Model {
             // translucent face without depth writes - so no translucent face hides another part of the model.
             byte[] alpha = this.aByteArray33 != null ? this.aByteArray33 : this.rspsFaceAlpha;
             // A model without an opaque face (a frozen player at Ice Barrage's 144) keeps the 667 order (Model_Sub2, same rule).
+            boolean orderedAlpha = this.rspsOsrsSpotAlphaOrder && alpha != null && !RspsRenderTest.alphaDepth;
             boolean split = this.aBoolean228 && alpha != null && !RspsRenderTest.alphaDepth && !this.rspsKeep667AlphaOrder
                 && RspsRenderTest.hasOpaqueFace(alpha, this.anIntArray238[this.anIntArray241.length]);
             for (int pass = 0; pass < (split ? 2 : 1); pass++) {
@@ -3818,7 +3820,7 @@ public final class Model_Sub1 extends Model {
                     if (local129 == 65535) {
                         local129 = -1;
                     }
-                    if (!split) {
+                    if (!split && !orderedAlpha) {
                         this.aClass19_Sub1_6.method8108(local66, local129, true);
                         this.aClass19_Sub1_6.method8052(this.anIntArray241[local108], local115 * 3, this.aClass359_1.anInterface20_8, this.anIntArray239[local108], Static104.aClass131_2, local122 - local115);
                         continue;
@@ -3830,7 +3832,7 @@ public final class Model_Sub1 extends Model {
                         while (end < local122 && (alpha[end] != 0) == translucent) {
                             end++;
                         }
-                        if (translucent == (pass == 1)) {
+                        if (orderedAlpha || translucent == (pass == 1)) {
                             if (!bound) {
                                 this.aClass19_Sub1_6.method8108(local66, local129, true);
                                 bound = true;

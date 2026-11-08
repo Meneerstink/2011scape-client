@@ -1465,6 +1465,7 @@ public final class Model_Sub2 extends Model {
                 // The split keeps a model's opaque faces from being hidden by its translucent ones. A model without an opaque face -
                 // a whole-body transparency such as a frozen player (every face at Ice Barrage's 144) - keeps the 667 order: split, its
                 // overlapping layers (body, armour) all blended and it became an opaque white block in HD (intro scene, 2026-10-09).
+                boolean orderedAlpha = this.rspsOsrsSpotAlphaOrder && alpha != null && !RspsRenderTest.alphaDepth;
                 boolean split = this.aBoolean421 && alpha != null && !RspsRenderTest.alphaDepth && !this.rspsKeep667AlphaOrder
                     && RspsRenderTest.hasOpaqueFace(alpha, this.anInt5560);
                 for (int pass = 0; pass < (split ? 2 : 1); pass++) {
@@ -1475,7 +1476,7 @@ public final class Model_Sub2 extends Model {
                         if (local107 == 65535) {
                             local107 = -1;
                         }
-                        if (!split) {
+                        if (!split && !orderedAlpha) {
                             this.aClass19_Sub3_24.method6975(this.aClass94_7 != null, local107);
                             this.aClass19_Sub3_24.method7034(local93 * 3, this.aClass136_1.anInterface1_1, (local100 - local93) * 3);
                             continue;
@@ -1487,7 +1488,7 @@ public final class Model_Sub2 extends Model {
                             while (end < local100 && (alpha[end] != 0) == translucent) {
                                 end++;
                             }
-                            if (translucent == (pass == 1)) {
+                            if (orderedAlpha || translucent == (pass == 1)) {
                                 if (!bound) {
                                     this.aClass19_Sub3_24.method6975(this.aClass94_7 != null, local107);
                                     bound = true;
@@ -3187,6 +3188,7 @@ public final class Model_Sub2 extends Model {
         }
         arg4.rspsFaceAlpha = this.rspsFaceAlpha;
         arg4.rspsKeep667AlphaOrder = this.rspsKeep667AlphaOrder;
+        arg4.rspsOsrsSpotAlphaOrder = this.rspsOsrsSpotAlphaOrder;
         @Pc(85) boolean local85 = Static646.method8457(this.anInt5529, arg3);
         @Pc(93) boolean local93 = Static58.method1257(this.anInt5529, arg3);
         @Pc(99) boolean local99 = Static340.method5011(arg3, this.anInt5529);
