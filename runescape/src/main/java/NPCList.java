@@ -62,9 +62,16 @@ public final class NPCList {
         clock++;
 
         iterateNpcs();
+        // N601: discard removed actors before additions can reuse their slot in this same update.
+        // Otherwise processNewNpcs mutates the dead boss into its replacement, including retained HUD references.
+        removeNpcs();
         processNewNpcs();
         processExtendedInfo();
 
+        validateNpcs();
+    }
+
+    static void removeNpcs() {
         @Pc(23) boolean removed = false;
         for (@Pc(25) int i = 0; i < NPCList.removed; i++) {
             @Pc(33) int slot = removalSlots[i];
@@ -88,7 +95,9 @@ public final class NPCList {
             newSize = local.size();
             local.copyTo(entities);
         }
+    }
 
+    private static void validateNpcs() {
         if (ServerConnection.GAME.bitPacket.pos != ServerConnection.GAME.currentPacketSize) {
             throw new RuntimeException("gnp1 pos:" + ServerConnection.GAME.bitPacket.pos + " psize:" + ServerConnection.GAME.currentPacketSize);
         }

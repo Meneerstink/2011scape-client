@@ -380,9 +380,75 @@ public final class RspsHudRegressionTest {
         RspsHud.handle("cfg|opponent.hitpointsDisplayStyle=BOTH");
         check(RspsHudOpponent.healthText().equals("20/30 (66.7%)"), "Both style: " + RspsHudOpponent.healthText());
         RspsHud.handle("opp|p|3|128");
-        check(RspsHudOpponent.healthText().equals("50%"), "a player: the percentage only (hit-mask ratio)");
+        check(RspsHudOpponent.healthText().equals("50.2%"), "a player: one-decimal percentage from the 128/255 hit-mask ratio");
         RspsHud.handle("opp|none");
+        opponentIdentity();
         RspsHudConfig.resetToDefaults();
+    }
+
+    /** N601: a boss's slot is immediately reused by Osmumten; the held panel must retain the boss Actor. */
+    private static void opponentIdentity() {
+        try {
+            NPCEntity boss = hudActor(NPCEntity.class);
+            boss.slot = 5; boss.name = "Kephri"; boss.combatLevel = 341; boss.target = -1;
+            boss.type = new com.jagex.game.runetek6.config.npctype.NPCType();
+            NPCEntityNode bossNode = new NPCEntityNode(boss);
+            NPCList.local.put(5L, bossNode);
+            RspsHud.handle("opp|n|5|170|20|30");
+            check(RspsHudOpponent.height() > 0 && opponentName().equals("Kephri"), "bind the actual boss Actor");
+            // A removal and addition can share one NPC_INFO packet. Run the decoder's actual removal step first.
+            NPCList.newSize = 1; NPCList.entities[0] = bossNode;
+            NPCList.clock = 200; boss.cutsceneClock = 199;
+            NPCList.removed = 1; NPCList.removalSlots[0] = 5;
+            NPCList.removeNpcs();
+            check(NPCList.local.get(5L) == null && NPCList.newSize == 0, "remove dead actor before a same-update slot addition");
+            check(RspsHudOpponent.height() > 0 && opponentName().equals("Kephri"), "decoder removal preserves the held boss name");
+            NPCEntity replacement = hudActor(NPCEntity.class);
+            replacement.slot = 5; replacement.name = "Osmumten"; replacement.target = -1;
+            NPCEntityNode replacementNode = new NPCEntityNode(replacement);
+            NPCList.local.put(5L, replacementNode);
+            check(RspsHudOpponent.height() > 0 && opponentName().equals("Kephri"), "slot reuse must not rename held boss health");
+            check(RspsHudOpponent.menuTarget(replacement, "Attack", "Osmumten").equals("Osmumten"), "do not mark a different occupant as the opponent");
+            RspsHud.handle("opp|n|5|170|20|30");
+            check(RspsHudOpponent.height() > 0 && opponentName().equals("Osmumten"), "explicit new binding works even with identical index and health");
+            replacement.name = "Elidinis' Warden";
+            check(RspsHudOpponent.height() > 0 && opponentName().equals("Elidinis' Warden"), "transformations on the same Actor still update the name");
+            replacement.name = "null";
+            check(RspsHudOpponent.height() == 0, "unnamed Warden core form still hides the panel");
+            replacementNode.unlink();
+            RspsHud.handle("opp|none");
+
+            PlayerEntity first = hudActor(PlayerEntity.class);
+            first.displayName = "First"; first.combatLevel = 126;
+            PlayerList.highResolutionPlayers[3] = first;
+            RspsHud.handle("opp|p|3|128");
+            check(RspsHudOpponent.playerIndex() == 3, "live player binding remains available to the PK HUD");
+            PlayerEntity next = hudActor(PlayerEntity.class);
+            next.displayName = "Next"; next.combatLevel = 126;
+            PlayerList.highResolutionPlayers[3] = next;
+            check(RspsHudOpponent.playerIndex() == -1 && RspsHudOpponent.playerRatio(next) == -1, "slot reuse must not attach held player health to a newcomer");
+            check(RspsHudOpponent.height() > 0 && opponentName().equals("First"), "player hold also retains its Actor");
+            RspsHud.handle("opp|p|3|128");
+            check(RspsHudOpponent.playerIndex() == 3 && RspsHudOpponent.height() > 0 && opponentName().equals("Next"), "new player can explicitly rebind the recycled slot");
+            PlayerList.highResolutionPlayers[3] = null;
+            RspsHudOpponent.reset();
+            check(RspsHudOpponent.height() == 0, "relog/reset clears the retained Actor");
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    private static String opponentName() throws ReflectiveOperationException {
+        java.lang.reflect.Field field = RspsHudOpponent.class.getDeclaredField("name");
+        field.setAccessible(true);
+        return (String) field.get(null);
+    }
+
+    private static <T> T hudActor(Class<T> type) throws ReflectiveOperationException {
+        // These checks need only actor identity/name. Avoid unrelated scene/animator bootstrap, as in RspsRoofFloodRegressionTest.
+        java.lang.reflect.Field field = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+        field.setAccessible(true);
+        return type.cast(((sun.misc.Unsafe) field.get(null)).allocateInstance(type));
     }
 
     // ---- movable panels (Alt + drag) ----------------------------------------------------------------------------------

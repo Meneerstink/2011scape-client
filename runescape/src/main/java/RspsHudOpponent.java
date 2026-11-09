@@ -29,6 +29,8 @@ final class RspsHudOpponent {
     private static int ratio;
     private static int current;
     private static int maximum;
+    /** RuneLite OpponentInfoPlugin holds the Actor itself during WAIT, not the occupant of its recycled slot. */
+    private static PathingEntity actor;
 
     private RspsHudOpponent() {
     }
@@ -37,6 +39,7 @@ final class RspsHudOpponent {
         String[] parts = rest.split("\\|");
         if (parts[0].equals("none")) {
             active = false;
+            actor = null;
             return;
         }
         npc = parts[0].equals("n");
@@ -44,16 +47,34 @@ final class RspsHudOpponent {
         ratio = Integer.parseInt(parts[2]);
         current = npc ? Integer.parseInt(parts[3]) : -1;
         maximum = npc ? Integer.parseInt(parts[4]) : -1;
+        actor = lookupActor();
         active = true;
     }
 
     static void reset() {
         active = false;
+        actor = null;
+    }
+
+    private static PathingEntity lookupActor() {
+        if (npc) {
+            NPCEntityNode node = (NPCEntityNode) NPCList.local.get(index);
+            return node == null ? null : node.npc;
+        }
+        return index >= 0 && index < PlayerList.highResolutionPlayers.length ? PlayerList.highResolutionPlayers[index] : null;
+    }
+
+    private static PathingEntity boundActor() {
+        // The opponent update can precede its first NPC/player packet. Bind once that actor arrives.
+        if (actor == null) {
+            actor = lookupActor();
+        }
+        return actor;
     }
 
     /** v5 PK HUD: the server's player opponent (high-resolution index), -1 = none or an npc. */
     static int playerIndex() {
-        return active && !npc ? index : -1;
+        return active && !npc && boundActor() != null && boundActor() == lookupActor() ? index : -1;
     }
 
     /** v5 PK HUD: the health ratio (0-255) when [p] is the server's opponent, else -1. */
@@ -67,7 +88,7 @@ final class RspsHudOpponent {
         if (!RspsHudConfig.enabled("opponent") || !RspsHudConfig.bool("opponent.showOpponentsInMenu") || option == null || !option.equalsIgnoreCase("Attack")) {
             return target;
         }
-        boolean opponent = active && npc && index == entity.slot;
+        boolean opponent = active && npc && boundActor() == entity;
         boolean attackingMe = entity.target == PlayerList.activePlayerSlot + 32768;
         return opponent || attackingMe ? "*" + target : target;
     }
@@ -87,11 +108,10 @@ final class RspsHudOpponent {
         }
         name = null;
         if (npc) {
-            NPCEntityNode node = (NPCEntityNode) NPCList.local.get(index);
-            if (node == null || node.npc == null) {
+            NPCEntity entity = (NPCEntity) boundActor();
+            if (entity == null) {
                 return 0;
             }
-            NPCEntity entity = node.npc;
             name = entity.name != null ? entity.name : entity.type == null ? null : entity.type.name;
             // N462/N601 (round 9, ToA Wardens core): a transformed npc whose cache name is the literal "null" has no name (RuneLite shows
             // no opponent panel then) - the kneeling Warden showed "null 1/224".
@@ -100,7 +120,7 @@ final class RspsHudOpponent {
             }
             level = entity.combatLevel;
         } else {
-            PlayerEntity entity = index >= 0 && index < PlayerList.highResolutionPlayers.length ? PlayerList.highResolutionPlayers[index] : null;
+            PlayerEntity entity = (PlayerEntity) boundActor();
             if (entity == null) {
                 return 0;
             }
