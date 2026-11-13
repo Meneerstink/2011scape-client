@@ -64,6 +64,8 @@ final class RspsHud {
                 RspsHudBoosts.update(rest);
             } else if (kind.equals("opp")) {
                 RspsHudOpponent.update(rest);
+            } else if (kind.equals("hpbar")) {
+                RspsHudBossBar.update(rest); // N606: OSRS boss HP HUD (interface 303)
             } else if (kind.equals("pkh") || kind.equals("pkfight")) {
                 RspsPkHud.handle(kind, rest); // v5 Bruine Bonen PK HUD (server PkHudSync)
             } else if (kind.equals("botsstaff") || kind.equals("bots")) {
@@ -118,6 +120,7 @@ final class RspsHud {
     private static void reset(boolean resetBots) {
         RspsHudBoosts.reset();
         RspsHudOpponent.reset();
+        RspsHudBossBar.reset();
         RspsPkHud.reset();
         if (resetBots) RspsBotPanel.reset(); // General resets still revoke permission and pending staff commands.
         RspsHudTimers.reset();
@@ -202,13 +205,16 @@ final class RspsHud {
         }
         RspsQuestHelperHints.drawNpcHighlight(x, y);
         RspsScriptOverlay.drawTarget(x, y); // v4 Bruine Bonen Technologia: box + name on your target
+        RspsHudBossBar.render(x, y, width, height); // N606: OSRS boss HP HUD, top centre
         int top = y + PANEL_GAP;
         if (InterfaceManager.optionsComponent != null) {
             top = Math.max(top, InterfaceManager.optionsY + HOVER_TEXT_CLEARANCE);
         }
         int stackY = top;
         // v5: against a player the PK HUD already shows name + health, so Opponent Information keeps to npcs then.
-        if (RspsHudConfig.enabled("opponent") && !(RspsHudOpponent.playerIndex() >= 0 && RspsPkHud.showing())) {
+        // N606: RuneLite OpponentInfoOverlay.hasHpHud - no Opponent Information for the npc the OSRS HP HUD shows.
+        if (RspsHudConfig.enabled("opponent") && !(RspsHudOpponent.playerIndex() >= 0 && RspsPkHud.showing())
+                && !RspsHudBossBar.shows(RspsHudOpponent.npcIndex())) {
             int opponentHeight = RspsHudOpponent.height();
             stackY = panel(RspsHudOpponent.ID, RspsHudOpponent.width(), opponentHeight, x, y, width, height, stackY);
         }

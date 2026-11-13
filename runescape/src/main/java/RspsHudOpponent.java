@@ -73,6 +73,11 @@ final class RspsHudOpponent {
     }
 
     /** v5 PK HUD: the server's player opponent (high-resolution index), -1 = none or an npc. */
+    /** N606: the npc index shown (RspsHudBossBar hides this panel for the npc of the OSRS HP HUD), -1 for none or a player. */
+    static int npcIndex() {
+        return active && npc ? index : -1;
+    }
+
     static int playerIndex() {
         return active && !npc && boundActor() != null && boundActor() == lookupActor() ? index : -1;
     }
