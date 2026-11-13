@@ -23,6 +23,7 @@ public final class Static527 {
 
             if (TimeUtils.clock > projectile.t2) {
                 projectileNode.unlink();
+                RspsEffectTrace.end(projectile); // N606
                 projectile.stopParticles();
             } else if (TimeUtils.clock >= projectile.t1) {
                 projectile.method816();
@@ -63,6 +64,7 @@ public final class Static527 {
                 }
 
                 projectile.tick(Static35.currentTick);
+                RspsEffectTrace.scene(projectile, projectile.level, projectile.y, projectile.x, projectile.z); // N606
                 Static102.method2026(projectile, true);
             }
         }

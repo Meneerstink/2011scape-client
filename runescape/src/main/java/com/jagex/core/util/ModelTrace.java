@@ -86,6 +86,31 @@ public final class ModelTrace {
         System.out.println("[modeltrace " + System.currentTimeMillis() + "] " + message);
     }
 
+    /** N606 B6 (owner 12-11 'Zebak komt pas boven t water als die geattackt wordt'): per npc type + action seq the animated model's top
+     *  (most negative y; RS y grows downward) and bottom; a later frame whose top is clearly lower is logged too. effect_report.py
+     *  compares every seq of one npc with its idle pose: a seq that sinks far below idle = the npc disappears under floor/water.
+     *  seq -1 = no animation, -1000-x = movement seq x only. */
+    private static final java.util.Map<String, int[]> poses = new java.util.HashMap<>();
+
+    public static void pose(int npcId, String name, int seqId, com.jagex.graphics.Model model) {
+        if (!ENABLED || model == null) {
+            return;
+        }
+        final int top = model.fa();
+        final int bottom = model.EA();
+        final String key = npcId + ":" + seqId;
+        synchronized (poses) {
+            final int[] seen = poses.get(key);
+            if (seen == null) {
+                poses.put(key, new int[] {top, bottom, 1});
+                log("pose npc " + npcId + " '" + name + "' seq=" + seqId + " top=" + top + " bottom=" + bottom + " first");
+            } else if (top > seen[0] + 64 && seen[2]++ < 20) {
+                seen[0] = top;
+                log("pose npc " + npcId + " '" + name + "' seq=" + seqId + " top=" + top + " bottom=" + bottom + " lower");
+            }
+        }
+    }
+
     /**
      * The assembled mesh of [whoBuilt], after merging, before the toolkit model is made. [retexSrc]/[retexDst] are the
      * definition's retextures (applied by the toolkit afterwards), so the texture check names the texture really drawn.

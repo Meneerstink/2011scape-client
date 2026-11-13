@@ -16,8 +16,10 @@ public final class Static598 {
 
             if (spotAnimation.isFinished()) {
                 node.unlink();
+                RspsEffectTrace.end(spotAnimation); // N606
                 spotAnimation.stopParticleSystem();
             } else if (Static334.activeTiles != null && spotAnimation.isAnimating()) {
+                RspsEffectTrace.scene(spotAnimation, spotAnimation.level, spotAnimation.y, spotAnimation.x, spotAnimation.z); // N606
                 Static102.method2026(spotAnimation, true);
             }
         }

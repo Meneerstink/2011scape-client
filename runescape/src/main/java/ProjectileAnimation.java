@@ -346,6 +346,7 @@ public final class ProjectileAnimation extends PositionEntity {
     @Override
     public PickableEntity render(@OriginalArg(1) Toolkit toolkit) {
         @Pc(19) Model model = this.model(0x800, toolkit, 46);
+        RspsEffectTrace.render(this, model); // N606
         if (model == null) {
             return null;
         }

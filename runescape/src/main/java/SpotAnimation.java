@@ -204,6 +204,7 @@ public final class SpotAnimation extends PositionEntity {
     @Override
     public PickableEntity render(@OriginalArg(1) Toolkit toolkit) {
         @Pc(24) Model local24 = this.method6594(this.id, toolkit, (this.rotation == 0 ? 0 : 5) | 0x800);
+        RspsEffectTrace.render(this, local24); // N606
         if (local24 == null) {
             return null;
         }

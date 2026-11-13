@@ -943,6 +943,9 @@ public final class NPCType {
             result.O(this.scaleH, this.scaleV, this.scaleH);
         }
 
+        // N606 B6: top/bottom of the animated pose per (npc, action seq; -1 = idle/movement only), trace builds only.
+        com.jagex.core.util.ModelTrace.pose(this.id, this.name, actionAnimator != null && actionAnimator.getAnimation() != null ? actionAnimator.getAnimation().id
+            : (movementAnimator != null && movementAnimator.getAnimation() != null ? -1000 - movementAnimator.getAnimation().id : -1), result);
         result.s(functionMask);
         com.jagex.core.util.ModelTrace.clear();
         return result;

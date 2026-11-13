@@ -592,6 +592,7 @@ public final class InterfaceManager {
                 }
             }
             RspsIconDrag.drawn(child, offsetX, offsetY); // N482 / N72: where each prayer / spell is, for Shift + drag
+            RspsUiTrace.drawn(child, offsetX, offsetY); // N606: where each interface really draws (overlap check)
             if (child.slot == RspsPkHotkeys.PRAYER_HASH) RspsPkHud.prayerCell(child.id, offsetX, offsetY, child.width, child.height); // 78Legacy v5 PK HUD
 
             // RSPS Deadman: both layers of the PvP overlay (381:0 zone state, 381:3 skull timer) are

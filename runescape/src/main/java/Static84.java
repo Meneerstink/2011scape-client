@@ -111,24 +111,11 @@ public final class Static84 {
                         local36.visible = true;
                         continue;
                     }
-                } else {
-                    local135 = (local80 - 1) * 256 + 252;
-                    local140 = local36.x - local135 >> 9;
-                    @Pc(196) int local196 = local36.z - local135 >> 9;
-                    @Pc(203) int local203 = local36.x + local135 >> 9;
-                    @Pc(210) int local210 = local36.z + local135 >> 9;
-                    if (!Static426.method1017(local203, local210, local140, local196, local36.drawPriority)) {
-                        for (@Pc(221) int local221 = local140; local221 <= local203; local221++) {
-                            for (@Pc(224) int local224 = local196; local224 <= local210; local224++) {
-                                if (local36.drawPriority == Static341.entityDrawPriorities[local221][local224]) {
-                                    local166 = Static148.anIntArrayArray64[local221][local224]--;
-                                }
-                            }
-                        }
-                        local36.visible = true;
-                        continue;
-                    }
                 }
+                // N606 13-11 (Zebak's body never drawn, owner 12-11 'komt pas boven t water als die geattackt wordt'): the per-tile
+                // "one actor per tile" cull only applies to size-1 actors, as in OSRS (Scene addNpcsToScene: only size-1 npcs check
+                // tileLastDrawnActor). Large npcs are always drawn - Zebak's body and tail share one 9x9 footprint, and with this cull only
+                // one of the two was ever drawn (the body only while its health bar raised its priority).
             }
             local36.visible = false;
             local36.y = Static102.averageHeight(local36.level, local36.x, local36.z);
@@ -345,23 +332,9 @@ public final class Static84 {
                 } else if (local31.drawPriority == Static341.entityDrawPriorities[local113][local118]) {
                     local155 = Static148.anIntArrayArray64[local113][local118]++;
                 }
-            } else {
-                local113 = (local69 - 1) * 256 + 60;
-                local118 = local31.x - local113 >> 9;
-                @Pc(182) int local182 = local31.z - local113 >> 9;
-                @Pc(189) int local189 = local31.x + local113 >> 9;
-                @Pc(196) int local196 = local31.z + local113 >> 9;
-                for (@Pc(198) int local198 = local118; local198 <= local189; local198++) {
-                    for (@Pc(201) int local201 = local182; local201 <= local196; local201++) {
-                        if (local31.drawPriority > Static341.entityDrawPriorities[local198][local201]) {
-                            Static341.entityDrawPriorities[local198][local201] = local31.drawPriority;
-                            Static148.anIntArrayArray64[local198][local201] = 1;
-                        } else if (local31.drawPriority == Static341.entityDrawPriorities[local198][local201]) {
-                            local155 = Static148.anIntArrayArray64[local198][local201]++;
-                        }
-                    }
-                }
             }
+            // N606 13-11: large actors no longer claim tiles in the per-tile priority map (OSRS: only size-1 npcs take part), so they
+            // cannot hide each other nor other players standing inside their footprint.
         }
     }
 }

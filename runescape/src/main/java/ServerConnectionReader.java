@@ -1376,6 +1376,7 @@ public final class ServerConnectionReader {
 
                         @Pc(5334) SpotAnimation spotAnimation = new SpotAnimation(id, delay, level, virtualLevel, x, Static102.averageHeight(level, x, z) - height, z, localX, localX, localZ, localZ, rotation, multipleAnims);
                         Static346.spotAnimations.put((localX << 16) | localZ, new SpotAnimationNode(spotAnimation));
+                        RspsEffectTrace.recv(spotAnimation, "tilegfx", id, localX, localZ, level); // N606: OUR server sends tile graphics as SPOTANIM_SPECIFIC (tile position), not MAP_ANIM
                     }
                 }
             } else if (position >> 29 != 0) {
@@ -2767,6 +2768,7 @@ public final class ServerConnectionReader {
                 @Pc(1053) ProjectileAnimation projectile = new ProjectileAnimation(id, Static87.updateZoneLevel, Static87.updateZoneLevel, x1, z1, entity1, entity2, y1, y2, t1 + TimeUtils.clock, t2 + TimeUtils.clock, verticalAngle, displacement, groundRelative, wornSlot);
                 projectile.target(Static102.averageHeight(Static87.updateZoneLevel, x2, z2) - y2, t1 + TimeUtils.clock, z2, x2);
                 Static505.projectiles.addLast(new ProjectileAnimationNode(projectile));
+                RspsEffectTrace.recv(projectile, "proj", id, x1 >> 9, z1 >> 9, Static87.updateZoneLevel); // N606 effect trace
             }
         } else if (ZoneProt.OBJ_REVEAL == prot) {
             @Pc(15) int owner = bitPacket.g2_alt2();
@@ -2882,6 +2884,7 @@ public final class ServerConnectionReader {
                 @Pc(1728) ProjectileAnimation projectile = new ProjectileAnimation(id, Static87.updateZoneLevel, Static87.updateZoneLevel, x1, z1, 0, entity, y1, y2, t1 + TimeUtils.clock, t2 + TimeUtils.clock, verticalAngle, displacement, groundRelative, -1);
                 projectile.target(Static102.averageHeight(Static87.updateZoneLevel, x2, z2) - y2, TimeUtils.clock + t1, z2, x2);
                 Static505.projectiles.addLast(new ProjectileAnimationNode(projectile));
+                RspsEffectTrace.recv(projectile, "proj", id, x1 >> 9, z1 >> 9, Static87.updateZoneLevel); // N606 effect trace
             }
         } else if (ZoneProt.LOC_DEL == prot) {
             @Pc(15) int coord = bitPacket.g1_alt2();
@@ -2946,6 +2949,7 @@ public final class ServerConnectionReader {
 
                     @Pc(2065) SpotAnimation spotAnimation = new SpotAnimation(id, delay, Static87.updateZoneLevel, virtualLevel, x, Static102.averageHeight(Static87.updateZoneLevel, x, z) - y, z, zoneX, zoneX, zoneZ, zoneZ, rotation, false);
                     Static346.spotAnimations.put((zoneX << 16) | zoneZ, new SpotAnimationNode(spotAnimation));
+                    RspsEffectTrace.recv(spotAnimation, "tilegfx", id, zoneX, zoneZ, Static87.updateZoneLevel); // N606 effect trace
                 }
             }
         } else {
