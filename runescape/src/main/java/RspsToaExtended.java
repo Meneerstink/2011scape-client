@@ -1517,8 +1517,12 @@ final class RspsToaExtended {
             loaded.add(node.npc);
             Integer before = obeliskSeen.put(node.npc, id);
             if (before == null || before == id) {
+                if (before == null) {
+                    AvTrace.log("[toaext] obelisk gezien id=" + id + " tegel=" + node.npc.pathX[0] + "," + node.npc.pathZ[0]);
+                }
                 continue;
             }
+            AvTrace.log("[toaext] obelisk " + before + " -> " + id + " volgorde=" + obeliskOrder.size() + " actief=" + activeObelisks);
             if (id == NPC_OBELISK_ACTIVE) {
                 int tile = (node.npc.pathX[0] << 16) | node.npc.pathZ[0];
                 if (!obeliskOrder.contains(tile)) {

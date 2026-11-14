@@ -68,7 +68,7 @@ public final class DynamicLocation extends PositionEntity implements Location {
     @OriginalMember(owner = "client!oe", name = "a", descriptor = "(ILclient!ha;)Lclient!pea;")
     @Override
     public PickableEntity render(@OriginalArg(1) Toolkit toolkit) {
-        @Pc(14) Model local14 = this.entity.model(toolkit, false, true, true, 0x800);
+        @Pc(14) Model local14 = this.entity.model(toolkit, false, true, true, RspsToaExtended.keepsVertices(this.getId()) ? 0x10800 : 0x800); // N610: outlined locs keep their vertices
         if (local14 == null) {
             return null;
         }
