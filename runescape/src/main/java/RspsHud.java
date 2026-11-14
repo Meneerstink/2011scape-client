@@ -212,6 +212,11 @@ final class RspsHud {
             top = Math.max(top, InterfaceManager.optionsY + HOVER_TEXT_CLEARANCE);
         }
         int stackY = top;
+        // N609 14-11: RuneLite WidgetOverlay ToaHud.CONTENT / ToaLobby.CONTENT are managed TOP_LEFT overlays, so the infobox
+        // stack starts below the ToA HUD instead of drawing over 'Level: N' and the timer.
+        if (now() - toaContentSeen <= TOA_CONTENT_RECENT_MS && toaContentBottom > 0) {
+            stackY = Math.max(stackY, toaContentBottom + PANEL_GAP);
+        }
         // v5: against a player the PK HUD already shows name + health, so Opponent Information keeps to npcs then.
         // N606: RuneLite OpponentInfoOverlay.hasHpHud - no Opponent Information for the npc the OSRS HP HUD shows.
         if (RspsHudConfig.enabled("opponent") && !(RspsHudOpponent.playerIndex() >= 0 && RspsPkHud.showing())
@@ -268,6 +273,39 @@ final class RspsHud {
         int[] at = RspsOverlayLayout.place(id, defaultX, hud[4], boxWidth, boxHeight, viewX, viewY, viewWidth, viewHeight);
         RspsInfoBoxes.draw(at[0], at[1]);
         RspsOverlayLayout.decorate(id);
+    }
+
+    /** RuneLite InterfaceID ToaHud.CONTENT 0x01e1_0003 (481:3) and ToaLobby.CONTENT 0x0305_0002 (773:2) as our imported groups. */
+    static final int TOA_HUD_CONTENT = (1186 << 16) | 3;
+    static final int TOA_LOBBY_CONTENT = (1190 << 16) | 2;
+    private static final long TOA_CONTENT_RECENT_MS = 300L;
+    private static int toaContentBottom = -1;
+    private static long toaContentSeen;
+
+    /**
+     * InterfaceManager.draw: a visible component of the ToA HUD / lobby (groups 1186 / 1190) was drawn at (x, y); the scene pass
+     * reads it next frame. 14-11 testclient: the content LAYER (481:3) is taller than what it shows (the Boosts panel was pushed
+     * out of the view), so - as RspsUiTrace measures 'where an interface really draws' (1186 = 3,27 113x131) - only components
+     * that show something (sprite, model, text) count, which matches the visible bounds RuneLite's widget overlay stacks under.
+     */
+    static void interfaceDrawn(Component child, int x, int y) {
+        int hash = child.slot != -1 ? child.slot : child.id; // as RspsUiTrace
+        if (hash < 0) {
+            return;
+        }
+        int group = hash >>> 16;
+        if (group != TOA_HUD_CONTENT >>> 16 && group != TOA_LOBBY_CONTENT >>> 16) {
+            return;
+        }
+        boolean content = child.type == 3 || child.type == 5 || child.type == 6 || (child.type == 4 && child.text != null && !child.text.isEmpty());
+        if (!content || child.width <= 0 || child.height <= 0) {
+            return;
+        }
+        long t = now();
+        int bottom = y + child.height;
+        // both layers can be open in one frame: keep the lower edge of this frame
+        toaContentBottom = t - toaContentSeen <= 20L ? Math.max(toaContentBottom, bottom) : bottom;
+        toaContentSeen = t;
     }
 
     /** Places and draws one panel; returns the next free y of the default stack. */

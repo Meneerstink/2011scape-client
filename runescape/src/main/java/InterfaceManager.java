@@ -593,6 +593,7 @@ public final class InterfaceManager {
             }
             RspsIconDrag.drawn(child, offsetX, offsetY); // N482 / N72: where each prayer / spell is, for Shift + drag
             RspsUiTrace.drawn(child, offsetX, offsetY); // N606: where each interface really draws (overlap check)
+            RspsHud.interfaceDrawn(child, offsetX, offsetY); // N609: ToA HUD/lobby = RuneLite managed TOP_LEFT overlay
             if (child.slot == RspsPkHotkeys.PRAYER_HASH) RspsPkHud.prayerCell(child.id, offsetX, offsetY, child.width, child.height); // 78Legacy v5 PK HUD
             if (child.slot == RspsPkHotkeys.PRAYER_HASH) RspsToaExtended.prayerCell(child.id, offsetX, offsetY, child.width, child.height); // N610 prayer widget
 
