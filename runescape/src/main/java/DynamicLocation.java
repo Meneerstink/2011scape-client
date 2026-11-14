@@ -83,6 +83,8 @@ public final class DynamicLocation extends PositionEntity implements Location {
             local14.renderOrtho(matrix, local44.pickingCylinders[0], OrthoMode.renderZoom, 0);
         } else {
             local14.render(matrix, local44.pickingCylinders[0], 0);
+            // N610 ToA Extended: ModelOutlineRenderer.drawOutline(TileObject)
+            RspsModelOutline.locRendered(this.getId(), super.x >> 9, super.z >> 9, local14, matrix);
         }
 
         if (this.entity.particleSystem != null) {

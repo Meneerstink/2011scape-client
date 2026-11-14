@@ -122,6 +122,10 @@ final class RspsSidebar extends JPanel {
         collapsedSections.add("Gear sets");
         collapsedSections.add("Gear keys");
         collapsedSections.add("Quick keys");
+        // N610: ToaExtendedConfig - every @ConfigSection has closedByDefault = true.
+        for (String s : RspsHudConfig.TOAEXT_SECTIONS) {
+            collapsedSections.add("toaextended/" + s);
+        }
         // v4: a script, profile or gear-set change refreshes the open page (hotkey names, script boxes).
         RspsScripts.addListener(RspsSidebar::refreshLater);
         RspsProfiles.addListener(RspsSidebar::refreshLater);
@@ -863,14 +867,20 @@ final class RspsSidebar extends JPanel {
         header.setAlignmentX(Component.LEFT_ALIGNMENT);
         header.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
         header.setBorder(new CompoundBorder(new MatteBorder(0, 0, 1, 0, ColorScheme.MEDIUM_GRAY_COLOR), new EmptyBorder(0, 0, 3, 1)));
-        final boolean open = !collapsedSections.contains(name);
+        // N610: a plugin-scoped fold ("toaextended/Miscellaneous", RuneLite closedByDefault) beats the shared name.
+        final String foldKey = collapsedSections.contains(plugin + "/" + name) ? plugin + "/" + name : name;
+        final boolean open = !collapsedSections.contains(foldKey);
         final JButton arrow = iconButton(open ? SECTION_RETRACT_ICON : SECTION_EXPAND_ICON, open ? "Retract" : "Expand");
         arrow.setPreferredSize(new Dimension(18, 0));
         header.add(arrow, BorderLayout.WEST);
         JLabel title = new JLabel(name);
         title.setForeground("pkhotkeys".equals(plugin) ? accent() : ColorScheme.BRAND_ORANGE);
         title.setFont(FontManager.getRunescapeBoldFont());
-        String description = RspsHudConfig.SECTION_DESCRIPTIONS.get(name);
+        // N610: a plugin may give its own description for a section name another plugin also uses ("Miscellaneous").
+        String description = RspsHudConfig.SECTION_DESCRIPTIONS.get(plugin + "/" + name);
+        if (description == null) {
+            description = RspsHudConfig.SECTION_DESCRIPTIONS.get(name);
+        }
         if (description != null) {
             title.setToolTipText("<html>" + name + ":<br>" + description + "</html>");
         }
@@ -887,12 +897,12 @@ final class RspsSidebar extends JPanel {
         MouseAdapter toggle = new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (collapsedSections.contains(name)) {
-                    collapsedSections.remove(name);
+                if (collapsedSections.contains(foldKey)) {
+                    collapsedSections.remove(foldKey);
                 } else {
-                    collapsedSections.add(name);
+                    collapsedSections.add(foldKey);
                 }
-                boolean nowOpen = !collapsedSections.contains(name);
+                boolean nowOpen = !collapsedSections.contains(foldKey);
                 contents.setVisible(nowOpen);
                 arrow.setIcon(nowOpen ? SECTION_RETRACT_ICON : SECTION_EXPAND_ICON);
                 box.revalidate();
@@ -1113,8 +1123,14 @@ final class RspsSidebar extends JPanel {
                 swatch.addActionListener(e -> {
                     Color picked = GraphicsEnvironmentCheck.headless() ? null : JColorChooser.showDialog(this, setting.name, swatch.getBackground());
                     if (picked != null) {
-                        set(key, String.format("%06x", picked.getRGB() & 0xFFFFFF));
-                        colourButton(swatch, 0xFF000000 | picked.getRGB());
+                        // N610: an alpha colour (aarrggbb, RuneLite @Alpha) keeps its alpha; the swing chooser picks the colour only.
+                        String old = RspsHudConfig.get(key);
+                        if (old != null && old.length() == 8) {
+                            set(key, old.substring(0, 2) + String.format("%06x", picked.getRGB() & 0xFFFFFF));
+                        } else {
+                            set(key, String.format("%06x", picked.getRGB() & 0xFFFFFF));
+                        }
+                        colourButton(swatch, RspsHudConfig.colour(key));
                     }
                 });
                 refreshers.put(key, () -> colourButton(swatch, RspsHudConfig.colour(key)));

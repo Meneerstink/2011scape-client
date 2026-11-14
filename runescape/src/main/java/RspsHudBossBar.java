@@ -84,6 +84,19 @@ final class RspsHudBossBar {
         open = true;
     }
 
+    /** N610 ToA Extended: Varbits.BOSS_HEALTH_CURRENT / BOSS_HEALTH_MAXIMUM while the HUD is open. */
+    static boolean isOpen() {
+        return open;
+    }
+
+    static int currentHp() {
+        return hp;
+    }
+
+    static int maxHp() {
+        return max;
+    }
+
     static void reset() {
         open = false;
         npcIndex = -1;

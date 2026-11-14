@@ -594,6 +594,7 @@ public final class InterfaceManager {
             RspsIconDrag.drawn(child, offsetX, offsetY); // N482 / N72: where each prayer / spell is, for Shift + drag
             RspsUiTrace.drawn(child, offsetX, offsetY); // N606: where each interface really draws (overlap check)
             if (child.slot == RspsPkHotkeys.PRAYER_HASH) RspsPkHud.prayerCell(child.id, offsetX, offsetY, child.width, child.height); // 78Legacy v5 PK HUD
+            if (child.slot == RspsPkHotkeys.PRAYER_HASH) RspsToaExtended.prayerCell(child.id, offsetX, offsetY, child.width, child.height); // N610 prayer widget
 
             // RSPS Deadman: both layers of the PvP overlay (381:0 zone state, 381:3 skull timer) are
             // drawn as custom panels (guarded / dangerous icon + text; the player's own head-icon
@@ -1535,6 +1536,7 @@ public final class InterfaceManager {
         draw(topLevelInterface, x1, y1, GameShell.canvasWid + x1, GameShell.canvasHei + y1, x1, y1, -1);
 
         RspsPkHud.drawInterfaceOverlay(); // 78Legacy v5 PK HUD: outline of the protect prayer against your target's weapon
+        RspsToaExtended.drawPrayerWidget(); // N610 ToA Extended PrayerWidgetOverlay (OverlayLayer.ABOVE_WIDGETS)
 
         if (dragChildren != null) {
             draw(dragChildren, ROOT, dragOffsetX, dragOffsetY, x1, y1, x1 + GameShell.canvasWid, y1 + GameShell.canvasHei, dragLayer.rectangle, true);

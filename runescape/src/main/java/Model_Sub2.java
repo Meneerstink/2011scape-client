@@ -825,6 +825,89 @@ public final class Model_Sub2 extends Model {
         return this.method4981(matrix, quick, y, x, -1, sizeShift);
     }
 
+    /** N610 ToA Extended (ModelOutlineRenderer): every render vertex in world space ([matrix] = model -> world), or null when freed. */
+    public int[][] rspsWorldVertices(Matrix matrix) {
+        if (this.anIntArray409 == null || this.anIntArray410 == null || this.anIntArray412 == null || this.anIntArray411 == null
+            || this.aShortArray70 == null || this.anInt5538 <= 0) {
+            return null;
+        }
+        int[][] world = new int[3][this.anInt5538];
+        int[] d = new int[3];
+        for (int v = 0; v < this.anInt5543; v++) {
+            matrix.project(this.anIntArray410[v], this.anIntArray409[v], this.anIntArray412[v], d);
+            for (int k = this.anIntArray411[v]; k < this.anIntArray411[v + 1]; k++) {
+                int r = this.aShortArray70[k] - 1;
+                if (r == -1) {
+                    break;
+                }
+                world[0][r] = d[0];
+                world[1][r] = d[1];
+                world[2][r] = d[2];
+            }
+        }
+        return world;
+    }
+
+    /**
+     * N610 ToA Extended (ModelOutlineRenderer): project EVERY vertex of this model with [matrix] into aClass19_Sub3_24.anIntArray623/625
+     * (screen x/y per render vertex, -999999 = behind the near plane) - the same maths as method4981, without its bounding-box gate
+     * (that only fills the arrays when the pick point lies inside the model). Returns false when nothing could be projected.
+     */
+    public boolean rspsProjectAll(Matrix matrix) {
+        Matrix_Sub3 a = (Matrix_Sub3) matrix;
+        Matrix_Sub3 b = this.aClass19_Sub3_24.aClass73_Sub3_3;
+        float tx = b.aFloat152 + a.aFloat158 * b.aFloat157 + a.aFloat152 * b.aFloat153 + b.aFloat160 * a.aFloat159;
+        float ty = b.aFloat158 + b.aFloat156 * a.aFloat158 + a.aFloat152 * b.aFloat161 + a.aFloat159 * b.aFloat150;
+        float tz = b.aFloat159 + b.aFloat155 * a.aFloat152 + a.aFloat158 * b.aFloat151 + a.aFloat159 * b.aFloat154;
+        float zx = a.aFloat161 * b.aFloat151 + b.aFloat155 * a.aFloat153 + a.aFloat155 * b.aFloat154;
+        float zy = a.aFloat156 * b.aFloat151 + a.aFloat157 * b.aFloat155 + a.aFloat151 * b.aFloat154;
+        float zz = b.aFloat151 * a.aFloat150 + a.aFloat160 * b.aFloat155 + a.aFloat154 * b.aFloat154;
+        float xx = a.aFloat161 * b.aFloat157 + a.aFloat153 * b.aFloat153 + a.aFloat155 * b.aFloat160;
+        float xy = a.aFloat151 * b.aFloat160 + b.aFloat157 * a.aFloat156 + b.aFloat153 * a.aFloat157;
+        float xz = b.aFloat160 * a.aFloat154 + b.aFloat157 * a.aFloat150 + a.aFloat160 * b.aFloat153;
+        float yx = b.aFloat161 * a.aFloat153 + b.aFloat156 * a.aFloat161 + b.aFloat150 * a.aFloat155;
+        float yy = b.aFloat161 * a.aFloat157 + b.aFloat156 * a.aFloat156 + a.aFloat151 * b.aFloat150;
+        float yz = a.aFloat150 * b.aFloat156 + a.aFloat160 * b.aFloat161 + a.aFloat154 * b.aFloat150;
+        int focalX = this.aClass19_Sub3_24.anInt8001;
+        int focalY = this.aClass19_Sub3_24.anInt8025;
+        if (this.anIntArray409 == null || this.anIntArray411 == null || this.aShortArray70 == null || this.anInt5538 <= 0) {
+            return false;
+        }
+        if (this.aClass19_Sub3_24.anIntArray623 == null || this.aClass19_Sub3_24.anIntArray623.length < this.anInt5538) {
+            this.aClass19_Sub3_24.anIntArray625 = new int[this.anInt5538];
+            this.aClass19_Sub3_24.anIntArray623 = new int[this.anInt5538];
+        }
+        int[] sx = this.aClass19_Sub3_24.anIntArray623;
+        int[] sy = this.aClass19_Sub3_24.anIntArray625;
+        for (int v = 0; v < this.anInt5543; v++) {
+            float vx = (float) this.anIntArray410[v];
+            float vz = (float) this.anIntArray412[v];
+            float vy = (float) this.anIntArray409[v];
+            float depth = tz + zz * vz + vy * zy + vx * zx;
+            float px = vy * xy + xx * vx + vz * xz + tx;
+            float py = yx * vx + yy * vy + vz * yz + ty;
+            int x;
+            int y;
+            if (depth >= (float) this.aClass19_Sub3_24.anInt8010) {
+                // GlToolkit.da: the HUD (overlay) space, as the tile overlays (picked() uses the centre-relative anInt8021/8016)
+                x = (int) ((float) focalX * px / depth - this.aClass19_Sub3_24.aFloat145);
+                y = (int) ((float) focalY * py / depth - this.aClass19_Sub3_24.aFloat141);
+            } else {
+                x = -999999;
+                y = -999999;
+            }
+            for (int k = this.anIntArray411[v]; k < this.anIntArray411[v + 1]; k++) {
+                int r = this.aShortArray70[k] - 1;
+                if (r == -1) {
+                    break;
+                }
+                sx[r] = x;
+                sy[r] = y;
+            }
+        }
+        return true;
+    }
+
     @OriginalMember(owner = "client!kla", name = "a", descriptor = "(Lclient!tt;ZIIIII)Z")
     public boolean method4981(@OriginalArg(0) Matrix arg0, @OriginalArg(1) boolean arg1, @OriginalArg(3) int arg2, @OriginalArg(4) int arg3, @OriginalArg(5) int arg4, @OriginalArg(6) int arg5) {
         @Pc(8) Matrix_Sub3 local8 = (Matrix_Sub3) arg0;

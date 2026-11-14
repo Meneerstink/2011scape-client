@@ -64,6 +64,9 @@ public final class StaticGroundDecor extends GroundDecor implements Location {
         if (this.aBoolean180) {
             functionMask |= 0x10000;
         }
+        if (RspsToaExtended.keepsVertices(type.id)) {
+            functionMask |= 0x10000; // N610: GL keeps the vertex arrays (ModelOutlineRenderer); otherwise freed after the upload
+        }
 
         @Pc(83) ModelAndShadow modelAndShadow = this.modelAndShadow(functionMask, toolkit, this.hardShadow);
         if (modelAndShadow != null) {
@@ -99,6 +102,8 @@ public final class StaticGroundDecor extends GroundDecor implements Location {
             this.model.renderOrtho(local20, entity.pickingCylinders[0], OrthoMode.renderZoom, 0);
         } else {
             this.model.render(local20, entity.pickingCylinders[0], 0);
+            // N610 ToA Extended: ModelOutlineRenderer.drawOutline(TileObject)
+            RspsModelOutline.locRendered(this.getId(), super.x >> 9, super.z >> 9, this.model, local20);
         }
         return entity;
     }

@@ -219,6 +219,8 @@ public final class NPCEntity extends PathingEntity {
                     super.aModelArray3[local314].render(local22, local123.pickingCylinders[local314], 0);
                 }
             }
+            // N610 ToA Extended: ModelOutlineRenderer - project this frame's models for the npcs that get an outline
+            RspsModelOutline.npcRendered(this, super.aModelArray3, local22);
         }
         if (super.particleSystem != null) {
             @Pc(394) ParticleList local394 = super.particleSystem.getList();

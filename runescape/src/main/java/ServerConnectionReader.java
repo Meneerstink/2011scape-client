@@ -1194,6 +1194,7 @@ public final class ServerConnectionReader {
             } else if (type == ChatLineType.CONSOLE_SET) {
                 debugconsole.set(message);
             } else if (nameUnfiltered.equals("") || !IgnoreList.contains(nameUnfiltered)) {
+                RspsToaExtended.chatMessage(type, message); // N610: RuneLite ChatMessage (GAMEMESSAGE)
                 ChatHistory.add(type, flags, name, nameUnfiltered, name, message);
             } else {
                 context.currentProt = null;
@@ -1742,6 +1743,7 @@ public final class ServerConnectionReader {
             PlayerList.iteratePlayers(bitPacket, context.currentPacketSize);
             // A2 round 7: the server writes PLAYER_INFO after the tick's interface packets - a landed gameframe's panels are in.
             GameframeSwitch.serverTickEnded();
+            RspsToaExtended.gameTick(); // N610 ToA Extended: RuneLite GameTick (once per server tick)
             context.currentProt = null;
             return true;
         } else if (ServerProt.CHAT_FILTER_SETTINGS == context.currentProt) {
@@ -2691,6 +2693,7 @@ public final class ServerConnectionReader {
 
             if (AreaMode.isOutOfBounds(Static117.areaMode) || zoneX >= 0 && zoneZ >= 0 && Static720.mapWidth > zoneX && Static501.mapLength > zoneZ) {
                 Static553.changeLocation(zoneX, zoneZ, Static87.updateZoneLevel, shape, rotation, layer, id);
+                RspsToaExtended.locAdded(id, zoneX, zoneZ, Static87.updateZoneLevel); // N610: RuneLite GameObjectSpawned
                 AvTrace.log("loc add id=" + id + " zone=" + zoneX + "," + zoneZ + " level=" + Static87.updateZoneLevel + " shape=" + shape + " rot=" + rotation);
             } else {
                 AvTrace.log("loc add ignored (outside map) id=" + id + " zone=" + zoneX + "," + zoneZ);

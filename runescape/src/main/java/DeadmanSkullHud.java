@@ -318,7 +318,7 @@ final class DeadmanSkullHud {
      * Resizable / fullscreen: the screen rectangle of the open side-panel tab (the 746:90..108 slot laid out most recently), or
      * null when none is laid out (intro curtain, fixed mode).
      */
-    private static Rectangle sidePanelBounds() {
+    static Rectangle sidePanelBounds() { // N610: also RspsToaExtended (BOTTOM_RIGHT above the inventory in resizable)
         Component newest = null;
         for (int child = RESIZABLE_TAB_FIRST; child <= RESIZABLE_TAB_LAST; child++) {
             Component slot = InterfaceList.getComponent((RESIZABLE_ROOT << 16) | child, -1);

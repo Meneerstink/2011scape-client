@@ -66,6 +66,12 @@ public final class ProjectileAnimation extends PositionEntity {
     @OriginalMember(owner = "client!b", name = "R", descriptor = "Z")
     public boolean ticked = false;
 
+    /** N610: the last target() point in fine local units (-1 until targeted). */
+    public int targetX = -1;
+    public int targetZ = -1;
+    public int startX;
+    public int startZ;
+
     @OriginalMember(owner = "client!b", name = "tb", descriptor = "I")
     public final int y1;
 
@@ -134,6 +140,13 @@ public final class ProjectileAnimation extends PositionEntity {
 
     @OriginalMember(owner = "client!b", name = "a", descriptor = "(IZIII)V")
     public void target(@OriginalArg(0) int y, @OriginalArg(2) int t, @OriginalArg(3) int z, @OriginalArg(4) int x) {
+        // N610 ToA Extended: RuneLite Projectile.getX1()/getY1() (where it started) and getTarget() (where it flies to).
+        if (this.targetX == -1) {
+            this.startX = super.x;
+            this.startZ = super.z;
+        }
+        this.targetX = x;
+        this.targetZ = z;
         if (!this.ticked) {
             @Pc(9) double deltaX = x - super.x;
             @Pc(16) double deltaZ = z - super.z;

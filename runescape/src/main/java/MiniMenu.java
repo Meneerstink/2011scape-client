@@ -598,7 +598,7 @@ public final class MiniMenu {
                                             if (local1661.cursor2Op == local295) {
                                                 local317 = local1661.cursor2;
                                             }
-                                            addEntryInner(false, -1, Static277.method4042(local1654, local584, local186), local186, local584, local1763[local295], local1780, true, local317, "<col=00ffff>" + local1661.name + RspsDev.tag(local1654.getId(), WorldMap.areaBaseX + local186, WorldMap.areaBaseZ + local584, PlayerEntity.self.level), local1654.hashCode(), false);
+                                            addEntryInner(false, -1, Static277.method4042(local1654, local584, local186), local186, local584, local1763[local295], RspsToaExtended.menuAction(local1780, local295, local1654.getId(), -1, local1763[local295], local1661.name), true, local317, "<col=00ffff>" + local1661.name + RspsDev.tag(local1654.getId(), WorldMap.areaBaseX + local186, WorldMap.areaBaseZ + local584, PlayerEntity.self.level), local1654.hashCode(), false);
                                         }
                                     }
                                 }
@@ -902,7 +902,7 @@ public final class MiniMenu {
                     cursor = type.cursor2;
                 }
 
-                addEntryInner(false, -1, npc.slot, 0, 0, ops[op], action, true, ops[op].equalsIgnoreCase(LocalisedText.ATTACK.localise(Client.language)) ? type.attackCursor : cursor, RspsHudOpponent.menuTarget(npc, ops[op], "<col=ffff00>" + npcName) + RspsDev.tag(type.id), npc.slot, false);
+                addEntryInner(false, -1, npc.slot, 0, 0, ops[op], RspsToaExtended.menuAction(action, op, -1, type.id, ops[op], npcName), true, ops[op].equalsIgnoreCase(LocalisedText.ATTACK.localise(Client.language)) ? type.attackCursor : cursor, RspsHudOpponent.menuTarget(npc, ops[op], "<col=ffff00>" + npcName) + RspsDev.tag(type.id), npc.slot, false);
             }
         }
 
@@ -946,7 +946,7 @@ public final class MiniMenu {
                         cursor = type.cursor2;
                     }
 
-                    addEntryInner(false, -1, npc.slot, 0, 0, ops[op], action, true, ops[op].equalsIgnoreCase(LocalisedText.ATTACK.localise(Client.language)) ? type.attackCursor : cursor, RspsHudOpponent.menuTarget(npc, ops[op], "<col=ffff00>" + npcName) + RspsDev.tag(type.id), npc.slot, false);
+                    addEntryInner(false, -1, npc.slot, 0, 0, ops[op], RspsToaExtended.menuAction(action, op, -1, type.id, ops[op], npcName), true, ops[op].equalsIgnoreCase(LocalisedText.ATTACK.localise(Client.language)) ? type.attackCursor : cursor, RspsHudOpponent.menuTarget(npc, ops[op], "<col=ffff00>" + npcName) + RspsDev.tag(type.id), npc.slot, false);
                 }
             }
         }

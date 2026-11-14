@@ -51,6 +51,11 @@ public final class Static102 {
         @Pc(11) short depth = 0;
         @Pc(13) byte bias = 0;
 
+        // N610 ToA Extended 'Hide ...' options (RuneLite Hooks.RenderableDrawListener): a hidden entity is not put in the scene.
+        if (RspsToaExtended.hidden(entity)) {
+            return false;
+        }
+
         entity.updateBounds();
 
         if (entity.x1 < 0 || entity.z1 < 0 || entity.x2 >= Static619.tileMaxX || entity.z2 >= Static662.tileMaxZ) {

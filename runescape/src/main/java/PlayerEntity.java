@@ -590,6 +590,8 @@ public final class PlayerEntity extends PathingEntity {
                     super.aModelArray3[local269].render(local22, local114.pickingCylinders[local269], self == this ? 1 : 0);
                 }
             }
+            // N610 ToA Extended: ModelOutlineRenderer on the local player (Kephri dung)
+            RspsModelOutline.playerRendered(this, super.aModelArray3, local22);
         }
         if (super.particleSystem != null) {
             @Pc(635) ParticleList local635 = super.particleSystem.getList();

@@ -204,6 +204,7 @@ final class RspsHud {
             RspsHudGroundItems.render(x, y);
         }
         RspsQuestHelperHints.drawNpcHighlight(x, y);
+        RspsToaExtended.render(x, y, width, height); // N610: RuneLite ToA Extended scene overlays
         RspsScriptOverlay.drawTarget(x, y); // v4 Bruine Bonen Technologia: box + name on your target
         RspsHudBossBar.render(x, y, width, height); // N606: OSRS boss HP HUD, top centre
         int top = y + PANEL_GAP;

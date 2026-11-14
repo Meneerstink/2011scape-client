@@ -105,6 +105,8 @@ public abstract class PathingEntity extends PositionEntity {
                 entity.animationPathPointer = entity.pathPointer;
             }
         }
+        // N610 ToA Extended: RuneLite AnimationChanged (fires on every animation update, also a repeat of the same id).
+        RspsToaExtended.animationChanged(entity, entity.actionAnimations == null ? -1 : entity.actionAnimations[0]);
     }
 
     @OriginalMember(owner = "client!cg", name = "Ac", descriptor = "I")

@@ -75,6 +75,9 @@ public final class StaticLocation extends PositionEntity implements Location {
         if (this.copyNormals) {
             functionMask |= 0x10000;
         }
+        if (RspsToaExtended.keepsVertices(type.id)) {
+            functionMask |= 0x10000; // N610: GL keeps the vertex arrays (ModelOutlineRenderer); otherwise freed after the upload
+        }
 
         @Pc(98) ModelAndShadow modelAndShadow = this.method4223(toolkit, this.castsShadow, functionMask);
         if (modelAndShadow != null) {
@@ -266,6 +269,8 @@ public final class StaticLocation extends PositionEntity implements Location {
             this.model.renderOrtho(local20, local34.pickingCylinders[0], OrthoMode.renderZoom, 0);
         } else {
             this.model.render(local20, local34.pickingCylinders[0], 0);
+            // N610 ToA Extended: ModelOutlineRenderer.drawOutline(TileObject)
+            RspsModelOutline.locRendered(this.getId(), super.x >> 9, super.z >> 9, this.model, local20);
         }
         return local34;
     }
