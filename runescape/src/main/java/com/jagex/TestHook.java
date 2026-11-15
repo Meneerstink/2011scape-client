@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>One command per line, coordinates in the window's client area (the same ones tools\live\ClientDriver.ps1 Click-At
  * always used): {@code ping | move x y | click x y [left|right|middle] | press x y [b] | release x y [b] | wheel x y n |
- * keys <SendKeys text> | keydown vk | keyup vk | shot <png path>}. Every answer is one line, {@code ok ...} or {@code err ...}.
+ * keys <SendKeys text> | keydown vk|name | keyup vk|name | state | shot <png path>}. Every answer is one line, {@code ok ...} or {@code err ...}.
  */
 public final class TestHook {
 
@@ -120,7 +120,27 @@ public final class TestHook {
         }
         // The game only draws the console caret and sends focus to the server when it thinks it has focus.
         GameShell.focus_in = true;
+        // N620 view-only: every hook command keeps the 'alleen kijken' window alive for another viewMinutes.
+        if (viewOnly) {
+            viewUntil = System.currentTimeMillis() + viewMinutes * 60_000L;
+        }
         switch (cmd) {
+            case "view": {
+                // N620 (owner 14-11 23:58: a click in the bedekte client walked teamtest1 out of the Porazdir fight): 'view on [min]'
+                // drops the REAL mouse and keyboard on this window while a test script runs (hook input still works, it does not go
+                // through the event queue); the title says so. Off again with 'view off', or by itself after [min] (default 30)
+                // without any hook command - a crashed script never leaves the client deaf.
+                final String v = p.length > 0 ? p[0].toLowerCase() : "";
+                if (v.equals("on")) {
+                    viewMinutes = p.length > 1 ? Math.max(1, Integer.parseInt(p[1])) : 30;
+                    setView(true);
+                } else if (v.equals("off")) {
+                    setView(false);
+                } else if (!v.isEmpty()) {
+                    return "err view on [minutes] | off";
+                }
+                return "ok view " + (viewOnly ? "on (" + viewMinutes + " min)" : "off");
+            }
             case "ping": {
                 final Point o = canvasOffset(canvas);
                 final Window w = SwingUtilities.getWindowAncestor(canvas);
@@ -159,11 +179,30 @@ public final class TestHook {
                 keys(rest);
                 return "ok";
             case "keydown":
-                key(KeyEvent.KEY_PRESSED, i(p, 0), KeyEvent.CHAR_UNDEFINED, 0);
+                key(KeyEvent.KEY_PRESSED, vk(p, 0), KeyEvent.CHAR_UNDEFINED, 0);
                 return "ok";
             case "keyup":
-                key(KeyEvent.KEY_RELEASED, i(p, 0), KeyEvent.CHAR_UNDEFINED, 0);
+                key(KeyEvent.KEY_RELEASED, vk(p, 0), KeyEvent.CHAR_UNDEFINED, 0);
                 return "ok";
+            case "postclick": {
+                // N620 proof of 'view on': a click POSTED to the system event queue = the same road as a real OS mouse click (the
+                // normal hook 'click' dispatches straight to the component and is never filtered).
+                final Object[] t = target(i(p, 0), i(p, 1));
+                final Component c = (Component) t[0];
+                final Point at = (Point) t[1];
+                final EventQueue q = java.awt.Toolkit.getDefaultToolkit().getSystemEventQueue();
+                final long now = System.currentTimeMillis();
+                q.postEvent(new MouseEvent(c, MouseEvent.MOUSE_MOVED, now, 0, at.x, at.y, 0, false, 0));
+                q.postEvent(new MouseEvent(c, MouseEvent.MOUSE_PRESSED, now + 40, InputEvent.BUTTON1_DOWN_MASK, at.x, at.y, 1, false, MouseEvent.BUTTON1));
+                q.postEvent(new MouseEvent(c, MouseEvent.MOUSE_RELEASED, now + 100, 0, at.x, at.y, 1, false, MouseEvent.BUTTON1));
+                q.postEvent(new MouseEvent(c, MouseEvent.MOUSE_CLICKED, now + 100, 0, at.x, at.y, 1, false, MouseEvent.BUTTON1));
+                return "ok posted" + (viewOnly ? " (view on: should be dropped)" : "");
+            }
+            case "state":
+                // N620 (15-11): where the client is, so a script waits for 'step=11 GAME_SCREEN' instead of guessing (after a cache
+                // change the client loads ~6 min while the hook port is already open; login1 typing too early made a NEW account).
+                return "ok state " + step() + " fps " + com.jagex.game.runetek6.client.GameShell.currentFps
+                    + " canvas " + canvas.getWidth() + "x" + canvas.getHeight();
             case "detail": {
                 // Owner 2026-10-14 ("trage laptop"): the test client plays on Min (the Graphics Options "Min" button, CPU
                 // usage lowest) unless an item is about what players see; "mid" = the 78 default profile every player starts on.
@@ -192,6 +231,84 @@ public final class TestHook {
             }
             default:
                 return "err unknown command " + cmd;
+        }
+    }
+
+    private static volatile boolean viewOnly;
+    private static volatile long viewUntil;
+    private static volatile int viewMinutes = 30;
+    private static String viewTitle;
+    private static boolean viewQueuePushed;
+
+    /** Drops real (OS) mouse/keyboard events while [viewOnly]; hook events are dispatched directly and never pass here. */
+    private static final class ViewOnlyQueue extends EventQueue {
+        @Override
+        protected void dispatchEvent(java.awt.AWTEvent event) {
+            if (viewOnly && event instanceof InputEvent) {
+                if (System.currentTimeMillis() > viewUntil) {
+                    setView(false);
+                } else {
+                    ((InputEvent) event).consume();
+                    return;
+                }
+            }
+            super.dispatchEvent(event);
+        }
+    }
+
+    private static synchronized void setView(boolean on) {
+        if (on && !viewQueuePushed) {
+            java.awt.Toolkit.getDefaultToolkit().getSystemEventQueue().push(new ViewOnlyQueue());
+            viewQueuePushed = true;
+        }
+        viewUntil = System.currentTimeMillis() + viewMinutes * 60_000L;
+        viewOnly = on;
+        final Canvas canvas = GameShell.canvas;
+        final Window w = canvas == null ? null : SwingUtilities.getWindowAncestor(canvas);
+        if (w instanceof java.awt.Frame) {
+            final java.awt.Frame f = (java.awt.Frame) w;
+            EventQueue.invokeLater(() -> {
+                if (on) {
+                    if (viewTitle == null) {
+                        viewTitle = f.getTitle();
+                    }
+                    f.setTitle("TESTSCRIPT LOOPT - niet klikken (alleen kijken) - " + viewTitle);
+                } else if (viewTitle != null) {
+                    f.setTitle(viewTitle);
+                    viewTitle = null;
+                }
+            });
+        }
+    }
+
+    /** A key code: a number (37) or a name (LEFT, F1, ENTER, A ... = KeyEvent.VK_<name>); 15-11 'keydown LEFT' was refused. */
+    private static int vk(String[] p, int index) {
+        if (index >= p.length) {
+            throw new IllegalArgumentException("missing key");
+        }
+        final String k = p[index];
+        if (k.chars().allMatch(Character::isDigit)) {
+            return Integer.parseInt(k);
+        }
+        try {
+            return KeyEvent.class.getField("VK_" + k.toUpperCase()).getInt(null);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new IllegalArgumentException("unknown key " + k + " (number or KeyEvent name: LEFT, F1, ENTER ...)");
+        }
+    }
+
+    /** MainLogicManager.step (default package, so by reflection) with its MainLogicStep name. */
+    private static String step() {
+        try {
+            final int step = Class.forName("MainLogicManager").getField("step").getInt(null);
+            for (java.lang.reflect.Field f : com.jagex.core.constants.MainLogicStep.class.getFields()) {
+                if (f.getType() == int.class && f.getInt(null) == step) {
+                    return "step=" + step + " " + f.getName().replace("STEP_", "");
+                }
+            }
+            return "step=" + step;
+        } catch (Exception e) {
+            return "step=? (" + e + ")";
         }
     }
 
