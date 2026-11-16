@@ -9,16 +9,16 @@ public final class Static276 {
     public static void method3986() {
         Static317.anInt5046 = 0;
         Static442.aBoolean499 = false;
-        Static384.aLocOccluderArray2 = new LocOccluder[500];
+        Static384.aLocOccluderArray2 = new LocOccluder[2000]; // 78legacy GRAFISCH 16-11: was 500 (CoX overflow)
         Static150.anInt2634 = 0;
         Static446.anIntArrayArrayArray9 = new int[Static299.tileMaxLevel][Static619.tileMaxX + 1][Static662.tileMaxZ + 1];
         Static663.anInt9874 = Static340.anInt5586;
         Static86.anInt1803 = Static340.anInt5586;
         Static444.anInt6751 = 0;
         Static607.aLocOccluderArray4 = new LocOccluder[2000];
-        Static285.aLocOccluderArray1 = new LocOccluder[1000];
+        Static285.aLocOccluderArray1 = new LocOccluder[2000]; // 78legacy GRAFISCH 16-11: was 1000
         Static469.activeOccluderCount = 0;
-        Static560.aLocOccluderArray3 = new LocOccluder[500];
+        Static560.aLocOccluderArray3 = new LocOccluder[2000]; // 78legacy GRAFISCH 16-11: was 500 (CoX overflow)
         if (Static665.aToolkit_15 instanceof oa) {
             Static18.occlude = false;
         } else {

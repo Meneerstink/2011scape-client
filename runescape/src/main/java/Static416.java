@@ -76,7 +76,7 @@ public final class Static416 {
                             local379 = local92 << EnvironmentLight.anInt1066;
                             local383 = local137 << EnvironmentLight.anInt1066;
                             local389 = (local139 << EnvironmentLight.anInt1066) + Static340.anInt5586;
-                            Static607.aLocOccluderArray4[Static444.anInt6751++] = new LocOccluder(1, local25, local101.aShort86 + local379, local379 - -local101.aShort86, local101.aShort86 + local379, local101.aShort86 + local379, local343, local367, local375, local350, local383, local389, local389, local383);
+                            if (Static444.anInt6751 < Static607.aLocOccluderArray4.length) Static607.aLocOccluderArray4[Static444.anInt6751++] = new LocOccluder(1, local25, local101.aShort86 + local379, local379 - -local101.aShort86, local101.aShort86 + local379, local101.aShort86 + local379, local343, local367, local375, local350, local383, local389, local389, local383); // 78legacy GRAFISCH 16-11: no crash past the array (CoX/zoom)
                             for (local428 = local25; local428 <= local25; local428++) {
                                 for (local431 = local137; local431 <= local139; local431++) {
                                     Static334.activeTiles[local428][local92][local431].aShort84 = (short) (Static334.activeTiles[local428][local92][local431].aShort84 * -1);
@@ -103,7 +103,7 @@ public final class Static416 {
                             local379 = local137 << EnvironmentLight.anInt1066;
                             local383 = Static340.anInt5586 + (local139 << EnvironmentLight.anInt1066);
                             local389 = local28 << EnvironmentLight.anInt1066;
-                            Static607.aLocOccluderArray4[Static444.anInt6751++] = new LocOccluder(2, local25, local379, local383, local383, local379, local343, local367, local375, local350, local389 + local101.aShort85, local101.aShort85 + local389, local101.aShort85 + local389, local101.aShort85 + local389);
+                            if (Static444.anInt6751 < Static607.aLocOccluderArray4.length) Static607.aLocOccluderArray4[Static444.anInt6751++] = new LocOccluder(2, local25, local379, local383, local383, local379, local343, local367, local375, local350, local389 + local101.aShort85, local101.aShort85 + local389, local101.aShort85 + local389, local101.aShort85 + local389); // 78legacy GRAFISCH 16-11: no crash past the array (CoX/zoom)
                             for (local428 = local25; local428 <= local25; local428++) {
                                 for (local431 = local137; local431 <= local139; local431++) {
                                     Static334.activeTiles[local428][local431][local28].aShort83 = (short) (Static334.activeTiles[local428][local431][local28].aShort83 * -1);
