@@ -104,7 +104,12 @@ public final class Static73 {
                 @Pc(45) int absZ = (zoneZ * 64) - WorldMap.areaBaseZ;
                 Static557.method7331();
                 region.decodeMapSquare(packet, Client.collisionMaps, absX, absZ, WorldMap.areaBaseX, WorldMap.areaBaseZ);
-                region.method7893(absZ, packet, absX, Toolkit.active);
+                RspsAreaLighting.forced = RspsAreaLighting.isToa(Static89.zoneIds[i]);
+                try {
+                    region.method7893(absZ, packet, absX, Toolkit.active);
+                } finally {
+                    RspsAreaLighting.forced = false;
+                }
             }
         }
 

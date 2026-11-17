@@ -131,7 +131,7 @@ public final class Environment {
     @OriginalMember(owner = "client!uc", name = "b", descriptor = "(Lclient!ge;I)V")
     public void method8386(@OriginalArg(0) Packet arg0) {
         @Pc(7) int local7 = arg0.g1();
-        if (ClientOptions.instance.lightDetail.getValue() == 1 && Static425.toolkit.getMaxLights() > 0) {
+        if (ClientOptions.instance.lightDetail.getValue() == 1 && Static425.toolkit.getMaxLights() > 0 || RspsAreaLighting.forced) {
             if ((local7 & 0x1) == 0) {
                 this.anInt9537 = Static68.anInt4096;
             } else {

@@ -36,7 +36,12 @@ public final class Static693 {
                         if (pointerZone == Static89.zoneIds[zone] && data[zone] != null) {
                             @Pc(91) Packet packet = new Packet(data[zone]);
                             region.decodeZone(zoneX * 8, zoneZ * 8, level, pointerX, pointerY, pointerLevel, pointerRotation, packet, Client.collisionMaps);
-                            region.decodeEnvironment(zoneX * 8, Toolkit.active, pointerY, packet, level, pointerX, pointerRotation, pointerLevel, zoneZ * 8);
+                            RspsAreaLighting.forced = RspsAreaLighting.isToa(pointerZone);
+                            try {
+                                region.decodeEnvironment(zoneX * 8, Toolkit.active, pointerY, packet, level, pointerX, pointerRotation, pointerLevel, zoneZ * 8);
+                            } finally {
+                                RspsAreaLighting.forced = false;
+                            }
                             break;
                         }
                     }
