@@ -413,6 +413,21 @@ public final class LocType {
             }
 
             this.multiloc[count + 1] = defaultId;
+        } else if (code == 242) {
+            // CLUE: 32-bit destination IDs for appended STASH scenery; old 77/92 stay unchanged.
+            this.multivarbit = packet.g2();
+            if (this.multivarbit == 65535) this.multivarbit = -1;
+            this.multivarp = packet.g2();
+            if (this.multivarp == 65535) this.multivarp = -1;
+            int fallback = packet.g4();
+            int count = packet.g1();
+            this.multiloc = new int[count + 2];
+            for (int i = 0; i <= count; i++) {
+                this.multiloc[i] = packet.g4();
+                if (this.multiloc[i] < -1) throw new IllegalArgumentException("Invalid wide loc transform");
+            }
+            if (fallback < -1) throw new IllegalArgumentException("Invalid wide loc fallback");
+            this.multiloc[count + 1] = fallback;
         } else if (code == 78) {
             this.sound = packet.g2();
             this.soundRange = packet.g1();
