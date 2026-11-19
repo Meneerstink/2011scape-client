@@ -49,10 +49,20 @@ public final class Static276 {
         // the player's plane; underground that rule is used here: every tile of the levels above is hidden this frame.
         if (WorldMap.areaBaseZ + (PlayerEntity.self.z >> 9) >= RspsGraphicsProfile.UNDERGROUND_Z
             || RspsGraphicsProfile.dynamicSourceUnderground()) {
+            // TOA-1911 (owner 19-11 'Grouping Obelisk wordt afgekapt'): a tile flagged 0x8 on an upper level is "render on level 0"
+            // (Static705.method9198) - it belongs to the floor below, like the ToA lobby's obelisk top 46070 on plane 1 above the
+            // board 46068. OSRS draws those with roofs hidden and the Jagex roof flood (Static409) skips them too; only the real
+            // upper-level tiles are hidden here.
             @Pc(36) byte hidden = (byte) (Static198.anInt3276 & 0xFF);
             for (@Pc(38) int level = Camera.renderingLevel + 1; level < 4; level++) {
                 for (@Pc(40) int x = 0; x < Static720.mapWidth; x++) {
-                    java.util.Arrays.fill(Static328.aByteArrayArrayArray4[level][x], hidden);
+                    byte[] row = Static328.aByteArrayArrayArray4[level][x];
+                    byte[] flags = Static280.tileFlags[level][x];
+                    for (@Pc(41) int z = 0; z < row.length && z < flags.length; z++) {
+                        if ((flags[z] & 0x8) == 0) {
+                            row[z] = hidden;
+                        }
+                    }
                 }
             }
         }
