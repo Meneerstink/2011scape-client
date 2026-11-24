@@ -220,7 +220,9 @@ public final class SignLink implements Runnable {
 
         if (this.signed) {
             this.uidFile = new FileOnDisk(FileCache.get(null, SignLink.cacheId, UIDFileName), FILE_ACCESS_PERMISSIONS, 25L);
-            this.cacheDat = new FileOnDisk(FileCache.get(cacheDatFilename), FILE_ACCESS_PERMISSIONS, 314572800L);
+            // CACHE-300MB (24-11): the original 300 MiB cap (314572800) is below our cache (dat2 315.7 MB with all OSRS imports) -> the
+            // client deleted its cache on every start and stalled at 60%. 1 GiB; the format itself allows 2^24 sectors x 520 bytes.
+            this.cacheDat = new FileOnDisk(FileCache.get(cacheDatFilename), FILE_ACCESS_PERMISSIONS, 1073741824L);
             this.masterIndex = new FileOnDisk(FileCache.get(cacheMasterIndexFilename), FILE_ACCESS_PERMISSIONS, MAX_CACHEINDEX_SIZE);
             this.cacheIndex = new FileOnDisk[archiveCount];
 
