@@ -539,6 +539,37 @@ public final class ObjType {
     }
 
     @OriginalMember(owner = "client!vfa", name = "a", descriptor = "(ILclient!ha;IBIZLclient!ju;Lclient!ha;Lclient!da;I)[I")
+    /**
+     * N537: true while sprite() renders a model converted from OSRS (resource osrs/osrs-models.txt, generated from
+     * OSRS_IMPORT_MASTER.yml): JavaModel then draws its faces in OSRS priority order (JavaModel.iconPriorityPass).
+     */
+    public static boolean iconOsrsModel;
+
+    private static java.util.BitSet osrsModels;
+
+    public static boolean isOsrsModel(int model) {
+        if (osrsModels == null) {
+            java.util.BitSet set = new java.util.BitSet();
+            try (java.io.InputStream in = ObjType.class.getResourceAsStream("/osrs/osrs-models.txt")) {
+                if (in != null) {
+                    for (String line : new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).split("\n")) {
+                        line = line.trim();
+                        if (!line.isEmpty() && !line.startsWith("#")) {
+                            set.set(Integer.parseInt(line));
+                        }
+                    }
+                }
+            } catch (java.io.IOException | NumberFormatException e) {
+                // no list = every model keeps the 667 rule
+            }
+            osrsModels = set;
+        }
+        return model >= 0 && osrsModels.get(model);
+    }
+
+    /** N537 icon light (TestHook 'iconlight <ambient> <sun> <reverseSun>'), 1/1/1 = the 667 client. */
+    public static volatile float iconAmbient = 1.0F, iconSun = 1.0F, iconReverseSun = 1.0F;
+
     public int[] sprite(@OriginalArg(0) int objNumMode, @OriginalArg(1) Toolkit toolkit, @OriginalArg(2) int invCount, @OriginalArg(4) int graphicShadow, @OriginalArg(5) boolean arg4, @OriginalArg(6) PlayerModel playerModel, @OriginalArg(7) Toolkit scratchToolkit, @OriginalArg(8) Font font, @OriginalArg(9) int outline) {
         @Pc(14) Mesh mesh = Mesh.load(this.mesh, this.myList.meshes);
         if (mesh == null) {
@@ -623,8 +654,8 @@ public final class ObjType {
         @Pc(395) Matrix matrix = scratchToolkit.createMatrix();
         matrix.makeIdentity();
         scratchToolkit.setCamera(matrix);
-        scratchToolkit.xa(1.0F);
-        scratchToolkit.ZA(0xFFFFFF, 1.0F, 1.0F, -50.0F, -10.0F, -50.0F);
+        scratchToolkit.xa(iconAmbient);
+        scratchToolkit.ZA(0xFFFFFF, iconSun, iconReverseSun, -50.0F, -10.0F, -50.0F);
 
         @Pc(414) Matrix scratch = scratchToolkit.scratchMatrix();
         scratch.makeRotationZ(-this.zan2d << 3);
@@ -638,7 +669,12 @@ public final class ObjType {
         scratchToolkit.ya();
         scratchToolkit.la();
         scratchToolkit.aa(0, 0, 36, 32, 0, 0);
-        model.render(scratch, null, 1);
+        iconOsrsModel = isOsrsModel(this.mesh);
+        try {
+            model.render(scratch, null, 1);
+        } finally {
+            iconOsrsModel = false;
+        }
         scratchToolkit.f(zNear, zFar);
 
         @Pc(515) int[] image = scratchToolkit.na(0, 0, 36, 32);

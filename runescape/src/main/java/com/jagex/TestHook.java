@@ -218,6 +218,33 @@ public final class TestHook {
             }
             case "shot":
                 return shot(rest.trim());
+            case "icons": {
+                // N537 item audit stap 1: 'icons <idfile> <outdir>' = every id in idfile as <outdir>/<id>.png with the game's own
+                // inventory-icon renderer (RspsLootTracker, game thread, 24 per frame); 'icons status' = how far it is.
+                final java.lang.reflect.Method m = p.length >= 2
+                    ? Class.forName("RspsLootTracker").getDeclaredMethod("dumpIcons", String.class, String.class)
+                    : Class.forName("RspsLootTracker").getDeclaredMethod("dumpStatus");
+                m.setAccessible(true);
+                return (String) (p.length >= 2 ? m.invoke(null, p[0], p[1]) : m.invoke(null));
+            }
+            case "iconprio": {
+                // N537: switch the item-icon priority rule (JavaModel.iconPriority) to compare old/new icons.
+                final java.lang.reflect.Field f = Class.forName("JavaModel").getField("iconPriority");
+                if (p.length > 0) {
+                    f.setBoolean(null, p[0].equalsIgnoreCase("on"));
+                }
+                return "ok iconprio " + (f.getBoolean(null) ? "on" : "off");
+            }
+            case "iconlight": {
+                // N537 experiment: the item-icon light (ObjType.sprite xa/ZA) to compare with OSRS icons.
+                if (p.length >= 3) {
+                    com.jagex.game.runetek6.config.objtype.ObjType.iconAmbient = Float.parseFloat(p[0]);
+                    com.jagex.game.runetek6.config.objtype.ObjType.iconSun = Float.parseFloat(p[1]);
+                    com.jagex.game.runetek6.config.objtype.ObjType.iconReverseSun = Float.parseFloat(p[2]);
+                }
+                return "ok iconlight " + com.jagex.game.runetek6.config.objtype.ObjType.iconAmbient + " "
+                    + com.jagex.game.runetek6.config.objtype.ObjType.iconSun + " " + com.jagex.game.runetek6.config.objtype.ObjType.iconReverseSun;
+            }
             case "fps":
                 // N462 skeletal performance check: the client's own frame counter (the same number 'displayfps' shows).
                 return "ok fps " + com.jagex.game.runetek6.client.GameShell.currentFps;

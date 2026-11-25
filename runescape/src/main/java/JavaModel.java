@@ -4223,7 +4223,51 @@ public final class JavaModel extends Model {
     }
 
     @OriginalMember(owner = "client!rs", name = "b", descriptor = "(ZZII)V")
+    /**
+     * N537 (Ring of suffering / Zenyte ring icons): OSRS draws a model face by face in priority order (painter), so a
+     * higher-priority face always lands on top of a lower one; this toolkit depth-tests every face, which hid the gems of
+     * OSRS-imported models. For ITEM ICONS of OSRS models only (objSprite toolkit + ObjType.iconOsrsModel; 667's own models keep
+     * their depth rule - an OSRS-style pass hid the 667 Round shield emblem) the faces are drawn per priority
+     * 0..11 with the depth buffer cleared in between: priority wins, depth still sorts faces of the same priority.
+     * TestHook 'iconprio on|off'.
+     */
+    public static volatile boolean iconPriority = true;
+
+    private boolean iconPriorityPass(boolean arg0, boolean arg1) {
+        if (!iconPriority || !com.jagex.game.runetek6.config.objtype.ObjType.iconOsrsModel || this.facePriority == null
+            || this.billboardFaces != null || this.toolkit != Static158.objSpriteToolkit) {
+            return false;
+        }
+        for (int priority = 0; priority < 12; priority++) {
+            boolean any = false;
+            for (int face = 0; face < this.faceCount; face++) {
+                if (this.facePriority[face] == priority) {
+                    any = true;
+                    break;
+                }
+            }
+            if (!any) {
+                continue;
+            }
+            this.toolkit.ya();
+            for (int face = 0; face < this.faceCount; face++) {
+                if (this.facePriority[face] == priority && !this.method7506(face) && !this.method7526(face)) {
+                    this.method7522(face, arg0, arg1);
+                }
+            }
+            for (int face = 0; face < this.faceCount; face++) {
+                if (this.facePriority[face] == priority && (this.method7506(face) || this.method7526(face))) {
+                    this.method7522(face, arg0, arg1);
+                }
+            }
+        }
+        return true;
+    }
+
     public void method7529(@OriginalArg(0) boolean arg0, @OriginalArg(1) boolean arg1, @OriginalArg(2) int arg2, @OriginalArg(3) int arg3) {
+        if (this.iconPriorityPass(arg0, arg1)) {
+            return;
+        }
         @Pc(4) int local4;
         if (this.billboardFaces != null) {
             local4 = 0;

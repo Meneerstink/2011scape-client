@@ -279,6 +279,79 @@ final class RspsLootTracker {
     /** Icons are made per id and count (the count is drawn in); a long session starts over past this many (~9 MB). */
     private static final int MAX_ICONS = 2000;
 
+    // ---- N537 item audit: TestHook 'icons <idfile> <outdir>' writes every listed icon as <outdir>/<id>.png ---------------------
+
+    private static final Map<Long, java.io.File> dumpTo = new ConcurrentHashMap<Long, java.io.File>();
+    private static final Map<Long, Integer> dumpTries = new ConcurrentHashMap<Long, Integer>();
+    private static volatile int dumpWritten;
+    private static volatile int dumpFailed;
+
+    /** Called by com.jagex.TestHook (reflection, default package): queue every id in idFile (one per line) for a PNG dump. */
+    public static String dumpIcons(String idFile, String outDir) throws java.io.IOException {
+        java.io.File dir = new java.io.File(outDir);
+        dir.mkdirs();
+        int queued = 0;
+        for (String line : java.nio.file.Files.readAllLines(java.nio.file.Paths.get(idFile))) {
+            line = line.trim();
+            if (line.isEmpty() || line.startsWith("#")) {
+                continue;
+            }
+            // '<id>' or '<id> <quantity>': a stack is drawn with the stack model (countobj) but without the count text.
+            String[] f = line.split("\\s+");
+            int id = Integer.parseInt(f[0]);
+            int quantity = f.length > 1 ? Integer.parseInt(f[1]) : 1;
+            long key = iconKey(id, quantity);
+            dumpTo.put(key, new java.io.File(dir, id + ".png"));
+            icons.remove(key);
+            asked.remove(key);
+            wantIcon(id, quantity);
+            queued++;
+        }
+        dumpWritten = 0;
+        dumpFailed = 0;
+        return "ok icons queued " + queued;
+    }
+
+    static boolean dumping() {
+        return !dumpTo.isEmpty();
+    }
+
+    public static String dumpStatus() {
+        return "ok icons pending " + dumpTo.size() + " written " + dumpWritten + " failed " + dumpFailed;
+    }
+
+    private static void dumpDone(long key, BufferedImage image) {
+        java.io.File file = dumpTo.remove(key);
+        if (file == null) {
+            return;
+        }
+        try {
+            javax.imageio.ImageIO.write(image, "png", file);
+            dumpWritten++;
+        } catch (java.io.IOException e) {
+            dumpFailed++;
+        }
+    }
+
+    /** A dumped icon that threw: try again later, give up after 50 frames (written as <id>.err). */
+    private static void dumpRetry(long key, RuntimeException e) {
+        java.io.File file = dumpTo.get(key);
+        if (file == null) {
+            return;
+        }
+        int tries = dumpTries.merge(key, 1, Integer::sum);
+        if (tries < 50) {
+            wantIcon((int) (key >>> 32), key & 0xFFFFFFFFL);
+            return;
+        }
+        dumpTo.remove(key);
+        dumpFailed++;
+        try {
+            java.nio.file.Files.write(new java.io.File(file.getParentFile(), (key >>> 32) + ".err").toPath(), String.valueOf(e).getBytes("UTF-8"));
+        } catch (java.io.IOException ignored) {
+        }
+    }
+
     static void wantIcon(int id, long quantity) {
         if (icons.size() > MAX_ICONS) {
             icons.clear();
@@ -313,7 +386,8 @@ final class RspsLootTracker {
             Fonts.objSpriteFont = Static158.objSpriteToolkit.createFont(FontMetrics.loadGroup(js5.FONTMETRICS, Fonts.p11FullGroup), IndexedImage.load(js5.SPRITES, Fonts.p11FullGroup, 0), true);
         }
         boolean made = false;
-        for (int i = 0; i < 4; i++) {
+        int perFrame = dumpTo.isEmpty() ? 4 : 24;
+        for (int i = 0; i < perFrame; i++) {
             Long key = wanted.poll();
             if (key == null) {
                 break;
@@ -334,7 +408,7 @@ final class RspsLootTracker {
                     }
                 }
                 // Inventory look: black outline (1), the inventory shadow 0x302020, count when not 1 (ItemManager.getImage).
-                int[] pixels = type.sprite(quantity > 1 ? ObjNumMode.SHOWCOUNT_IFNOT1 : ObjNumMode.SHOWCOUNT_NEVER, toolkit, Math.max(1, quantity), 0x302020, false, null, Static158.objSpriteToolkit, Fonts.objSpriteFont, 1);
+                int[] pixels = type.sprite(quantity > 1 && !dumpTo.containsKey(key) ? ObjNumMode.SHOWCOUNT_IFNOT1 : ObjNumMode.SHOWCOUNT_NEVER, toolkit, Math.max(1, quantity), 0x302020, false, null, Static158.objSpriteToolkit, Fonts.objSpriteFont, 1);
                 if (pixels == null) {
                     // Model not loaded yet: ask again next frame.
                     asked.remove(key);
@@ -349,9 +423,11 @@ final class RspsLootTracker {
                     }
                 }
                 icons.put(key, image);
+                dumpDone(key, image);
                 made = true;
             } catch (RuntimeException notReady) {
                 asked.remove(key);
+                dumpRetry(key, notReady);
             }
         }
         if (made) {

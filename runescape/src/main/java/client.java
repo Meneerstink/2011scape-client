@@ -1135,7 +1135,7 @@ public final class client extends GameShell {
         Static369.updateObjSprites(Toolkit.active);
         // Loot Tracker item icons: made here, where the game makes its own inventory icons (outside the scene pass).
         // 78Legacy v5: Bruine Bonen Technologia's script chips show item icons too.
-        if (Toolkit.active != null && (RspsHudConfig.enabled("loottracker") || RspsHudConfig.enabled("pkhotkeys"))) {
+        if (Toolkit.active != null && (RspsHudConfig.enabled("loottracker") || RspsHudConfig.enabled("pkhotkeys") || RspsLootTracker.dumping())) {
             RspsLootTracker.renderIcons(Toolkit.active);
         }
         Static226.mouseLogs.removeFirst();
