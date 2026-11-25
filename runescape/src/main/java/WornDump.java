@@ -138,23 +138,39 @@ public final class WornDump {
             }
         }
         // BAS: a number, or 'W' = what the server sends for the weapon without a RenderAnimations override (cache param 644, else 1426).
+        // Optional '/<walk|run|seq id>/<frame>' after the BAS token (N537 stap 2: N549/N550 lopend): that animation frame instead of the stand.
+        String[] basToken = line[2].split("/");
         int basId;
-        if (line[2].equals("W")) {
+        if (basToken[0].equals("W")) {
             int weapon = identikit[3];
             basId = (weapon & 0x40000000) != 0 ? ObjTypeList.instance.list(weapon & 0x3FFFFFFF).param(644, 1426) : 1426;
         } else {
-            basId = Integer.parseInt(line[2]);
+            basId = Integer.parseInt(basToken[0]);
         }
         lastBas = basId;
         com.jagex.game.runetek6.config.bastype.BASType bas = BASTypeList.instance.list(basId);
         int stand = bas == null ? -1 : bas.ready != -1 ? bas.ready : bas.ready();
-        if (stand != -1 && !bas.isReady(stand)) {
-            return null; // stand frames still loading
+        int frame = 0;
+        if (basToken.length >= 2 && bas != null) {
+            stand = basToken[1].equals("walk") ? bas.walk : basToken[1].equals("run") ? bas.run : Integer.parseInt(basToken[1]);
+            frame = basToken.length >= 3 ? Integer.parseInt(basToken[2]) : 0;
+        }
+        if (frame == 0 && basToken.length < 2 && stand != -1 && !bas.isReady(stand)) {
+            return null; // stand frames still loading (isReady only knows the BAS's own stand ids, not walk/run)
         }
         ComponentAnimator standAnimator = null;
         if (stand != -1) {
             standAnimator = new ComponentAnimator();
             standAnimator.update(stand, 0, 0, false);
+            if (frame > 0 && standAnimator.animation != null) {
+                int frames = standAnimator.animation.frames.length;
+                standAnimator.currentFrame = frame % frames;
+                standAnimator.nextFrame = (frame + 1) % frames;
+                standAnimator.frameOffset = 0;
+            }
+            if (basToken.length >= 2 && standAnimator.animation != null && !standAnimator.method9111()) {
+                return null; // walk/run frames still loading: same line next frame
+            }
         }
         int[] palette = new int[10];
         PlayerModel model = new PlayerModel();
