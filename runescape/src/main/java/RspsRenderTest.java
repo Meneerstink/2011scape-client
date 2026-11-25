@@ -45,6 +45,26 @@ final class RspsRenderTest {
         return false;
     }
 
+    /**
+     * N576: a face at alpha 254/255 is an invisible hull (OSRS click/collision walls such as the Ferox 'Barrier' 62434/62435,
+     * model 2278: 10 black faces at 254). OSRS draws without a depth buffer, so such a face never hides anything; in GL/DX it
+     * wrote depth and cut away whatever translucent loc was drawn after it behind it (the red Ferox barrier 62438 showed only half).
+     */
+    static boolean isHull(byte alpha) {
+        return (alpha & 0xFF) >= 254;
+    }
+
+    /** Whether any of the first [faces] faces is an invisible hull ({@link #isHull}). */
+    static boolean hasHullFace(byte[] alpha, int faces) {
+        int end = Math.min(faces, alpha.length);
+        for (int i = 0; i < end; i++) {
+            if (isHull(alpha[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** "cull=0,alphadepth=1" - missing keys keep their value; "reset" restores both. */
     static void handle(String payload) {
         if (payload.equals("reset")) {

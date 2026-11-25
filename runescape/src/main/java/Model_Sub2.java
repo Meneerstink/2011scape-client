@@ -1551,6 +1551,9 @@ public final class Model_Sub2 extends Model {
                 boolean orderedAlpha = this.rspsOsrsSpotAlphaOrder && alpha != null && !RspsRenderTest.alphaDepth;
                 boolean split = this.aBoolean421 && alpha != null && !RspsRenderTest.alphaDepth && !this.rspsKeep667AlphaOrder
                     && RspsRenderTest.hasOpaqueFace(alpha, this.anInt5560);
+                // N576: a model that keeps the 667 order still never writes depth for its invisible hull faces (alpha 254/255).
+                boolean hull = !split && !orderedAlpha && alpha != null && !RspsRenderTest.alphaDepth
+                    && RspsRenderTest.hasHullFace(alpha, this.anInt5560);
                 for (int pass = 0; pass < (split ? 2 : 1); pass++) {
                     for (@Pc(86) int local86 = 0; local86 < local84; local86++) {
                         @Pc(93) int local93 = this.anIntArray413[local86];
@@ -1559,19 +1562,19 @@ public final class Model_Sub2 extends Model {
                         if (local107 == 65535) {
                             local107 = -1;
                         }
-                        if (!split && !orderedAlpha) {
+                        if (!split && !orderedAlpha && !hull) {
                             this.aClass19_Sub3_24.method6975(this.aClass94_7 != null, local107);
                             this.aClass19_Sub3_24.method7034(local93 * 3, this.aClass136_1.anInterface1_1, (local100 - local93) * 3);
                             continue;
                         }
                         boolean bound = false;
                         for (int run = local93; run < local100; ) {
-                            boolean translucent = alpha[run] != 0;
+                            boolean translucent = hull ? RspsRenderTest.isHull(alpha[run]) : alpha[run] != 0;
                             int end = run + 1;
-                            while (end < local100 && (alpha[end] != 0) == translucent) {
+                            while (end < local100 && (hull ? RspsRenderTest.isHull(alpha[end]) : alpha[end] != 0) == translucent) {
                                 end++;
                             }
-                            if (orderedAlpha || translucent == (pass == 1)) {
+                            if (orderedAlpha || hull || translucent == (pass == 1)) {
                                 if (!bound) {
                                     this.aClass19_Sub3_24.method6975(this.aClass94_7 != null, local107);
                                     bound = true;
