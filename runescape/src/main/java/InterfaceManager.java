@@ -1324,7 +1324,7 @@ public final class InterfaceManager {
             }
         }
 
-        return component.hidden;
+        return EquipmentInterfaceLayout.hiddenOverride(component);
     }
 
     @OriginalMember(owner = "client!qi", name = "a", descriptor = "(ZLclient!hda;)V")

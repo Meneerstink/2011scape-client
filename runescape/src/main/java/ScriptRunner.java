@@ -1441,7 +1441,7 @@ public final class ScriptRunner {
             }
 
             if (op == CC_IF_SETGRAPHIC) {
-                @Pc(21) int graphic = intStack[--intStackPointer];
+                @Pc(21) int graphic = EquipmentInterfaceLayout.graphicOverride(component, intStack[--intStackPointer]);
                 if (RspsSpellFilters.probeGraphic(currentScriptId, graphic)) {
                     return;
                 }

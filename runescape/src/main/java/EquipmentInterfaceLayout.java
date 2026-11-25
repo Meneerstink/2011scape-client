@@ -17,6 +17,51 @@ public final class EquipmentInterfaceLayout {
     /** 667:14 while interface 667 is decoded, until the ammo slot 667:17 supplies its background. */
     private static Component bonusesQuiverSlot;
 
+    /** 667:7, the worn-items layer CS2 2373 fills with one cc_create child per inv-94 slot (child id = slot). */
+    static final int BONUSES_GRID = (EQUIPMENT_BONUSES << 16) | 7;
+
+    /** Enum 796 (key = equipment slot) = the empty-slot silhouettes CS2 2373 draws; key 13 = ammo (arrows). */
+    private static final int SLOT_SILHOUETTE_ENUM = 796;
+
+    private static boolean isBonusesQuiverChild(Component component) {
+        return component.slot == BONUSES_GRID && component.id == 14 && component.layer == BONUSES_GRID;
+    }
+
+    /**
+     * Owner 2026-11-25 (picture zz): Equipment Bonuses showed the old aura silhouette right of the head slot without a
+     * Dizana's quiver worn. CS2 2373 draws the empty slot-14 silhouette as a cc_create child of 667:7 at 667:14's position;
+     * hiding 667:14 (server, quiver not worn) did not hide that child. The child now follows 667:14's hidden flag.
+     */
+    public static boolean hiddenOverride(Component component) {
+        if (!isBonusesQuiverChild(component)) {
+            return component.hidden;
+        }
+        Component[] bonuses = InterfaceList.interfaces == null ? null : InterfaceList.interfaces[EQUIPMENT_BONUSES];
+        Component slot = bonuses == null || bonuses.length <= 14 ? null : bonuses[14];
+        return component.hidden || slot == null || slot.hidden;
+    }
+
+    /** 387:50, the item component of the worn tab's quiver slot (old aura slot); its CS2 sets the empty-slot silhouette. */
+    static final int WORN_QUIVER_ITEM = (EQUIPMENT_TAB << 16) | 50;
+
+    /**
+     * The empty quiver slot shows the ammo slot's arrow silhouette (OSRS), not the cache's aura icon - in the Equipment
+     * Bonuses grid (cc child 14 of 667:7) and in the Worn Equipment tab (387:50; owner 2026-11-25: quiver worn + empty
+     * showed the aura icon).
+     */
+    public static int graphicOverride(Component component, int graphic) {
+        boolean wornQuiver = component.slot == WORN_QUIVER_ITEM && component.id == -1;
+        if (graphic <= 0 || (!wornQuiver && !isBonusesQuiverChild(component))) {
+            return graphic;
+        }
+        try {
+            int arrows = com.jagex.game.runetek6.config.enumtype.EnumTypeList.instance.list(SLOT_SILHOUETTE_ENUM).getInt(13);
+            return arrows > 0 ? arrows : graphic;
+        } catch (RuntimeException e) {
+            return graphic;
+        }
+    }
+
     public static void apply(int interfaceId, int slot, Component component) {
         if (interfaceId == EQUIPMENT_TAB && slot == 37) {
             ammoSlotBackground = component.graphic;

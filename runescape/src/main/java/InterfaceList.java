@@ -59,6 +59,7 @@ public final class InterfaceList {
 
                         component.decode(new Packet(data));
                         EquipmentInterfaceLayout.apply(id, slot, component);
+                        ItemDialogLayout.apply(id, slot, component); // CONFIRM-ICOON-KLEIN: 94:9 at item-sprite size
                         LoginScreenTrim.apply(id, slot, component); // N1: no Jagex account links on the login box
                         DungeoneeringRemoved.apply(id, slot, component); // DGN: no Dungeoneering cell in the stats tab
 
