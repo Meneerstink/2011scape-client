@@ -568,7 +568,8 @@ public final class ObjType {
     }
 
     /** N537 icon light (TestHook 'iconlight <ambient> <sun> <reverseSun>'), 1/1/1 = the 667 client. */
-    public static volatile float iconAmbient = 1.0F, iconSun = 1.0F, iconReverseSun = 1.0F;
+    // N537 (eigenaar 25-11 'ja, lichter'): 667-belichting gaf icoontjes mediaan 0,84 van de OSRS-helderheid; 1,3/1,2/1,2 = 0,99.
+    public static volatile float iconAmbient = 1.3F, iconSun = 1.2F, iconReverseSun = 1.2F;
 
     public int[] sprite(@OriginalArg(0) int objNumMode, @OriginalArg(1) Toolkit toolkit, @OriginalArg(2) int invCount, @OriginalArg(4) int graphicShadow, @OriginalArg(5) boolean arg4, @OriginalArg(6) PlayerModel playerModel, @OriginalArg(7) Toolkit scratchToolkit, @OriginalArg(8) Font font, @OriginalArg(9) int outline) {
         @Pc(14) Mesh mesh = Mesh.load(this.mesh, this.myList.meshes);
