@@ -227,6 +227,15 @@ public final class TestHook {
                 m.setAccessible(true);
                 return (String) (p.length >= 2 ? m.invoke(null, p[0], p[1]) : m.invoke(null));
             }
+            case "worn": {
+                // N537 item audit stap 2: 'worn <file> <outdir>' = a player per line wearing items, front/side/back/side as
+                // <outdir>/<name>.png (WornDump); 'worn status' = how far it is.
+                final java.lang.reflect.Method m = p.length >= 2
+                    ? Class.forName("WornDump").getDeclaredMethod("start", String.class, String.class)
+                    : Class.forName("WornDump").getDeclaredMethod("status");
+                m.setAccessible(true);
+                return (String) (p.length >= 2 ? m.invoke(null, p[0], p[1]) : m.invoke(null));
+            }
             case "iconprio": {
                 // N537: switch the item-icon priority rule (JavaModel.iconPriority) to compare old/new icons.
                 final java.lang.reflect.Field f = Class.forName("JavaModel").getField("iconPriority");

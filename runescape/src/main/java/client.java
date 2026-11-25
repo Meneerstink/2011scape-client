@@ -1138,6 +1138,8 @@ public final class client extends GameShell {
         if (Toolkit.active != null && (RspsHudConfig.enabled("loottracker") || RspsHudConfig.enabled("pkhotkeys") || RspsLootTracker.dumping())) {
             RspsLootTracker.renderIcons(Toolkit.active);
         }
+        // N537 stap 2: worn-look dump (TestHook 'worn'), idle unless asked.
+        WornDump.render();
         Static226.mouseLogs.removeFirst();
     }
 
