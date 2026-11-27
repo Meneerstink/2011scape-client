@@ -111,6 +111,15 @@ val dungeoneeringRemovedRegression by tasks.registering(JavaExec::class) {
     jvmArgs("-Djava.awt.headless=true")
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
 }
+val gearSwitcherRemovedRegression by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "GEARSWITCHER-WEG: no gear-set keys, set editor or Wear gear set step; the wear engine for scripts stays."
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("GearSwitcherRemovedRegressionTest")
+    jvmArgs("-Djava.awt.headless=true")
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+}
 val prayerScrollUnlocksRegression by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "N358: Rigour / Augury stay grey in the prayer book until their scroll is read."

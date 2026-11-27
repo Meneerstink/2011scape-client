@@ -38,8 +38,8 @@ final class RspsScripts {
     static final String VENG = "VENG";
 
     /** Every type in the order of the "+ Step" list, with its display name. */
-    static final String[] TYPES = {WEAR, SET, PRAY_ON, PRAY_OFF, PRAY_TOGGLE, QUICK, CAST, SELECT, ATTACK, STEP, SPEC, EAT, BREW, RESTORE, VENG};
-    static final String[] TYPE_NAMES = {"Wear item", "Wear gear set", "Prayer ON", "Prayer OFF", "Prayer toggle", "Quick prayers",
+    static final String[] TYPES = {WEAR, PRAY_ON, PRAY_OFF, PRAY_TOGGLE, QUICK, CAST, SELECT, ATTACK, STEP, SPEC, EAT, BREW, RESTORE, VENG};
+    static final String[] TYPE_NAMES = {"Wear item", "Prayer ON", "Prayer OFF", "Prayer toggle", "Quick prayers",
         "Cast spell", "Select spell", "Attack target", "Step under target", "Special attack", "Eat", "Drink brew", "Drink restore", "Vengeance"};
 
     /** What the argument of a type is: "item", "set", "prayer", "spell" or "" (no argument). */
@@ -273,6 +273,15 @@ final class RspsScripts {
         if (s == null) return out;
         for (String part : s.split(";")) {
             Step step = Step.decode(part);
+            if (step != null && SET.equals(step.type)) {
+                // GEARSWITCHER-WEG 27-11 (owner): no more gear sets in scripts - an old 'Wear gear set' step becomes the Wear item
+                // steps of that set, so a saved script keeps switching the same gear (stored as Wear steps on the next save).
+                int n = step.intArg();
+                if (n >= 1 && n <= RspsGearSets.COUNT) {
+                    for (int id : RspsGearSets.items(n)) if (out.size() < MAX_STEPS) out.add(new Step(WEAR, Integer.toString(id)));
+                }
+                continue;
+            }
             if (step != null && out.size() < MAX_STEPS) out.add(step);
         }
         return out;

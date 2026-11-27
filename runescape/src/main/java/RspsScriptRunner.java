@@ -310,8 +310,9 @@ final class RspsScriptRunner {
             if (own.length > 0) {
                 for (int id : own) list.add(new RspsScripts.Step(RspsScripts.WEAR, Integer.toString(id)));
             } else if (gear.matches("\\d{1,2}")) {
-                list.add(new RspsScripts.Step(RspsScripts.SET, gear));
                 int g = Integer.parseInt(gear);
+                // GEARSWITCHER-WEG 27-11: the preset's gear set becomes its Wear item steps (no gear-set steps any more).
+                if (g >= 1 && g <= RspsGearSets.COUNT) for (int id : RspsGearSets.items(g)) list.add(new RspsScripts.Step(RspsScripts.WEAR, Integer.toString(id)));
                 if (g >= 1 && g <= RspsGearSets.COUNT && !RspsGearSets.name(g).equals("Set " + g)) name = RspsGearSets.name(g);
             }
             String type = RspsHudConfig.bool(p + "PrayerToggle") ? RspsScripts.PRAY_TOGGLE : RspsScripts.PRAY_ON;

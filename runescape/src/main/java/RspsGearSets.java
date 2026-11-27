@@ -162,11 +162,7 @@ final class RspsGearSets {
 
     /** Client thread, every cycle (from RspsGearSwitcher.tick): resolves item names and does a requested "save worn". */
     static void tick() {
-        int save = saveWornRequest;
-        if (save > 0) {
-            saveWornRequest = 0;
-            RspsGearSwitcher.saveWorn(save);
-        }
+        saveWornRequest = 0; // GEARSWITCHER-WEG 27-11: no set editor any more, nothing asks to save worn gear
         if (!WANTED.isEmpty() && ObjTypeList.instance != null) {
             boolean any = false;
             for (Integer id : WANTED.toArray(new Integer[0])) {

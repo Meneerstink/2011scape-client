@@ -6,7 +6,11 @@ import rs2.client.event.keyboard.KeyLog;
 /**
  * Claude + Qwen, 2026-10-11. VERIFIED in the client against the local server (SHIFT+F1/F2 switched 3 items each).
  *
- * 78Legacy gear switcher: one key press equips a saved gear set, exactly as if the player clicked "Wield"/"Wear" on each
+ * GEARSWITCHER-WEG 27-11 (owner: "Gear switcher plugin kan volledig verwijderd worden", choice "Alleen de plugin"): the
+ * gear-set keys (SHIFT+F1-F5 / CTRL+SHIFT+F1-F5), the set editor and the "Wear gear set" script step are gone. What is
+ * left is the WEAR ENGINE used by the Bruine Bonen scripts (Wear item steps) and the PK presets: equipItems + tick.
+ *
+ * Original: one key press equips a saved gear set, exactly as if the player clicked "Wield"/"Wear" on each
  * item of that set in the inventory (the same IF_BUTTONx packets as a real click, all in one tick, like a fast human).
  * No automation: nothing happens without a key press, it never reacts to the opponent, never prays, never attacks.
  *
@@ -29,8 +33,6 @@ import rs2.client.event.keyboard.KeyLog;
  */
 public final class RspsGearSwitcher {
 
-    /** v3: 10 sets (RspsGearSets), each with an equip key and a save key on any key (settings gearswitcher.bind.*). */
-    static final int MAX_SETS = RspsGearSets.COUNT;
     static final int BACKPACK_INV = 93;
     static final int WORN_INV = 94;
     static final int BACKPACK_SLOTS = 28;
@@ -52,48 +54,13 @@ public final class RspsGearSwitcher {
         RspsGearSets.tick(); // v3: item names for the editor, the editor's "Save worn"
         RspsPkTarget.tick(); // v3: the PK Hotkeys page's live "Target" line
         RspsScriptRunner.tick(); // v4: one-time move of the v3.2 presets into scripts, once the server sent them
-        if (pending.length > 0 && (!RspsHudConfig.enabled("gearswitcher") || !MainLogicStep.isAtGameScreen(MainLogicManager.step))) {
+        if (pending.length > 0 && (!RspsHudConfig.enabled("pkhotkeys") || !MainLogicStep.isAtGameScreen(MainLogicManager.step))) {
             cancel(); // finding 2: nothing continues after the plugin is switched off or the game screen is left
             return;
         }
         if (pending.length > 0) {
             attempt(System.currentTimeMillis() > pendingUntil);
         }
-    }
-
-    /** Called for every keyboard event before the game sees it; true = handled (swallowed). */
-    static boolean key(KeyLog log) {
-        // The rest of a handled press (repeats, typed character, release) is swallowed in client.java (RspsKeyBind.swallowing).
-        // On/off lives with the account: 78 Plugins sidebar -> Gear Switcher (server ClientHudConfig "gearswitcher.enabled").
-        if (log.getType() != KeyLog.TYPE_PRESSED || !RspsHudConfig.enabled("gearswitcher") || debugconsole.isOpen()
-            || !MainLogicStep.isAtGameScreen(MainLogicManager.step)) {
-            return false;
-        }
-        for (int n = 1; n <= MAX_SETS; n++) {
-            if (RspsKeyBind.pressed(binding("equip", n), log)) {
-                equip(n); // v3.2: prayers live in the PK presets now (one place), not in the gear sets
-                RspsKeyBind.swallowRestOf(log);
-                return true;
-            }
-            if (RspsKeyBind.pressed(binding("save", n), log)) {
-                saveWorn(n);
-                RspsKeyBind.swallowRestOf(log);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** The equip / save key of set [n] (v3 setting gearswitcher.bind.equipN / saveN; sets 1-5 default to the v1 keys). */
-    static String binding(String kind, int n) {
-        String bound = RspsHudConfig.get("gearswitcher.bind." + kind + n);
-        if (bound != null && !bound.isEmpty()) {
-            return bound;
-        }
-        if (n > 5) {
-            return RspsKeyBind.NONE;
-        }
-        return (kind.equals("save") ? "CTRL+SHIFT+F" : "SHIFT+F") + n;
     }
 
     /** InterfaceManager.addMiniMenuOptions hook: remember which interface holds the backpack. */
@@ -120,28 +87,6 @@ public final class RspsGearSwitcher {
     private static Runnable pendingThen;
     /** How long a key press may wait for the inventory display to catch up (a fast previous switch moved the items). */
     static final long RETRY_MS = 600L;
-
-    /** Equips every item of set [n] that is in the backpack and not worn yet. */
-    static void equip(int n) {
-        equip(n, null);
-    }
-
-    /**
-     * Equips set [n]; [then] runs once the set is done (or could not be done), on the client thread - so a PK preset's
-     * prayer/attack clicks never go out before its gear clicks (Codex review 2026-10-11, finding 1).
-     */
-    static void equip(int n, Runnable then) {
-        cancel(); // a new press replaces a switch that is still waiting (its follow-up is dropped, not run)
-        int[] items = RspsGearSets.items(n);
-        if (items.length == 0) {
-            say(label(n) + " is empty - fill it in 78 Plugins -> Gear Switcher, or wear the gear and press " + RspsKeyBind.display(binding("save", n)) + ".");
-            if (then != null) {
-                then.run();
-            }
-            return;
-        }
-        equipItems(label(n), items, then);
-    }
 
     /**
      * v3.1: equips the item list [items] (a gear set, or a PK preset's own item ids), named [name] in chat; [then] runs once
@@ -262,30 +207,6 @@ public final class RspsGearSwitcher {
         return pending.length > 0;
     }
 
-    /** Saves the currently worn items (ammo included) as set [n]. */
-    static void saveWorn(int n) {
-        ClientInventory worn = ClientInventory.get(WORN_INV, false);
-        StringBuilder sb = new StringBuilder();
-        int count = 0;
-        if (worn != null) {
-            for (int obj : worn.objs) {
-                if (obj >= 0) {
-                    if (sb.length() > 0) sb.append(',');
-                    sb.append(obj);
-                    count++;
-                }
-            }
-        }
-        if (count == 0) {
-            say("You are not wearing anything - " + label(n) + " not changed.");
-            return;
-        }
-        RspsGearSets.setItems(n, parse(sb.toString())); // v3: the editor shows it at once (RspsGearSets listeners)
-        String key = binding("equip", n);
-        say(label(n) + " saved (" + count + " items)." + (RspsKeyBind.parse(key) == null ? "" : " " + RspsKeyBind.display(key) + " equips it."));
-        log("set " + n + " = [" + sb + "]");
-    }
-
     /** First menu option of [c] named Wield/Wear/Equip (component ops, else the item's inventory ops), 0-based; -1 = none. */
     static int equipOp(Component c, int item) {
         for (int i = 0; i < 10; i++) {
@@ -388,12 +309,6 @@ public final class RspsGearSwitcher {
     }
 
     private static final String CHAT_COLOUR = "00c8ff";
-
-    /** "Gear set 3" or "Gear set 3 (Mage)" once the player named it. */
-    static String label(int n) {
-        String name = RspsGearSets.name(n);
-        return name.equals("Set " + n) ? "Gear set " + n : "Gear set " + n + " (" + name + ")";
-    }
 
     private static void log(String message) {
         System.out.println("[GEAR SWITCHER] " + message);

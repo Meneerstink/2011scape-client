@@ -1011,10 +1011,6 @@ public final class client extends GameShell {
             if (RspsTeleportKeys.key(log)) {
                 continue;
             }
-            // 78Legacy gear switcher (RspsGearSwitcher): SHIFT+F1..F5 equips a saved set, CTRL+SHIFT+F1..F5 saves the worn gear.
-            if (RspsGearSwitcher.key(log)) {
-                continue;
-            }
             // 78Legacy PK hotkeys (RspsPkHotkeys): SHIFT+F6..F12 = protect prayers, special attack, eat, brew, restore.
             if (RspsPkHotkeys.key(log)) {
                 continue;

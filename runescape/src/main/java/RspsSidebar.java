@@ -119,8 +119,6 @@ final class RspsSidebar extends JPanel {
         // v3.2: the single prayer / supply keys sit under the preset cards, folded until you need them.
         collapsedSections.add("Prayers & supplies");
         // v4 (layout version C, like UG): the gear sets, gear keys and quick keys start folded.
-        collapsedSections.add("Gear sets");
-        collapsedSections.add("Gear keys");
         collapsedSections.add("Quick keys");
         // N610: ToaExtendedConfig - every @ConfigSection has closedByDefault = true.
         for (String s : RspsHudConfig.TOAEXT_SECTIONS) {
@@ -1079,12 +1077,6 @@ final class RspsSidebar extends JPanel {
                 items.setName(key);
                 return items;
             }
-            case RspsHudConfig.GEARSETS: {
-                // v3: the hand editor of the 10 gear sets (Codex, RspsGearSetEditor); the sets stay in this client.
-                RspsGearSetEditor editor = new RspsGearSetEditor();
-                editor.setName(key);
-                return editor;
-            }
             case RspsHudConfig.ENUM: {
                 final JComboBox<String> combo = new JComboBox<String>(setting.optionNames);
                 combo.setName(key);
@@ -1195,7 +1187,7 @@ final class RspsSidebar extends JPanel {
         String text = "<html><body style='width:270px'><b>Bruine Bonen Technologia</b><br><br>"
             + "<b>Presets</b>: click = load your whole setup, Shift+click = save it, right-click = name.<br>"
             + "<b>Scripts</b>: each script's key button is in its header (click, press a key, Esc = none). Click a script's row to "
-            + "open it; '+ Step' adds Wear item, Wear gear set, Prayer ON / OFF / toggle, Quick prayers, Cast / Select spell, "
+            + "open it; '+ Step' adds Wear item, Prayer ON / OFF / toggle, Quick prayers, Cast / Select spell, "
             + "Attack target, Step under, Special, Eat, Drink, Vengeance. Steps run top to bottom from one key press; wear steps "
             + "next to each other switch together. Drag a step to move it. '+ Script' shows a new empty script.<br>"
             + "<b>Right Click Setup</b>: right-click an item or prayer: 'Add ... to Script N' (N = Add to).<br>"

@@ -92,7 +92,7 @@ final class RspsHudConfig {
         {"stretchedmode", "Stretched Mode", "Stretches the game in fixed and resizable modes."},
         // 78Legacy Gear Switcher (RspsGearSwitcher, 2026-10-11).
         // v4 (user 2026-10-12): Gear Switcher + PK Hotkeys merged into one plugin, named by the user.
-        {"pkhotkeys", "Bruine Bonen Technologia", "Gear switches, prayers, spells and attacks as scripts on any key; presets, gear sets, target overlay"},
+        {"pkhotkeys", "Bruine Bonen Technologia", "Gear switches, prayers, spells and attacks as scripts on any key; presets, target overlay"},
         // N610: RuneLite ToA Extended (@PluginDescriptor name "Toa Extended", enabledByDefault = false).
         {"toaextended", "Toa Extended", "Extended plugin for Tombs of Amascut."},
     };
@@ -284,9 +284,8 @@ final class RspsHudConfig {
         // v4 (user 2026-10-12, layout version C): Gear Switcher + PK Hotkeys are ONE plugin page ("Bruine Bonen Technologia",
         // plugin id pkhotkeys). The stored keys keep their names (gearswitcher.* / pkhotkeys.*), so nobody loses a binding.
         String pk = "pkhotkeys";
-        String gs = "gearswitcher";
         // Presets (UG's blue Preset / green Save buttons): whole-setup profiles, client only.
-        add(pk, "profiles", PROFILES, "Presets", "Load or save your whole setup: scripts, keys and gear sets.", "", "Presets", 0, null, null);
+        add(pk, "profiles", PROFILES, "Presets", "Load or save your whole setup: scripts and keys.", "", "Presets", 0, null, null);
         // v5 (user 2026-10-12, layout version D): Scripts first, each with its own key in its header (Hotkey 1-15 are no
         // longer drawn under Hotkeys), then the PK HUD, Hotkeys, Target Overlay and Settings.
         String sc = "Scripts";
@@ -340,19 +339,6 @@ final class RspsHudConfig {
             new String[]{"ERRORS", "ALL"}, new String[]{"Errors only", "All"}, mc);
         choice(pk, "accentColour", "Accent colour", "Colour of this page's section titles and buttons.", "ORANGE",
             new String[]{"ORANGE", "BLUE", "GREEN", "PURPLE"}, new String[]{"Orange", "Blue", "Green", "Purple"}, mc);
-        bool(gs, "chatMessages", "Gear chat messages", "Write in the chatbox what the switcher saved or switched.", true, mc);
-        hide();
-        // Gear sets (the former Gear Switcher page), shown on this page.
-        add(gs, "editor", GEARSETS, "Gear sets", "Edit your 10 gear sets.", "", "Gear sets", 0, null, null);
-        regroup(pk);
-        for (int n = 1; n <= RspsGearSets.COUNT; n++) {
-            keybind(gs, "bind.equip" + n, "Equip set " + n, "Key that puts gear set " + n + " on (click, then press a key).", n <= 5 ? "SHIFT+F" + n : "NONE", "Gear keys");
-            regroup(pk);
-        }
-        for (int n = 1; n <= RspsGearSets.COUNT; n++) {
-            keybind(gs, "bind.save" + n, "Save set " + n, "Key that saves what you wear now as gear set " + n + ".", n <= 5 ? "CTRL+SHIFT+F" + n : "NONE", "Gear keys");
-            regroup(pk);
-        }
         // Quick keys: one action per key (prayers, special, food, potions).
         String bk = "Quick keys";
         keybind(pk, "bind.protectMagicKey", "Protect from Magic", "Turns Protect from Magic (Deflect Magic with curses) on or off.", "SHIFT+F6", bk);
